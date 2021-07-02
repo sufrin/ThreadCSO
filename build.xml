@@ -1,0 +1,209 @@
+<?xml version="1.0"?>
+<!-- 
+        $Id: build.xml 1371 2016-02-06 18:36:07Z sufrin $ 
+-->
+<project name="Threaded CSO" default="jar">
+    <property file="scala.properties"/>
+    <property file="build.properties"/>
+    <echo message="VERSION=${VERSION} SCALAPATH=${SCALAPATH}"/>
+
+    <property name="base.dir" location="${basedir}"/> 
+    <property name="sources.dir" value="${base.dir}/src/io"/>
+    <property name="macro.sources.dir" value="${base.dir}/src/macros/io"/>
+    <property name="tests.sources.dir" value="${base.dir}/testsrc"/>
+    <property name="experiments.dir" value="${base.dir}/experiments"/>
+
+    <!-- LOCAL SCALA IMPLEMENTATION DETAIL -->
+    <property name="scala.home" value="${SCALAPATH}"/>
+
+    <!-- additional ant resources for scala -->
+    <import file="${base.dir}/ant-scala.xml"/>
+
+    <!-- jars on the compilation class path -->
+    <property name="local.jars" value="${base.dir}"/>
+
+    <!-- TARGET DIRECTORIES: CLEANED -->
+    <property name="build.dir" value="${base.dir}/BUILD"/>
+    <property name="macros.dir" value="${base.dir}/MACROS"/>
+    <property name="tests.dir" value="${base.dir}/TESTS"/>
+    <property name="publish.dir" value="${base.dir}/PUBLISH"/>
+    <property name="doc.dir" value="${base.dir}/DOC"/>
+
+    <!-- TARGET NAMES -->
+    <property name="library.jar" value="${publish.dir}/${LIBRARY}-${VERSION}-${SCALAVERSION}.jar"/>
+    <property name="doc.zip"     value="${publish.dir}/${LIBRARY}-${VERSION}-doc.zip"/>
+    <property name="source.zip"  value="${publish.dir}/${LIBRARY}-${VERSION}-src.zip"/>
+    <property name="macros.jar"  value="${build.dir}/${LIBRARY}-${VERSION}-SourceLocation.jar"/>
+    
+    <target name="prepare" description="Prepare working folders">
+        <mkdir dir="${build.dir}"/>
+        <mkdir dir="${macros.dir}"/>
+        <mkdir dir="${doc.dir}"/>
+        <mkdir dir="${publish.dir}"/>
+        <mkdir dir="${tests.dir}"/>
+    </target>
+
+    <target name="clean" description="Remove  working folders">
+        <delete dir="${build.dir}"/>
+        <delete dir="${doc.dir}"/>
+        <delete dir="${macros.dir}"/>
+        <delete dir="${tests.dir}"/>
+    </target>
+
+    <target name="cleaner" depends="clean" description="Remove ${publish.dir} then clean">
+        <delete dir="${publish.dir}"/>
+    </target>
+    
+
+     <!-- SOURCE SETS -->
+   
+     <fileset id="source" dir="${sources.dir}">
+        <include name="**/*.scala"/>
+        <exclude name="**/*Test*.sc ala"/>
+     </fileset> 
+      
+    <fileset id="macrosource" dir="${macro.sources.dir}">
+        <include name="**/*.scala"/>
+        <exclude name="**/*Test*.scala"/>
+     </fileset>  
+       
+     <fileset id="testsource" dir="${tests.sources.dir}">
+        <include name="**/*.scala"/>
+     </fileset>  
+    
+    <!-- COMPILER CLASS PATH -->
+    <path id="scalac.classpath">
+        <fileset dir="${local.jars}">
+            <include name="**/*.jar"/>
+            <!-- for macros -->
+            <include name="${macros.jar}" /> 
+            <!-- exclusions -->
+            <!--exclude name="${build.dir}/**/*.jar"/-->
+        </fileset>
+        <fileset dir="${scala.home}/lib">
+            <include name="*.jar"/>
+        </fileset>       
+        <!--pathelement location="${build.dir}/somethingelse"/-->
+    </path>
+       
+    <!-- TARGETS --> 
+    <!-- elide-below 350 drops FINEST timestamp-style debugging from Alt/SyncChan -->
+    
+    <whenuptodate uptodate="macros.uptodate" refid="macrosource"/>
+    <target name="compilemacros" depends="prepare" 
+            description="Compile the macros)" unless="${macros.uptodate}">
+        <scalac compileid="macrosource" destdir="${macros.dir}" timestamp="macros.uptodate"/>
+        <jar destfile="${macros.jar}"
+             basedir="${macros.dir}"
+             includes="**/*.class"
+             whenmanifestonly="fail">
+          <manifest>
+             <attribute name="Built-By" value="${user.name}"/>
+             <attribute name="Implementation-Title"   value="${LIBRARY}-${VERSION}-${SCALAVERSION}"/>
+             <attribute name="Implementation-Version" value="${VERSION}"/>
+          </manifest>
+        </jar>
+    </target>
+    
+    <whenuptodate uptodate="sourceclasses.uptodate" refid="source"/>   
+    <target name="compile" depends="compilemacros" 
+            description="Compile the library dependent on macros" unless="${sourceclasses.uptodate}">
+            <scalac destdir="${build.dir}" classpathref="scalac.classpath" compileid="source" timestamp="sourceclasses.uptodate"/>
+    </target>
+    
+    <target name="compilecc" depends="compilemacros" 
+            description="Compile the library dependent on macros" unless="${sourceclasses.uptodate}">
+            <scalacc destdir="${build.dir}" sourcedir="${sources.dir}" classpathref="scalac.classpath" timestamp="sourceclasses.uptodate">
+               <include name="**/*.scala"/>
+            </scalacc>
+    </target>
+    
+    
+    <target name="jar" depends="compile,app" description="Make a jar containing the library">
+        <jar destfile="${library.jar}" whenmanifestonly="fail">
+         <fileset dir="${build.dir}"  includes="**/*.class" excludes="*test*"/>
+         <fileset dir="${macros.dir}" includes="**/*.class" excludes="*test*"/>
+         <fileset dir="${base.dir}/APP/BUILD" includes="**/*.class" excludes="*test*"/>
+         <manifest>
+             <attribute name="Built-By" value="${user.name}"/>
+             <attribute name="Implementation-Title"   value="${LIBRARY}-${VERSION}-${SCALAVERSION}"/>
+             <attribute name="Implementation-Version" value="${VERSION}"/>
+          </manifest>
+        </jar>
+    </target>
+    
+    <whenuptodate uptodate="testclasses.uptodate" refid="testsource" />
+    <target name="compiletests" depends="jar" unless="${testclasses.uptodate}" description="Compile the tests (assumes jar built)">
+        <scalac compileid="testsource" destdir="${tests.dir}" classpathref="scalac.classpath" timestamp="testclasses.uptodate" 
+                flags="-deprecation -unchecked -nowarn" />
+    </target>
+    
+    <whenuptodate uptodate="doc.uptodate" refid="source" />
+    <target name="doc" depends="compile" description="Document the library"  unless="${doc.uptodate}">  
+       <scaladoc
+               destdir      = "${doc.dir}"          
+               classpathref = "scalac.classpath"
+               compileid    = "source"
+               timestamp    = "doc.uptodate"
+               >
+       </scaladoc>
+    </target>
+    
+    <target name="app" description="Compile the APP interface">
+      <exec dir="${base.dir}/APP" executable="ant" failonerror="true">
+            <arg line="jar"/>
+      </exec>
+    </target>
+</project>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

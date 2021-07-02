@@ -1,0 +1,232 @@
+<?xml version="1.0"?>
+<!--  
+        Scala App package, for parsing command-line arguments
+        Bernard Sufrin, Oxford, 2015...
+-->
+<project name="App"  default="jar">
+  <property file="scala.properties"/>
+  <property file="build.properties"/>
+  <echo message="VERSION=${VERSION}, SCALAVERSION=${SCALAVERSION}, LIBRARY=${LIBRARY}"/>
+
+  <property name="proj"           value="${LIBRARY}"        />                
+  <property name="base.dir"       value="${basedir}"                 />                
+  <property name="sources.dir"    value="${base.dir}/src"   />  
+  <property name="tests.dir"      value="${base.dir}/test"  />  
+  <property name="build.dir"      value="${base.dir}/BUILD" />  
+  <property name="doc.dir"        value="${base.dir}/DOC"   />  
+  <property name="scala.home"     value="${SCALAPATH}"      />
+  <property name="library.jar"    value="${build.dir}/${proj}-${VERSION}-${SCALAVERSION}.jar" />
+  
+  
+  <import file="${base.dir}/ant-scala.xml"/>
+  
+  
+  <!-- additional ant resources for scala -->
+  <property name="local.jars"   value="." />      
+       
+  <!-- Define scalac.classpath before here if nonstandard -->
+  <path id="scalac.classpath">
+          <fileset dir="${local.jars}">
+              <include name="**/*.jar"/>
+              <!-- for macros -->
+              <include name="${macros.jar}" /> 
+              <!-- exclusions -->
+              <!--exclude name="${build.dir}/**/*.jar"/-->
+          </fileset>
+          <fileset dir="${scala.home}/lib">
+              <include name="*.jar"/>
+          </fileset>       
+          <!--pathelement location="${build.dir}/somethingelse"/-->
+  </path> 
+              
+  <!-- Define scala.classpath before here if nonstandard -->
+  <path id="scala.classpath">
+          <fileset dir="${local.jars}">
+              <include name="**/*.jar"/>
+              <!-- for macros -->
+              <include name="${macros.jar}" /> 
+              <!-- exclusions -->
+              <!--exclude name="${build.dir}/**/*.jar"/-->
+          </fileset>
+          <fileset dir="${scala.home}/lib">
+              <include name="*.jar"/>
+          </fileset> 
+          <!--pathelement location="${build.dir}/somethingelse"/-->
+  </path>             
+ 
+  <target name="prepare">
+    <mkdir dir="${build.dir}"/>
+    <mkdir dir="${doc.dir}"/>
+  </target> 
+  
+  <target name="clean" description="Remove all files from ${build.dir}">
+     <delete dir="${build.dir}"/>
+     <delete dir="${doc.dir}"/>
+  </target>
+  
+  <fileset id="source" dir="${sources.dir}">
+     <include name="**/*.scala"/>
+     <exclude name="**/*Test*.scala"/>
+  </fileset>  
+    
+  <fileset id="testsource" dir="${tests.dir}">
+     <include name="**/*Test*.scala"/>
+  </fileset>  
+
+  <!--  ******************************************************************* -->
+    
+  <whenuptodate uptodate="compile.uptodate" refid="source"/>
+ 
+  <target name="compile" depends="prepare" description="Compile the library" unless="${compile.uptodate}">  
+            <scalac compileid    = "source"
+                    destdir      = "${build.dir}"
+                    timestamp    = "compile.uptodate"/>
+  </target>
+    
+  <target name="compilecc" depends="prepare" description="[Redundant] Compile the library to test [scalacc ...] macro" unless="${compile.uptodate}">  
+            <scalacc destdir      = "${build.dir}"
+                     sourcedir    = "${sources.dir}"
+                     timestamp    = "compile.uptodate">
+              <include name="**/*.scala"/>
+              <exclude name="**/*Test*.scala"/>
+            </scalacc>
+  </target>
+  
+  <!--  ******************************************************************* -->
+  
+  <whenuptodate uptodate="compiletests.uptodate" refid="testsource"/>
+
+  <target name="compiletests" depends="prepare" description="Compile the tests" unless="${compiletests.uptodate}">  
+            <scalac compileid    = "testsource"
+                    destdir      = "${build.dir}"
+                    timestamp    = "testsource.uptodate"/>
+  </target>
+
+  <!--  ******************************************************************* -->
+  
+  <whenuptodate uptodate="doc.uptodate" refid="source"/>
+   
+  <target name="doc" depends="compile" description="Document the library"  unless="${doc.uptodate}">  
+    <scaladoc
+            destdir      = "${doc.dir}"          
+            classpathref = "scalac.classpath"
+            compileid    = "source"
+            timestamp    = "doc.uptodate"
+            >
+    </scaladoc>
+  </target>
+   
+  <!--  ******************************************************************* -->
+  
+  <target name="jar" depends="compile" description="Make a jar containing the library">
+   <jar destfile = "${library.jar}"       
+        basedir  = "${build.dir}"      
+        includes = "**/*.class"
+        excludes = "**/*Test*.class"/>
+  </target>
+    
+  <target name="docjar" depends="jar,doc" description="Make a jar containing the library source and its documentation">
+   <jar destfile = "${base.dir}/${proj}doc.jar" basedir="${base.dir}" includes="doc/**/*,src/**/*.scala"/>     
+  </target>
+  
+  <target name="src" depends="jar" description="Make a jar containing the library source">
+   <jar destfile = "${base.dir}/${proj}-src.jar" basedir="${base.dir}" includes="src/**/*.scala,*.xml"/>     
+  </target>
+  
+  <!--  ******************************************************************* -->
+
+  <target name="opttest" depends="jar,compiletests" description="Run some Opt tests">  
+    <scalatest dir="${build.dir}">
+     OptTest -help
+    </scalatest>
+    <scala dir="${build.dir}">
+     OptTest -d
+    </scala>
+    <scalatest dir="${build.dir}">
+     OptTest a b c -f foo/bar -k 23 -r 3.141599999 more paths
+    </scalatest>
+    <scalatest dir="${build.dir}" message="Expected to fail at -paths">
+     OptTest a b c -f foo/bar -k 23 -r 3.141599999 more -paths xyzzy
+    </scalatest>
+    <scalatest dir="${build.dir}" message="Expected to fail at -r">
+     OptTest a b c -f foo/bar -k 23 -r threePointOne more -paths xyzzy
+    </scalatest>
+    <scalatest dir="${build.dir}" message="Expected to fail at -r">
+     OptTest a b c -f foo/bar -k 23 -r 
+    </scalatest>
+    <scalatest dir="${build.dir}" message="Expected to fail at -fail">
+     OptTest a b c -fail -f foo/bar -k 23 -r threePointOne more -paths xyzzy
+    </scalatest>
+  </target>
+  
+  <target name="apptest" depends="jar,compiletests" description="Run some App tests">  
+    <scalatest dir="${build.dir}">
+     AppTest -help
+    </scalatest>
+    <scalatest dir="${build.dir}" message="expected to fail at -d">
+     AppTest -d
+    </scalatest>
+    <scalatest dir="${build.dir}">
+     AppTest a b c -f foo/bar -k 23 -r 3.141599999 more paths
+    </scalatest>
+    <scalatest dir="${build.dir}" message="Expected to fail at -paths">
+     AppTest a b c -f foo/bar -k 23 -r 3.141599999 more -paths xyzzy
+    </scalatest>
+    <scalatest dir="${build.dir}" message="Expected to fail at -fail">
+     AppTest a b c -fail -f foo/bar -k 23 -r 3.141599999 more -paths xyzzy
+    </scalatest>
+  </target>
+ 
+  
+</project>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

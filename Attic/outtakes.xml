@@ -1,0 +1,102 @@
+   <target name="compile" depends="compilewithmacros" 
+            description="Compile the library" 
+            unless="${compile.notrequired}"/>
+    
+    <target name="app" description="Compile the APP interface">
+      <ant dir="APP"
+           antfile="externalbuild.xml"
+           inheritall="true"
+           target="jar">
+        <property  name="base.dir"  value="."/>
+        <property  name="jar.dir"   value="${publish.dir}"/>
+        <reference refid="compile.classpath"/>
+      </ant>
+    </target>
+
+    <target name="tests" depends="prepare,app" description="Compile the tests (assumes jar built)">
+        <mkdir dir="${build.dir}"/>
+        <scalac srcdir="${test.dir}"
+                destdir="${build.dir}"
+                deprecation="on"
+                unchecked="on"
+                addparams="-feature -language:implicitConversions -language:postfixOps"
+                classpathref="compile.classpath"
+                force="changed">
+            <include name="${test.all}"/>
+        </scalac>
+    </target>
+
+    <target name="experiments" depends="prepare" description="Compile the experiments (assumes jar built)">
+        <mkdir dir="${build.dir}"/>
+        <scalac srcdir="${experiments.dir}"
+                destdir="${build.dir}"
+                deprecation="on"
+                unchecked="on"
+                addparams="-feature -language:implicitConversions -language:postfixOps"
+                classpathref="compile.classpath"
+                force="changed">
+            <include name="${experiments.all}"/>
+        </scalac>
+    </target>
+
+    <target name="doc" depends="compile" description="Document the library" unless="${doc.notrequired}">
+        <!--scaladoc
+                srcdir="${sources.dir}"
+                destdir="${doc.dir}"
+                classpathref="compile.classpath"
+                addparams="-feature -language:implicitConversions -language:postfixOps"
+                doctitle="${DOCTITLE}"
+                unchecked="on"q
+        >
+            <include name="${sources.all}"/>
+            <exclude name="${sources.tests}"/>
+        </scaladoc-->
+        <exec executable="scaladoc" failonerror="true">
+           <arg line="-d '${doc.dir}'" />
+           <arg line="-classpath '${macros.jar}:${COMPILECLASSPATH}'" />
+           <arg line="-deprecation" />
+           <arg line="@${build.dir}/TOBECOMPILED" />
+        </exec>        
+    </target>
+
+    
+
+    <target name="doczip" depends="doc" description="Make a zip containing the documentation">
+        <zip destfile="${doc.zip}">
+            <fileset dir="${doc.dir}">
+                <include name="**/*"/>
+            </fileset>
+        </zip>
+    </target>
+
+    <target name="source"  description="Make a zip containing the library source">
+        <zip destfile="${source.zip}" update="no">
+            <fileset dir="${base.dir}" casesensitive="yes">
+                <include name="${sources.all}"/>
+                <exclude name="${sources.exclude}"/>
+                <include name="${xml.include}"/>
+                <exclude name="${xml.exclude}"/>
+                <include name="*.properties"/>
+            </fileset>
+        </zip>
+    </target>
+
+   <property name="WEBSITE" value="sufrin@linux.cs.ox.ac.uk:WEBCSO"/>
+   <target name="sync" depends="publish" description="Synchronize build with Distribution Website">
+     <exec osfamily="unix" executable="rsync">
+       <arg line="-avz Website/ ${WEBSITE}"/>
+     </exec>
+     <exec osfamily="unix" executable="rsync">
+       <arg line="-avz Paper/cso-paper.pdf ${WEBSITE}"/>
+     </exec>
+     <exec osfamily="unix" executable="rsync">
+       <arg line="--copy-links -avz ${publish.dir}/  ${WEBSITE}/${SCALAVERSION}"/>
+     </exec>
+   </target>
+   
+       <target name="publish" depends="jar,doczip,source"
+            description="Build jar, doc zip, and source zip in ${publish.dir}"
+    />
+
+
+
