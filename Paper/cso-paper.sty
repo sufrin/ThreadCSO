@@ -1,0 +1,65 @@
+%
+%       Stylistic details for cpa2008-cso.tex
+%
+\ProvidesPackage{cpa2008-cso2017revision}
+\RequirePackage{times,xspace,listscala,textract,alltt,endnotestyle,epsfig}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% \pdffig[properties]{filestem}
+%
+\newcommand{\pdffig}[2][]{\IfFileExists{#2.pdf}%
+{\epsfig{#1, file=#2.pdf}}%
+{\begin{center}\fbox{Missing figure: \bf #2.pdf}\end{center}
+ \typeout{============ Missing Figure #2.pdf ===============}}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% \occam
+%
+\def\occam{\textsf{occam}\xspace}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% \textsc{scala} -- set inline scala text
+%
+\def\textscala#1{{\ttfamily{}\bgroup\lstinline{#1}\egroup}}
+\def\textsc#1{{\ttfamily{}\bgroup\lstinline{#1}\egroup}}
+\let\classsize=\small
+\lstset{language=scala}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% Stylistic detail of listing references
+%
+\def\lstlistingname{Program}
+\def\Listing{program\xspace}
+\def\Listings{programs\xspace}
+\def\Figure{figure\xspace}
+\def\Figures{figures\xspace}
+\def\Table{table\xspace}
+\def\Tables{tables\xspace}
+
+%
+% \@makecaption{listing name}{listing caption} -- sets a caption
+%
+\long\def\@makecaption#1#2{%
+     \vskip\abovecaptionskip
+     \sbox\@tempboxa{\small{\textbf{#1.} #2}}%
+     \ifdim \wd\@tempboxa >\hsize
+       % Set the caption as a paragraph if it is too wide to be centred
+       \small{\textbf{#1.} #2}\par
+     \else
+       % Centre the caption if that can be done
+       \global \@minipagefalse
+       \hb@xt@\hsize{\hfil\box\@tempboxa\hfil}%
+     \fi
+     \vskip\belowcaptionskip}%
+
+
+
+
+
+
+
+

@@ -18,7 +18,8 @@ When an `App` starts, the list of command line arguments
 
 is parsed by finding a declared option whose pattern matches `arg1`,
 then taking `arity` arguments (including `arg1`) and passing them
-to the meaning function. Then `arity` arguments are removed from
+to a suitable function, usually one that sets a particular
+variable. Then `arity` arguments are removed from
 the list, and the parsing continues. The parsing stops when there
 are no arguments left (or when a parsing error occurs).
 
@@ -30,6 +31,10 @@ argument (after the "=") is treated as if it had been given as an
 additional argument. This is (mostly) indended for parsing options
 of the form `--opt=`*argument*
 
+Importing (all) the `OPT._` macros provides a very convenient way to 
+construct variable-setting functions for variables of most types:
+it's only necessary to mention the variable that is to be set, and
+the macro does the rest.
 
 See below for a simple and effective way of using the `App/Opt`
 packages to accumulate a queue of jobs to be performed by the program
@@ -79,4 +84,5 @@ queue is available when the options and paths have all been parsed
              
         }
         
+
 

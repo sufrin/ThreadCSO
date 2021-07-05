@@ -110,6 +110,8 @@
                    compile      ="${scalac.compile}"
                    compileid    ="${scalac.compileid}"
                    classpathref ="${scalac.classpathref}"
+                   doctitle     =""
+                   docversion   =""
            />
                    
         -->
@@ -121,6 +123,8 @@
         <attribute name="classpathref" default="${scalac.classpathref}"/>        
         <attribute name="indirect-file" default="${build.dir}/scaladoc-arguments"/>        
         <attribute name="timestamp"     default=""/> 
+        <attribute name="doctitle"      default=""/> 
+        <attribute name="docversion"    default=""/> 
 
         <sequential>
             <local name="classpath"/>
@@ -133,6 +137,8 @@
             <echo file="@{indirect-file}" append="true" message=" @{params}"      />
             <echo file="@{indirect-file}" append="true" message=" @{flags}"       />
             <echo file="@{indirect-file}" append="true" message=" @{language}"    />
+            <echo file="@{indirect-file}" append="true" message=" -doc-title '@{doctitle}'"    />
+            <echo file="@{indirect-file}" append="true" message=" -doc-version '@{docversion}'"    />
             <echo file="@{indirect-file}" append="true" message=" ${compileset}" />                
             <execute-and-timestamp executable="scaladoc" 
                                    arg="@{indirect-file}" 
@@ -201,8 +207,45 @@
            </exec>
            <echo message="-----------------------"/>
       </sequential>
-    </macrodef>    
+    </macrodef> 
+    
+    <macrodef name="makejavamain" description="Make a main program jar runnable by java">
+    <!--
+           Make a java-runnable jar file @{name} from all the compiled files in
+           ${build.dir} and with a class path that includes all the jar
+           files in the fileset ${runtime.classpath} (or that named
+           by the classpathid paramater.
+
+           The name of the main class is @class.
+
+             Example:             <makemain name="test.jar" class="Test1"/>
+             To run this example: java -jar Test
+
+           THIS IS NOT A RELIABLE WAY OF BUILDING A CLOSED AND TRANSPORTABLE
+           JAVA PROGRAM, FOR IT USES ABSOLUTE PATHS ON THE CURRENT HOST.
+    -->    
+        <attribute name="name"/>                           <!-- Name of the program jar file -->
+        <attribute name="class"/>                          <!-- Name of the main class -->
+        <attribute name="classpathid" default="${scala.classpath}"/>  <!-- Id of the runtime classpath -->
+
+        <sequential>
+            <local       name="jar.classpath"/>
+            <pathconvert property="jar.classpath" pathsep=" " refid="@{classpathid}"/>
+            <echo message="JAR CLASSPATH: ${jar.classpath}"/>
+            <jar destfile="${build.dir}/@{name}"
+                 basedir="${build.dir}"
+                 includes="**/*.class">
+                <manifest>
+                    <attribute name="Main-Class" value="@{class}"/>
+                    <attribute name="Class-Path" value="${jar.classpath}"/>
+                </manifest>
+            </jar>
+        </sequential>
+    
+    </macrodef>   
 </project>
+
+
 
 
 

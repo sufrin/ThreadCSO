@@ -1,0 +1,14 @@
+*.class
+*.log
+BUILD/*
+DOC/*
+MACROS/*
+*.uptodate
+scalac-arguments
+scaladoc-arguments
+*~
+
+
+
+
+

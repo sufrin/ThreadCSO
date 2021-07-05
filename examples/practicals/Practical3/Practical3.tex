@@ -1,0 +1,130 @@
+\documentclass{../csopractical}
+\usepackage{pdffig}
+\SVN    $Id: Practical3.tex 1325 2016-01-15 19:11:41Z sufrin $
+
+\begin{document}
+\begin{center}
+\Large\bf Concurrent Programming Practical 
+\\
+3: Hamming Numbers 
+\end{center}
+%\maketitle
+
+It is recommended that you read the material from the section of the course on
+\emph{Message Passing} (using Channels) before you attempt this practical.
+
+The aim of the practical is to  implement a dataflow network to generate
+an ordered sequence of \textit{Hamming Numbers}, with no duplicates.
+The (inductive) definition of the Hamming numbers is as follows:
+%
+\begin{itemize}
+\item 1 is a Hamming number.
+\item If $h$ is a Hamming number, then so are $2h$, $3h$ and $5h$.
+\end{itemize}
+%
+Another way of thinking of the Hamming numbers is that they are those whose
+only prime factors are 2, 3 and 5.
+
+The illustration below shows a network that solves the problem. If you
+have read the material suggested, it should be fairly obvious what the
+various components are expected to do.  The component \SCALA{Merge} receives
+two ordered streams, and merges them into a single ordered stream, without
+repetitions. 
+
+\begin{center}
+\pdffig[width=6cm]{hamming}
+\end{center}
+
+\subsubsection*{Your Task}
+Implement the network.  
+
+You may make use of components from the package
+\SCALA{io.threadcso.component} if you like (but note that
+\SCALA{io.threadcso.component.merge} has a different behaviour from the
+\SCALA{Merge} required here).  In some cases you will need to
+implement your own components, especially to answer some of the questions
+below. 
+
+If you implement the network with no buffering on any of the channels, you
+will find that it deadlocks.  Explain precisely how this deadlock
+arises: you should explain what state each component is in in the deadlocked
+state.  You might need to adapt some of the components in order to understand
+this behaviour.
+
+Re-implement the network with sufficient buffering to enable it to find the value
+of the 1000th Hamming number.  The declaration
+\begin{scala}
+val c = OneOneBuf[T](size)
+\end{scala}
+defines \SCALA{c} to be an asynchronous buffered channel, passing data of
+type~\SCALA{T}, with capacity~\SCALA{size}.  Think about which channels
+need to be buffered, and which can remain unbuffered.
+
+{\bf Optional:} Modify the components so that all the processes terminate
+cleanly once the 1000th Hamming number has been output.
+
+\textbf{Just for fun:}
+Generalize the construction of the network so that it generates
+the sequence of ``Hamming-like'' numbers whose  factors are given as a 
+list of parameters to your program.
+
+
+\subsubsection*{Reporting}
+
+Your report should be in the form of a well-commented program, together with
+brief answers to the above points. 
+
+%% You have already seen the design of a \texttt{Tee}-like
+%% component. You are expected to design the remaining
+%% components (\texttt{Merge, Buf, x2, x3, x5}) that will
+%% enable you to explore the behaviour of the
+%% network but you must decide for yourself how to
+%% ``bootstrap'' the data flow in the network, and how and
+%% where to ``tap'' the network so that the numbers can be
+%% output to a channel from which they can be read and used.
+%% In the diagram these details are hidden within the component named
+%% \texttt{Hamming}.
+
+%% Your report (which need not be very long) should explain your
+%% code. In it you should also document the results of your investigation into the
+%% following questions:
+%% \begin{enumerate}\item[]
+%% \begin{enumerate}\item[]
+%% \begin{enumerate}
+%% \item Does the network deadlock? 
+%% \item If so, then under what circumstances does it deadlock?
+%% \item Could the deadlock either be avoided or postponed by changing the 
+%%       design of the network or by increasing the size of one or more
+%%       of the buffers?
+%% \item What is the largest Hamming number representable as a \SCALA{long}?
+%% \item What is the 10000'th Hamming number?
+%% \item Can any network component be modified, or can
+%%       suitable components be added to the network, to ensure that all
+%%       processes involved terminate cleanly after the largest representable
+%%       Hamming number has been output?
+%% \end{enumerate}
+%% \end{enumerate}
+%% \end{enumerate}
+
+\vfill
+
+
+\end{document}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

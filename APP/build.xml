@@ -9,7 +9,7 @@
   <echo message="VERSION=${VERSION}, SCALAVERSION=${SCALAVERSION}, LIBRARY=${LIBRARY}"/>
 
   <property name="proj"           value="${LIBRARY}"        />                
-  <property name="base.dir"       value="${basedir}"                 />                
+  <property name="base.dir"       value="${basedir}"        />                
   <property name="sources.dir"    value="${base.dir}/src"   />  
   <property name="tests.dir"      value="${base.dir}/test"  />  
   <property name="build.dir"      value="${base.dir}/BUILD" />  
@@ -112,6 +112,8 @@
             classpathref = "scalac.classpath"
             compileid    = "source"
             timestamp    = "doc.uptodate"
+            doctitle     = "${LIBRARY}"
+            docversion   = "${VERSION}"
             >
     </scaladoc>
   </target>
@@ -179,54 +181,3 @@
  
   
 </project>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

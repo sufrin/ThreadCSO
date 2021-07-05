@@ -1,0 +1,1610 @@
+\documentclass[12pt]{IOS-Book-Article-CPA-2017}
+\usepackage{cso-paper,RCS}
+\SVN    $Id: cso-paper.tex 306 2017-12-19 16:29:29Z sufrin $
+\def\AND{\mathtt{\&\&}}
+% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%
+%
+% If you don't like endnotes then uncomment
+%
+%\long\def\note#1{\footnote{#1}}\let\listofendnotes=\relax
+%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\parindent=0pt\parskip=\smallskipamount
+
+% Dec 28, 2014: textsc was not compatible with tabular; so I removed the tabular 
+
+
+\begin{document}
+\begin{frontmatter}
+\setcounter{page}{1}
+
+\title{Communicating Scala Objects\\ (2017 Revision)}
+\runningtitle{Communicating Scala Objects (CSO Version 1.2, 2017 Revision)}
+\runningauthor{Bernard Sufrin}
+
+\author{\fnms{Bernard} \snm{SUFRIN}}
+\address{
+Oxford University Department of Computer Science \\and\\
+   Worcester College, 
+   \\ 
+   Oxford OX1 2HB, England
+   \\[4pt]
+   {\small {\tt Bernard.Sufrin@cs.ox.ac.uk}}
+}
+
+
+
+\begin{abstract}
+   In this paper we introduce the core features of CSO (Communicating
+   Scala Objects) -- a notationally convenient embedding of the
+   essence of \occam in a modern, generically typed, object-oriented
+   programming language that is compiled to Java Virtual Machine
+   (JVM) code.
+      
+   \noindent\textit{This revision uses CSO notation compatible with
+           version 1.2 of CSO. 
+          } 
+   
+\end{abstract}
+
+\begin{keyword}
+\textsf{occam} model\sep
+concurrency\sep
+Scala\sep
+JCSP.%\sep
+\end{keyword}
+\end{frontmatter}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\codestyle{scala}
+
+
+\section*{Introduction}
+
+On the face of it the Java virtual machine (JVM) is a very attractive platform for 
+realistic concurrent and distributed applications and systems. On
+the other hand, the warnings from at least parts of the ``Java establishment'' 
+to neophyte Java programmers who think about using
+threads are clear:
+
+\begin{itemize}\parskip=\medskipamount\item[]
+\begin{it}
+If you can get away with it, avoid using threads. Threads can be
+difficult to use, and they make programs harder to debug.
+
+It is our basic belief that extreme caution is warranted when
+designing and building multi-threaded applications
+... use of threads can be very deceptive ...
+in almost all cases they make debugging, testing, and maintenance
+vastly more difficult and sometimes impossible. Neither the training,
+experience, or actual practices of most programmers, nor the tools
+we have to help us, are designed to cope with the non-determinism
+...  this is particularly true in Java ...  we urge you to think
+twice about using threads in cases where they are not absolutely
+necessary ...\cite {jfc1}
+\end{it}
+\end{itemize}
+
+But over the years a number of Java libraries \cite{dearsir,jcsp,jcsp2,ctj,ctjapp}
+have demonstrated that the \occam programming model can be used
+very effectively to provide an intellectually tractable \textit{discipline}
+of concurrent Java programming that is harder to achieve by those
+who rely on the lower level, monitor-based, facilities provided by
+the Java language itself.
+
+So in mid-2006, faced with teaching a new course on
+concurrent and distributed programming, and wanting to make
+it a \textit{practical} course that was easily accessible to
+Java programmers, we decided that this was the way to go
+about it.  We taught the first year of this course using a
+Java library.\note{This was derived from an earlier library,
+written in Generic Java, whose development had been inspired
+by the appearance of the first public edition of JCSP.  The
+principal differences between that library and the JCSP
+library were the generically parameterized interfaces,
+\textsf{InPort} and \textsf{OutPort} akin to
+what JCSP called ``channel ends.''}
+
+Our students' enthusiastic reaction to the \occam model was as
+gratifying as their distaste for the notational weight of its
+embedding in Java was dismaying. 
+%
+Although we discussed \textit{designs} for our concurrent programs
+using a CSP-like process-algebra notation and a simplified form of
+ECSP \cite{ecsp,ecspman}, the resulting \textit{coding gap} appeared
+to be too much for most of the students to stomach.
+
+At this point one of our visiting students introduced us to
+Scala \cite{scala}, a modern object-oriented language that
+generates JVM code, has a more subtle generic type system than 
+Java, and has other features that make it very easy to construct
+\textit{domain-specific languages} -- libraries that appear to be notational extensions.
+
+After toying for a while with the idea of using Scala's Actor library
+\cite{actors1,actors2}, we decided instead to develop a new Scala
+library to implement the \occam model independently of existing
+Java libraries,\note{Although Scala interoperates with Java, and
+we could easily have constructed Scala ``wrappers'' for the JCSP
+library and for our own derivative library, we wanted to have a
+pure Scala implementation both to use as part of our instructional
+material, and to ensure portability to the \textsf{.NET} platform
+when the Scala \textsf{.NET} compiler became available.} and of
+Scala's Actor library.\note{The (admirably ingenious) Actor library implementation is
+complicated; its performance appears to scale well only for
+certain styles of use; and it depends for correct functioning on a
+global timestamp (\cite{actors2} p183).}
+%
+Our principal aim was to have a self-contained library we
+could use to support subsequent delivery of our course (many
+of whose examples are toy programs designed to illustrate
+patterns of concurrency), but we also wanted to explore its
+suitability for structuring larger scale Scala programs.
+
+This paper is an account of the most important features of the core of 
+the Communicating Scala Objects (CSO) library that emerged. We have assumed a little
+familiarity with the conceptual and notational basis of \occam and
+and some familiarity with Scala.
+
+
+
+\begin{comment}
+Readers familiar with JCSP and Scala may be able to get a quick initial 
+impression of the relative notational weights of Scala+CSO and Java+JCSP 
+by inspecting the definitions of \textsc{FairPlex} multiplexer components
+defined on pages \pageref{scalafairplex} 
+and \pageref{javafairplex} respectively. 
+\end{comment}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Processes}
+A CSO process is a value with Scala type \textscala{PROC} and is
+what an experienced object oriented programmer would call a
+\textit{stereotype} for a thread. When a process is \textit{started}
+any fresh threads that are necessary for it to run are acquired
+from a pool; they are returned to the pool when the process
+terminates.\note{The present pool implementation acquires new worker
+threads from the underlying JVM when necessary and ``retires''
+threads that have remained dormant in the pool for more than a
+certain period.}
+
+\subsection{Process notation}
+\label{Process Notation}
+Processes ($p:$ \textsc{PROC}) are first-class Scala values, denoted by
+one of the following forms of expression:
+\begin{itemize}\item[]
+\begin{itemize}
+
+\item[1a.]  \textsc{proc} \{ \(expr\) \}                   
+\item[1b.]  \textsc{proc} (\(name: String\)) \{ \(expr\) \}
+  
+  A simple process (\(expr\) must be a command, \textit{i.e.} have type \textsc{Unit})
+  
+  If a $name$ is not given explicitly, one is automatically associated with the process value
+  as it is constructed.
+
+   
+\item[2.]  \(p_1 \mathrel{||} p_2 \mathrel{||} ... \mathrel{||} p_n\)  
+  
+  \quad A parallel composition of $n$ processes (each \(p_i\) must have type \textsc{PROC})
+
+\item[3.] \(\mathrel{||} collection\)        
+  
+  \quad Parallel composition of a finite collection of \textsc{PROC} values.
+  
+  \quad When $collection$ comprises \(p_1 ... p_n\) this is equivalent to  
+  \(p_1 \mathrel{||} p_2 \mathrel{||} ... \mathrel{||} p_n\).
+\end{itemize}
+\end{itemize}
+
+
+A frequently-occuring pattern of this latter form of
+composition is one in which the collection is an iterated form, such as:
+$\mathrel{||}$ \textscala{(for (i<-0 until n)} \textscala{yield} $p(i)$\textsc{)}.
+This form denotes a process equivalent to: $p(0)\mathrel{||} p(1) \mathrel{||} ... \mathrel{||}p(n-1)$,
+
+\subsection{Starting and running processes}
+\label{Starting and running processes}
+If $p$ is a process, then evaluation of the expression $p()$ runs the process.\note
+{The expression $\mathsf{run}(p)$ has exactly the same effect as $p()$. 
+The expression $\mathsf{fork}(p)$ runs $p$  in a new thread concurrent with the 
+thread that invoked \textsf{fork}, and returns a \textit{handle} on the running process. The new thread is recycled when the process terminates.}
+The following cases are distinguished:
+%\note{A process $p$ may also be \textit{forked} using its \textsc{fork} method.}
+
+\begin{enumerate}
+\item[1a.] $p$ is \textsc{proc} \{ $expr$ \} \label{simple}
+\item[1b.] $p$ is \textsc{proc} (\(name: String\)) \{ \(expr\) \}
+\begin{itemize}
+        \item[$\cdot$] $p()$ causes \{ $expr$ \} to be evaluated in the current thread (\textit{ie.} the thread that started the evaluation of $p()$).
+        \item[$\cdot$] The process as a whole terminates when 
+                       the evaluation of \{ $expr$ \} terminates
+                       or throws an (uncaught) exception.
+        
+        \item[$\cdot$] The 
+        behaviour of the expression \textscala{p()} 
+        cannot be distinguished from 
+        that of the expression \textscala{\{expr\}}, except that
+        its $name$ is used to identify the thread running $p$ until
+        $p$ terminates. This identification can be helpful when 
+        inspecting a running CSO program using the CSO debugger.
+\end{itemize}
+
+\item $p$ is $p_1 \mathrel{||} p_2 \mathrel{||} ... \mathrel{||} p_n$ 
+\begin{itemize}
+        \item[$\cdot$] $p()$ causes all the processes $p_1 ... p_n$ to be run concurrently.
+        \item[$\cdot$] Each of the processes except one is run in a new thread of its own;         
+        the remaining process is run in the current thread.      
+        \item[$\cdot$] The process as a whole terminates only  
+                       when \textit{every} component  $p_i$ 
+                       has terminated. But
+              if one or more of the components
+              terminated by throwing an uncaught exception then
+              \textit{when and only when they have all terminated}
+              these exceptions are bundled into a \textsc{ParException}
+              which is re-thrown, \textit{unless they are all subtypes of} 
+              \textsc{io.threadcso.process.Stopped}; in which case a single \textsc{io.threadcso.process.Stopped}
+              is thrown.\note{This is
+              because \textsc{io.threadcso.process.Stopped} exceptions signify anticipated
+              failure, whereas other types of exception signify unexpected failure,
+              and must be propagated rather than silently ignored. One useful
+              consequence of the special treatment of \textsc{io.threadcso.process.Stopped}
+              exceptions is explained in section \ref{Closing Ports
+              and Channels}: \textit{Closing Ports and Channels}.}
+              
+\end{itemize}
+\end{enumerate}
+
+
+
+\begin{comment}
+\subsection{Starting and running background processes}
+It can sometimes simplify the construction of a large system to
+have processes that run (more or less permanently) in the background.
+%
+If $p$ is a process, then evaluation of the expression $p~$\textscala{fork}
+starts $p$ in a new thread that runs concurrently with
+the current thread. The value of the expression is a  \textscala{process.Handle}
+associated with the newly started thread and can be used to discover when
+(and how) the thread terminates. 
+\end{comment}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Ports and Channels}
+
+\subsection{Introduction}
+A CSO channel has two ports, one at each end, and in general is intended to transmit
+to its \textit{input port} the data that is written to its \textit{output port}. Ports
+are parameterized by the type of data the channel transmits, and we define the abbreviations
+\textscala{?[T]} and \textscala{![T]} respectively for
+\textscala{InPort[T]} and \textscala{OutPort[T]}.
+
+The most important method of 
+an \textscala{![T]} is its write method
+\begin{code}[]
+    ! (value: T) 
+\end{code}
+and the most frequently-used methods of
+an \textscala{?[T]} are its read method
+\begin{code}[]
+    ? () : T
+\end{code}
+and its \textit{read and evaluate} method 
+\begin{code}[]
+    ? [U] (f: T => U) : U 
+\end{code}
+The expression $port?(f)$ has exactly the same
+effect as $f(port?())$, namely to read a datum from $port$ 
+(waiting, if necessary, for one to become available) then apply 
+the function $f$ to it.
+
+The type \textscala{Chan[T]} is the interface implemented by all
+channels that carry values of type \textsc{T}: it is declared by:
+\begin{code}[]
+    trait  Chan[T] extends InPort[T] with OutPort[T] { ... }
+\end{code}
+
+This makes \textscala{Chan[T]} a subtype of both \textscala{InPort[T]}
+and \textscala{OutPort[T]}. It makes sense to think of a \textsc{Chan}
+as embodying both an \textsc{InPort} and an \textsc{OutPort}.
+
+The implicit contract of every conventional \textscala{Chan} implementation
+is that it transmits the data written at its output port to its input
+port in the order in which the data is written.  Different implementations
+have different synchronization behaviours and different restrictions
+on the numbers of processes that may access (\textit{i.e.} use the
+principal methods of) their ports at any time. Channels may be
+closed in various ways, in which case they
+(eventually or immediately) cease to transmit data: 
+see section \ref{Closing Ports and Channels} for a fuller
+discussion of this.
+
+The CSO core comes with several predefined channel implementations, the most
+notable of which for our present purposes are:
+\begin{itemize}
+\item The \textit{synchronous} channels. These all synchronize
+      termination of the execution of a ! at their output port with the
+      termination of the execution of a corresponding ?  at their
+      input port.\note{Other forms of synchronous channel, mostly now obsolete, are:
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{itemize} 
+
+
+\item \textscala{ManyOne[T]}  -- No more than one process at a time
+       may access its input port; processes attempting to access its output
+       port get access in nondeterministic order. {The
+       name is a contraction of ``From \textsc{Many} possible writer
+       processes to \textsc{One} reader process.'' The other
+       forms of synchronous channel are named using the 
+       same contraction convention.} 
+
+\item \textscala{OneMany[T]}  -- No more than one process at a time
+       may access its output port; processes attempting to access its input
+       port get access in nondeterministic order. 
+
+\item \textscala{ManyMany[T]} -- Any number of processes may attempt
+       to access either port. Writing processes get access in nondeterministic
+       order, as do reading processes.
+      
+\end{itemize}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+}
+
+\begin{itemize}
+\item \textscala{OneOne[T]}  -- no more than one process at a time
+       may write to its output port or read from its input port.\note{The name is a
+       contraction of ``From \textsc{One} writer process to \textsc{One}
+       reader process.''} This is the classic \occam-style point
+       to point channel. The channel stops transmitting data when it has been 
+       closed for output or closed for input.
+\item \textscala{N2N[T](writers: Int, readers: Int)} -- several 
+      different processes at a time may write to its (shared) output port and
+      likewise several may read from its (shared) input port.  
+      Each value that is read is read by only one of the processes. The channel
+      stops transmitting data when it has been closed for output $writers$ times
+      or closed for input $readers$ times.
+\end{itemize}
+
+
+\item The \textit{buffered} channels:
+
+\begin{itemize}
+\item \textscala{OneOneBuf[T](n)} -- a one-to-one buffer of capacity
+      $n$. It stops transmitting data when it has been closed for input, or
+      when it has been closed for output and  no longer has any
+      buffered data available to input.
+\item \textscala{N2NBuf[T](n: Int, writers: Int, readers: Int)} --  a 
+buffer of capacity $n$.  It stops transmitting data when
+it has been closed for input $readers$ times, or when it has been closed for 
+output $writers$ times and  no longer has any
+buffered data available to input.
+\end{itemize}
+\end{itemize}
+\noindent Access restrictions are enforced by a combination of:
+\begin{itemize}
+\item Type constraints that permit sharing requirements to be enforced statically.
+\begin{itemize}
+\item All output port implementations that support shared access
+      have types that are subtypes of \textsc{SharedOutPort}.
+
+\item All input port implementations that support shared access
+      have types that are subtypes of \textsc{SharedInPort}.
+
+\item All channel implementations that support shared access
+      to both their ports have types that are 
+      subtypes of \textsc{SharedChannel}.
+
+\item Abstractions that need to place sharing requirements on
+      port or channel parameters do so by declaring them with the appropriate 
+      type.\note{See, for example, the component \textsc{mux2} defined in
+      \Listing \ref{mux}.}
+      
+\end{itemize}
+\item Run-time checks that offer \textit{partial} protection against
+deadlocks or data loss of the kind that can could
+otherwise happen if unshareable ports were
+inadvertently shared. 
+\begin{itemize}
+\item If a read is attempted from a channel with an unshared input port 
+      before an earlier read has terminated, then an illegal state
+      exception is thrown.
+\item If a write is attempted to a channel with an unshared output port 
+      before an earlier write has terminated, then an illegal state
+      exception is thrown.
+\end{itemize}
+These run-time checks are limited in their effectiveness because it is
+might be possible for a single writer process to work fast enough to
+satisfy illegitimately sharing reader processes without being
+detected by the former check, and for the dual situation
+to remain undetected by the latter check.
+\end{itemize}
+
+
+
+\subsection{Examples}
+
+
+In \Listing \ref{jcspnet} we show how to connect a sequence 
+of $n$ producers to a sequence of $n$ consumers using a single
+multiplexed channel that carries values accompanied by 
+the index of their producer to a demultiplexer that dispatches these
+values to the corresponding consumer.
+Readers familiar with JCSP may find it useful to compare this
+with the network illustrated in section 1.5 of \cite{jcsp2}.
+
+\begin{code+}[...]{float,frame=lrtb,label=jcspnet,caption={A network of producers connected to consumers by a multiplexed channel}}
+    def producer(i: int, ![T]) : PROC = ...
+    def consumer(i: int, ?[T]) : PROC = ...
+    
+    def mux[T] (ins: Seq[?[T]],   out: ![(int, T)]) : PROC = ...
+    def dmux[T](in:  ?[(int, T)], outs: Seq[![T]])  : PROC = ...
+    
+    
+    val left, right = 
+        for (_ <- 0 until n) yield OneOne[T] // 2 arrays of n channels
+    val mid = OneOne[(int, T)]               // a channel
+    
+    (  || (for (i<-0 until n) yield producer(i, left(i)))
+    || mux(left, mid)
+    || dmux(mid, right)
+    || || (for (i<-0 until n) yield consumer(i, right(i)))
+    )()  
+\end{code+}
+
+As observed in that paper this isn't the most efficient
+way of connecting the producers to the consumers within a single
+JVM; and in \Listing \ref{jcspnet1} we show a network in which producers
+and consumers are connected directly.
+
+\begin{code+}{float,frame=lrtb,label=jcspnet1,caption={A network in which producers are connected directly to consumers}}
+    def producer(i: int, ![T]) : PROC = ...
+    def consumer(i: int, ?[T]) : PROC = ...
+    
+    val con = for (_ <- 0 until n) yield OneOne[T]
+    
+    (  || (for (i<-0 until n) yield producer(i, con(i)))
+    || || (for (i<-0 until n) yield consumer(i, con(i)))
+    )()  
+\end{code+}
+
+The signatures of the components \textsc{producer}, \textsc{consumer},
+\textsc{mux}, and \textsc{dmux} in \Listings \ref{jcspnet} and
+\ref{jcspnet1} specify the types of port (channel end) they require;
+but the subtype relation between channels and ports means that when
+connecting these components we can simply provide the connecting
+channels as parameters, and that the components take the required
+\textit{view}s of them. This means we needn't name the ports
+explicitly, and significantly reduces the degree of \textit{formal
+clutter} in the network description.\note{The reduction of formal
+clutter comes at the cost of forcing readers to refer back to 
+the component signatures to ascertain which
+ports they actually use. The JCSP designers made the tradeoff in 
+the other direction.}
+
+In \Listing \ref{mux}  we show how to implement two (unfair) 
+multiplexers and a demultiplexer of the kind that might have
+been used in \Listing \ref{jcspnet}.\note{We have used
+the plain form of read $(mid?())$ and its read-and-evaluate form $(ins(i) ? { v \Rightarrow mid!(i, v)})$ 
+simply to give an example of the latter.}
+
+\begin{code+}[...]{float,label=mux,frame=tblr,caption={Two multiplexers and a demultiplexer}}
+  def mux1[T] (ins: Seq[?[T]], out: ![(Int, T)]) : PROC =
+  { val mid = N2N[(Int, T)](0, 1) // Many writers; one reader
+    (  proc { while(true) { out!(mid?()) } } ||
+    || (for (i<-0 until ins.length) yield 
+            proc { while(true) ins(i) ? { v => mid!(i, v)} })
+    )
+    
+  }   
+   
+  def mux2[T] (ins: Seq[?[T]], out: SharedOutPort[(Int, T)]) : PROC =
+      || (for (i<-0 until ins.length) yield 
+              proc { while (true) {out!(i, ins(i)?())} })   
+
+  def dmux[T](in:  ?[(Int, T)], outs: Seq[![T]]) : PROC = proc { 
+    while (true) { val (n, v) = in?(); outs(n)!v  } 
+  }
+\end{code+}
+
+A multiplexer process generated by \textscala{mux1} is the concurrent composition 
+of a collection of ``labelling'' processes, each of which outputs labelled copies of its
+input, via an \textscala{N2N[(Int,T)]} channel, to a forwarding process that
+writes them to the \textsc{out} port. The forwarding process is necessary
+because the type-signature of \textsc{mux1} does not constrain the
+kind of port that is passed to it as a parameter, so in programming \textsc{mux1}
+we must assume that that the port is not shareable.
+
+On the other hand, \textscala{mux2} requires that its \textscala{out} 
+parameter is shareable, so it composes a collection of labelling processes that
+write directly to \textsc{out}.
+
+The function \textsc{dmux} generates demultiplexer processes that forward
+labelled inputs to the appropriate output ports.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Extended Rendezvous} 
+
+\subsection{Introduction}
+As we explained earlier, the \textit{synchronous} channel implementations 
+ensure that \textit{termination} of a write (!) at their output port is
+synchronized with the termination of the corresponding read (?) at
+their input port. 
+%
+Although a standard read (or read-and-evaluate) terminates once the data is transferred
+between the writer and the reader process, an \textit{extended
+rendezvous read} specifies that a computation on the transferred data is to take place \textit{in the
+reader process}. It is only when this computation terminates
+that the read is considered to have terminated and the writing process
+is permitted to proceed.
+
+The usual form of an extended rendezvous read from \textsc{in: ?[T]} is\note{The
+most general form of extended rendezvous read is \textsc{in??f} where \textsc{f} denotes
+a function of type \textsc{T=>U}. The type of \textsc{in??f} is then \textsc{U}.}
+\begin{code}
+        in ?? { bv => body } 
+\end{code}
+It is evaluated by transferring a value, $v$, from the process at
+the output end of the channel (if necessary waiting for one to
+become ready), then applying the (anonymous) function \textsc{\{ bv => body \}}
+to $v$. The read is considered to have terminated when
+this application has been completely evaluated. At this point the writing process 
+is permitted to proceed and the result of the application is returned from the read. 
+
+
+\begin{comment}
+In CSO the notation for an extended rendezvous read from \textsc{in: ?[T]} is
+\textsc{in ? f}, where \textsc{f: T=>U} denotes function of type \textsc{T=>U}. 
+The expression \textsc{in ? f} has type \textsc{U}, and it is evaluated by 
+transferring a value, $v$, from the process at the output end of the
+channel (if necessary waiting for one to become ready), then evaluating \textsc{f}($v$).
+The read is considered to have terminated when the evaluation of \textsc{f}($v$)
+is complete;  at which point the writing process proceeds.
+It is more readable to express the function
+anonymously than to name it; \textit{i.e.} to express the whole rendezvous in the form 
+\textsc{in ? \{v => body\}} rather than in the form \textsc{\{def f(v)=body; in ? f\}}.
+\end{comment}
+
+
+\subsection{Example: monitoring interprocess traffic}
+
+An easily understood rationale for extended rendezvous is given in
+\cite{jcsp}. We are asked to consider how to monitor the interprocess
+traffic between a producer process connected to a  consumer process
+via a simple channel \textit{without interfering with producer-consumer
+synchronization}.
+%
+We want to construct a process that is equivalent to
+\begin{code+}[...]{}
+        { val mid = OneOne[T]
+          producer(mid) || consumer(mid)
+        }
+\end{code+}
+but which also copies traffic on mid to a monitor process of
+some kind.
+
+A first approximation to such a process is
+\begin{code+}[...]{}
+        { val left, mon, right = OneOne[T]
+          (  producer(left) 
+          || proc { repeat { val v = left?(); mon!v; right!v }
+          || consumer(right)
+          || monitor(mon)
+          )
+        }
+\end{code+}
+But this interferes with producer-consumer synchronization,
+because once \textsc{left?()} has been executed, \textsc{producer}
+is free to proceed. More specifically, it is free to proceed before
+\textsc{consumer} reads from \textsc{right}. If the context in which
+this network of process runs is {tolerant} of an additional
+degree of buffering this is not problematic; but if it is not,
+then we need to be able to synchronize the read from \textsc{right}
+with the write to \textsc{left}.
+
+The problem is solved by replacing the body of the copying process
+\begin{code+}[...]{}
+          { val v = left?(); mon!v; right!v }
+\end{code+}
+with a body in which the outputs to \textsc{mon} and \textsc{right} 
+are part of an extended rendezvous with the producing process, namely:
+\begin{code+}[]{}
+          { left ?? { v => {mon!v; right!v} } }
+\end{code+}
+
+The extended rendezvous is executed by reading a value from \textsc{left}, then
+applying the function \textsc{\{ v => \{mon!v; right!v\} \}} to it.
+Termination of the write to \textsc{left} is synchronized with termination
+of the evaluation of the function body, so the producer writing to \textsc{left}
+cannot proceed until the consumer has read from \textsc{right}.
+
+The extended rendezvous doesn't terminate until \textsc{\{mon!v; right!v\}}
+has terminated, but delays the output to \textsc{right} until
+the output to \textsc{mon} has terminated. The following reformulation
+relaxes the latter  constraint, thereby removing a potential source of
+deadlock:
+\begin{code+}[...]{}
+    { left ?? { v => {(proc{mon!v} || proc{right!v})()} } }
+\end{code+}
+
+\noindent It is a simple matter to abstract this into a reusable component:
+\begin{code+}[...]{}
+    def tap[T](in: ?[T], out: ![T], mon: ![T]) =
+        proc
+        { repeat { in ? { v => {(proc{mon!v} || proc{out!v})()} } } }
+\end{code+}
+
+\subsection{Example: simplifying the implementation of synchronous inter-JVM channels}
+
+Extended rendezvous could also be used to good effect in the
+implementation of synchronized inter-JVM or cross-network connections,
+where it can keep the overt intricacy of the code manageable. Here we
+illustrate the essence of the implementation technique, which employs
+the two ``network adapter'' processes.
+
+\begin{code*}[netstuff.scala]
+import io.threadcso._
+object netstuff
+{
+\end{code*}
+\begin{code+}{}
+    def copyToNet[T](in: ?[T], net: ![T], ack: ?[Unit]) =
+        proc { repeat { in ?? { v => { net!v; ack?() } } } }
+\end{code+}
+and
+\begin{code+}[netstuff.scala]{}
+    def copyFromNet[T](net: ?[T], ack: ![Unit], out: ![T]) =
+        proc { repeat { out!(net?()); ack!(()) } }
+\end{code+}
+
+The effect of using the extended rendezvous in \textsc{copyToNet}
+is to synchronize the termination of a write to \textsc{in} with
+the reception of the acknowledgement from the network that the
+value written has been transmitted to \textscala{out}. 
+
+
+At the producer end of the connection, we set up a bidirectional
+network connection that transmits data and receives 
+acknowledgements. Then we connect the producer to the
+network via the adapter:
+
+\begin{code+}[...]{}
+    def producer(out: ![T]) = ...    
+    val (toNet, fromNet): (![T], ?[Unit]) = ...
+    val left = OneOne[T]    
+    ( producer(left) || copyToNet(left, toNet, fromNet) )()
+\end{code+}
+
+At the consumer end the dual setup is employed
+\begin{code+}[...]{}
+    def consumer(in: ?[T]) = ...   
+    val (toNet, fromNet): (![Unit], ?[T]) = ...
+    val right = OneOne[T]    
+    ( copyFromNet(fromNet, toNet, right) || consumer(right) )()
+\end{code+}
+
+\begin{code*}[netstuff.scala]
+    def main(args: Array[String]) =
+    { import io.threadcso.component._
+      val left, net, right = OneOne[String]
+      val ack  = OneOne[Unit]
+      (  proc { for (arg<-args) left!arg } || 
+         copyToNet(left, net, ack)         ||
+         copyFromNet(net, ack, right)      ||
+         console(right)
+      ) ()    
+    }
+}
+\end{code*}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Closing Ports and Channels (clean termination)}
+\label {Closing Ports and Channels}
+\subsection{Introduction}
+
+A port may be \textit{closed} at any time, \textit{including
+after it has been closed}. The trait \textsc{InPort} has method
+\begin{code}[...]
+        closeIn: Unit
+\end{code}
+whose invocation embodies a promise \textit{on the part of its invoking thread}
+never again to read from that port. Once it has been invoked, the method $canInput$
+will always yield false for that port.
+%
+Similarly, the trait \textsc{OutPort} has method
+\begin{code}[]
+        closeOut: Unit
+\end{code}
+whose invocation embodies a promise \textit{on the part of its invoking thread}
+never again to write to that port. Once it has been invoked, the method $canOutput$
+will always yield false for that port.
+
+It can sometimes be appropriate to \textit{forbid} a channel
+to be used for further communication, and the \textsc{Chan} trait 
+has an additional method for that purpose, namely:
+\begin{code}[]
+        close: Unit
+\end{code}
+The important design questions that must be considered are: 
+\begin{enumerate}
+\item   What happens to a process that attempts, or is 
+        attempting, to communicate through a port whose peer
+        port is closed, or which closes during the attempt?
+
+\item   What does it mean to close a \textit{shared} port?
+\end{enumerate}
+Our design can be summarised concisely; but we must first
+explain what it means for a {channel} to be closed:
+
+\begin{quote}
+        \textit{Definition: }A channel is \textit{closed} if it has
+        been closed by enough calls of \textsc{closeOut} at its \textsc{OutPort} 
+        or by enough calls of \textsc{closeIn} at its \textsc{InPort}, or by
+        a call of its \textsc{close} method.
+\end{quote}
+\begin{center}
+\begin{tabular}{|l|c|c|c|}\hline
+\multicolumn{1}{|c|}{Channel}& \multicolumn{2}{c|}{Enough} &\multicolumn{1}{c|}{Close takes}\\
+\multicolumn{1}{|c|}{type}& closeOut & closeIn & \multicolumn{1}{c|}{effect on readers}\\\hline
+OneOne          & 1              & 1             & immediately\\
+OneOneBuf($n$)       & 1              & 1             & when drained\\
+N2N($n$, $writers$, $readers$) & $\widehat{writers}$ & $\widehat{readers}$  & immediately\\
+N2NBuf($n$, $writers$, $readers$) & $\widehat{writers}$ & $\widehat{readers}$  & when drained\\\hline
+ManyOne & $\infty$ & 1 & immediately\\
+OneMany & 1 & $\infty$ & immediately\\
+ManyMany & $\infty$ & $\infty$ & never\\\hline
+\end{tabular}
+\end{center}
+
+The table above summarises what we mean by ``enough'' -- using the notation $\widehat{num}$
+to mean $\infty$ when $num=0$ and $num$ otherwise. For example
+an \textsc{N2N} channel specified with $writers>0$, and $readers>0$  closes
+after either $writers$ \textscala{closeOut} calls or $readers$
+\textscala{closeIn} calls; but if $writers=0$ then any number of calls
+of \textscala{closeOut} can be made without the channel closing, and
+if $readers=0$ then any number of calls of \textscala{closeIn} can
+be made without the channel closing.
+
+The rationale for this is that shared ports are used as
+``meeting points'' for senders and receivers, and that the fact
+that one sender or receiver has undertaken never to communicate
+should not necessarily result in the right to do so being denied to others.\note{This
+is a deliberate choice, designed to keep shared channel semantics
+simple. More complex channel-like abstractions -- such as one 
+in which a non-shared end is informed when all subscribers to 
+the shared end have disappeared -- can always be layered on top of it.}
+
+The effects of closing ports and/or channels now can be summarised as follows:
+
+\begin{itemize}
+\item Writer behaviour
+\begin{enumerate}
+\item An attempt to write to a closed channel raises the exception
+      \textsc{Closed} in the writing thread.
+\item Closing a channel whose OutPort is waiting
+      in a write raises the exception
+      \textsc{Closed} in the writing thread.
+\end{enumerate}    
+
+\item Reader behaviour
+\begin{enumerate}
+\item An attempt to read from a closed channel raises the exception
+      \textsc{Closed} in the reading thread. If the channel 
+      is buffered then this exception is raised
+      only once the last remaining buffered value has been read.
+\item Closing a channel whose InPort is waiting
+      in a read raises the exception
+      \textsc{Closed} in the reading thread.
+\end{enumerate}
+\end{itemize}
+
+
+\subsection{Termination of networks and components}
+The \textsc{Closed} exception is one of a family of runtime exceptions,
+the \textsc{Stop} exceptions, that play a special role in ensuring 
+the clean termination of networks of communicating processes.
+
+The form
+%\begin{alltt}
+        \textsc{repeat} (\(expr\sb{guard}\)) \{ \(expr\sb{body}\) \}
+%\end{alltt}
+behaves the same as
+%\begin{alltt}
+        \mbox{\textsc{while} (\(expr\sb{guard}\)) \{ \(expr\sb{body}\) \}}
+%\end{alltt}
+except that the raising of a \textsc{Stop} exception during the
+execution of the \(expr\sb{body}\) causes it 
+to terminate normally.
+%
+The  form
+%\begin{alltt}
+        \textsc{repeat} \{ \(expr\sb{body}\) \}
+%\end{alltt}
+is equivalent to 
+%\begin{alltt}
+        \textsc{repeat} (\textsc{true}) \{ \(expr\sb{body}\) \}
+%\end{alltt}
+
+The behaviour of \textsc{repeat} simplifies the description of cleanly-terminating iterative components
+that are destined to be part of a network. For example, consider
+the \textsc{copy} component of \Listing \ref{copy}, which has an iterative 
+copying phase followed by a close-down phase.
+\begin{code+}[...]{float,label=copy,caption={A terminating copy component}}
+    def copy[T](in: ?[T], out: ![T]) = 
+    proc {
+      repeat { out!(in?()) }    // copying
+      out.closeOut; in.closeIn  // close-down
+    }
+\end{code+}
+It is evident that the copying phase terminates if the channel
+connected to the input port is closed before that connected to the
+output port. Likewise, if the channel connected to the output port
+is closed before (or within) a write operation that is attempting
+to copy a recently-read datum. In either case the component moves
+into its close-down phase, and this results in one of the 
+channels being closed again while the other is closed anew.
+In nearly all  situations this behaviour is satisfactory, but it is
+worth noticing that it can result in a datum being silently lost (in the implicit buffer between 
+the \textsc{in?()} and the \textsc{out!}) when a
+network is closed from ``downstream''.\note{\textit{i.e.} from the \textsc{out} 
+direction. On the face of it
+it looks like this could be avoided by  reprogramming the component
+with a stronger guard to the iteration, \textit{viz} as:
+\textsc{repeat (out.canOutput) \{ out!(in?()) \}}
+\textit{but this is not so}, because the \textsc{out.canOutput} test and
+the \textsc{out!} action are not joined atomically, so the 
+channel associated with the 
+output port could be closed between being polled in the guard and
+being written to in the body of the loop.}
+%\note
+%{Solving this particular problem properly will require the implementation of 
+%a form of guarded output alternation, but we have yet to investigate output guards.}
+
+In section {\ref{Starting and running processes}} we explained that
+on termination of all the components of a concurrent process: 
+(a) if they all terminated normally then the concurrent process 
+itself terminates normally; (b) if all components that terminated abnormally
+terminated with a \textsc{Stop} exception then the concurrent process 
+itself terminates by throwing a \textsc{Stop} exception; (c) otherwise the concurrent process terminates 
+by throwing a \textsc{ParException}.
+
+One consequence of (b) is that it is relatively simple to arrange
+to reach the closedown phase of an iterated component that does
+concurrent reads and/or writes. 
+%
+For example, the \textsc{tee} component of \Listing \ref{tee} broadcasts
+data from its input port to all its output ports concurrently: if
+the input port closes, or if any output port is closed 
+before or during a broadcast, then the component stops
+broadcasting and closes all its ports.\note{We observe, without much enthusiasm, that there is no
+particular constraint on the order in which the ports are closed, so they could be closed
+in parallel by the more complicated:
+
+\textsc{(|| (for (out<-outs) yield proc { out.closeOut }) || in.closeIn)()}
+
+}
+
+\begin{code+}[...]{float,label=tee,caption={A data broadcasting component}}
+   def tee[T](in: ?[T], outs: Seq[![T]]) =
+   proc { var data      = in.nothing  // unspecified initial value
+          val broadcast = || for (out<-outs) yield proc { out!data }
+          repeat { in ?? { d => { data=d;  broadcast() }}}
+          for (out<-outs) out.closeOut; in.closeIn
+        }
+\end{code+}
+
+This is because closing \textsc{in} results in a \textsc{Closed} exception 
+being thrown at the next \textsc{in??}; and because closing an
+output port causes the corresponding \textsc{out!data} to 
+terminate by throwing a \textsc{Closed}, which is
+propagated in turn by the \textsc{||} when it terminates.\note{Although it is incidental to the theme of this example,
+it is worth noticing that we construct the concurrent process
+\textsc{broadcast} before starting the iteration. 
+While this is not strictly necessary, it provides an improvement in
+efficiency over:
+\textsc{repeat \{ in ? \{ d => \{|| (for (out<-outs) yield proc \{ out!d \})() \}\}\}}.
+This is  because the expression: 
+\textsc{||(for (out<-outs)} ... \textsc{)}  that constructs the
+concurrent broadcast process is
+evaluated only once, rather than being evaluated once per broadcast.}
+
+Careful programming of the closedown phases of communicating components
+is needed in order to assure the clean termination of networks
+of interconnected processes, and this is facilitated by the \textsc{Stop}-rethrowing behaviour
+of $||$, and the behaviour of \textsc{repeat} when its body \textsc{Stop}s.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Alternation}
+\label{Input Alternation}
+\subsection{Input-guarded events}
+%Input alternations are first class values of type \textsc{Alt}.
+%
+Alternation constructs enable an input or output action to be
+performed after being selected from those that are ready on one or more ports. 
+The simplest form of an \textsc{alt} consists of a collection of 
+\textit{guarded events}:\note{Guard expressions must be free of side-effects,
+and a $(guard)$ that is literally \textsf{(true)} may be omitted. }
+
+\begin{alltt}
+        \textsf{\textbf{alt}} ( \( (guard\sb1 \AND port\sb1) \) \texttt{=?=>} \{ \(bv\sb1\) \texttt{=>} \(cmd\sb1\) \}
+           | ...
+           | \( (guard\sb{n} \AND port\sb{n}) \) \texttt{=?=>} \{ \(bv\sb{n}\) \texttt{=>} \(cmd\sb{n}\)\}
+           )
+\end{alltt}
+%
+An input event of the form \((guard \AND port)\) ~~\verb/=?=>/~~ \{ \(bv\) \verb/=>/ \(cmd\) \} 
+\begin{itemize}
+\item is said to be \textit{enabled}, if $port$ is open and $guard$ evaluates to true
+\item is said to be \textit{ready} if $port$ is ready to read
+\item is \textit{fired} by reading $port$, binding the value read to $bv$ and then executing $cmd$.
+\end{itemize}
+The execution of an \textscala{alt} proceeds
+in principle\note{We say ``in principle'' because we wish to retain
+the freedom to use a much more efficient implementation than is
+described here, namely an adaptation of that described in \cite{BGJK}.} in phases as follows:
+\begin{enumerate}
+\item All the event guards are evaluated, and then
+\item The current thread waits until (at least one) enabled event is ready, and then
+\item One of the ready events is chosen and fired.
+\end{enumerate} 
+
+If no events are enabled after phase 1, or if all the channels
+associated with the ports close while waiting in phase 2, then the
+\textsc{Abort} exception (which is also a form of \textsc{Stop}
+exception) is raised.
+
+If $evs$ is a collection of guarded events, then \textsc{serve}$(evs)$  executes these
+phases repeatedly (until a \textsc{Stop} exception is thrown), but the choices made in phase 3 are made in such
+a way that if the same group of guards turn out to be ready during
+successive executions, they will be fired in turn.
+
+For example, the method \textsc{tagger} below constructs a tagging
+multiplexer that ensures that neither of its input channels
+gets too far ahead of the other. The tagger terminates
+cleanly when its output port is closed, or if both its
+input channels have been closed. 
+%{frame=tlbr,label=tagger,caption={a tagging multiplexer}}
+\begin{code+}[...]{}
+  def tagger[T](l: ?[T], r: ?[T], out: ![(Int, T)]) = 
+  proc
+  { var diff = 0
+    serve ( (diff < 5  && l) =?=> { x => out!(0, x); diff+=1 }
+          | (diff > -5 && r) =?=> { x => out!(1, x); diff-=1 }
+          ) 
+    repeat { out!(0, l?()) } 
+    repeat { out!(1, r?()) } 
+    l.closeIn; r.closeIn; out.closeOut 
+  }
+\end{code+}
+Notice that the  \textsc{serve} will also terminate if the ``wrong'' channel closes (for
+example $l$ if $diff<5$); but following such termination at most one of the subsequent  
+\textsc{repeat}s
+(the ``right'' one) can perform a successful read and write.
+
+
+A \textsc{prialt} is formed in the same way as an \textsc{alt},
+and is executed in nearly the same way, but the choice of which among
+several ready guards to fire always favours the earliest in the sequence.
+A \textsc{priserve} repeats a \textsc{prialt}.
+
+\subsection{Output-guarded events}
+In late 2008 the \textit{outport guard} notation was added to CSO. Its simplest
+form is exemplified in the following implementation of a merging component 
+that buffers no more than 20 inputs tagged with sequence numbers, and 
+outputs them when there is demand from \verb/out/. The serve loop 
+will terminate when none of the guarded events can occur -- after which 
+the three ports are closed.
+\begin{code+}[...]{}
+  def taggedMerge[T](l: ?[T], r: ?[T], out: ![(Int, T)]) = 
+  proc
+  { var seqn = 0 // sequence number
+    var nbuf = 0 // number buffered 
+    val q        = scala.collection.mutable.Queue[(Int, Int, T)]
+    serve ( (nbuf<20 && l)   =?=> { x => q.enqueue((seqn+=1, 0, x)); nbuf+=1; }
+          | (nbuf<20 && r)   =?=> { x => q.enqueue((seqn+=1, 1, x)); nbuf+=1; }
+          | (nbuf>0  && out) =!=> { nbuf-=1; q.dequeue } 
+          ) 
+    l.closeIn; r.closeIn; out.closeOut  
+  }
+\end{code+}
+The most general form of output-guarded event is
+
+\begin{center}
+\((guard \AND port)\) ~~\verb/=!=>/~~ \{ expression \} \verb/==>/ \{ \(cmd\) \} 
+\end{center}
+
+
+It is \textit{ready} if its guard is true and $port$ is ready to be written.
+It is \textit{fired} by evaluating $expression$ (which can be a sequential composition) 
+and writing its value ($v$, say) to $port$.\note{An
+early version of CSO provided an even more general form, in which
+the epilogue was a function, and the value of the expression was passed to
+this function once it had been transmitted. This proved incompatible with
+the Scala type system.}  
+When it has been written $cmd$ (known as the \textit{epilogue}) is executed.\note
+{The operator $\Longrightarrow$ that introduces the {epilogue} is pronounced ``and then''.}
+
+If there is no need for an epilogue, the event can be written:
+\begin{center}
+\((guard \AND port)\) ~~\verb/=!=>/~~ \{ expression \}
+\end{center}
+The final guard of the \verb/taggedMerge/ serve loop could have been written with an epilogue, by
+doing the buffer-size accounting after the dequeued datum has been transmitted.
+\begin{code+}[...]{}
+          | (nbuf>0  && out) =!=> { q.dequeue } ==> { nbuf-=1; }
+\end{code+}
+
+\subsection{Collections of guards}
+Alternations can
+be composed of collections of guards, as illustrated 
+by the fair multiplexer defined below.\note{It is perhaps worthwhile comparing this construction
+with that of the analogous JCSP component shown in 
+\Listing \ref{javafairplex} (page \pageref{javafairplex}).}
+\begin{code*}[fairPlex.scala]
+import ox.CSO._
+object fairPlex
+{
+\end{code*}
+%literate={<-}{$\leftarrow$}1{==>}{$\Longrightarrow$}2
+%{frame=lrtb,label=scalafairplex,caption=Fair Multiplexer: CSO}
+\label{scalafairplex}
+\begin{code+}{}
+  def fairPlex[T](ins: Seq[?[T]], out: ![T]) = 
+      proc { serve (| (for (in <- ins) yield in =?=> { t => out!t })) }
+\end{code+}
+\begin{code*}[]
+}
+\end{code*}
+
+They can also be composed by combining collections and single guards. For example,
+the following is an extract from a multiplexer that can be
+dynamically set to favour a specific range of its input ports.
+It gives priority to its range-setting channels.
+\begin{code*}[minmax.scala]
+import ox.CSO._
+object minmax
+{ 
+\end{code*}
+\begin{code}
+  def primux[T](MIN: ?[Int], MAX: ?[Int], ins: Seq[?[T]], out: ![T]) = 
+  proc
+  { var min = 0
+    var max = ins.length - 1
+    priserve ( MIN =?=> { n => min = n }
+             | MAX =?=> { n => max = n }
+             | | (for (i <- 0 until ins.length) yield 
+                    (max>=i && i>=min && ins(i)) =?=> { t => out!t } )
+             ) 
+  }
+\end{code}
+\begin{code*}[]
+}
+\end{code*}
+
+
+
+\subsection{Timed Alternation}
+\label{Timed Alternation}
+An alternation may be qualified with a deadline and code to be
+executed in case of a timeout.\note{The implementation of
+this feature employs a nonzero
+timeout for the wait in phase 2, and is not subject to any
+potential race conditions.} We illustrate this feature
+with an extended example that defines the transmitter and receiver
+ends of an inter-JVM buffer that piggybacks ``heartbeat'' confirmation
+to the receiving end that the transmitting end is still alive.
+
+First we define a Scala type \textsc{Message} whose values are of one
+of the forms \textsc{Ping} or \textsc{Data(v)}. 
+\begin{code}
+trait Message
+case  object  Ping             extends Message {}
+case  class   Data[T](data: T) extends Message {}
+\end{code}
+
+The transmitter end repeatedly forwards data received from \textsc{in}
+to \textsc{out}, but intercalates \textsc{Ping} messages whenever
+it has not received anything for \textsc{pulse} nanoseconds.\note{Nanosecond
+is now the unit of resolution of CSO time. It's not yet realistic
+to measure delays or timeouts in small numbers of nanoseconds, so
+appropriate multipliers, such as \textsc{microSec, milliSec, Sec, Min, Hour, Day}
+are provided as part of the CSO package.}
+\begin{code}
+def transmitter[T](pulse: Nanoseconds, in: ?[T], out: ![Message]) = 
+  proc 
+  { serve (in =?=> {x=>out!Data(x)} | after(pulse) ==> { out!Ping }) } 
+\end{code}
+
+The receiver end (whose deadline should be somewhat larger 
+than the transmitter's pulse) repeatedly reads from \textsc{in},
+discarding \textsc{Ping} messages and forwarding ordinary
+data to \textsc{out}. If (in each iteration) a message has not been
+received before the current deadline, the receiver backs off a little more, 
+but eventually a message is sent to the \textsc{fail} channel.
+
+\begin{code}
+ def receiver[T](pulse: Nanoseconds, in: ?[Message], out: ![T], fail: ![Unit]) = 
+ proc 
+ { var backoff = 10
+   serve( in =?=> { case Ping      => backoff = (backoff+1) % 10
+                   case Data(d:T) => out!d; backoff = (backoff+1) % 10}
+        | after(pulse+pulse/backoff) ==> 
+                 { if (backoff==1) fail!() else backoff -=1 }
+        )
+ }
+\end{code}
+
+Though timeout is cheap and safe to implement, the
+technique used above may not be suitable for use in components where
+there is a need for more subtle interplay between timing and channel
+input.
+%
+But such components can always be constructed (and in a way that
+may be more familiar to \occam programmers) by using periodic timers,
+such as the simple one shown in \Listing
+\ref{periodictimer}.
+
+For example, \Listing \ref{transmitter2} shows the definition of
+an alternative transmitter component that ``pings'' if the periodic
+timer ticks twice without an intervening input becoming available
+from \textsc{in}, and ``pongs'' every two seconds regardless of
+what else happens.
+
+\begin{code+}[...]{float=h,frame=tlbr,label=transmitter2,caption={A conventionally-programmed transmitter}}
+ def transmitter2[T](pulse: Nanoseconds, in: ?[T], out: ![Message]) = 
+ proc 
+ { val tick  = periodicTimer(pulse)
+   val tock  = periodicTimer(2*Sec)
+   var ticks = 0
+   priserve ( tock =?=> { case () => out!Pong }
+            | in   =?=> { case t  => out!Data(t); ticks = 0 }
+            | tick =?=> { case () => ticks+=1; if (ticks>1) out!Ping }
+            ) 
+   tick.close
+   tock.close
+ } 
+\end{code+}
+In the periodic timer of \Listing \ref{periodictimer} the \textsc{fork} method of a process
+is used to start a new thread that runs concurrently with the current thread and periodically writes
+to the channel whose input port represents the timer. Closing the
+input port terminates the \textsc{repeat} the next time the interval
+expires, and thereby terminates the thread.
+\begin{code+}[...]{float=hb,frame=tlbr,label=periodictimer,caption={A simple periodic timer}}
+ def periodicTimer(interval: Nanoseconds) : ?[Unit] = 
+ { val chan = OneOne[Unit]
+   proc { repeat { sleep(interval); chan!() } } . fork
+   return chan
+ }
+\end{code+}
+
+\subsection{Restrictions on alternation}
+For reasons of efficiency and to keep implementations simple \textit{at most
+one port} of a channel may participate in an alternation 
+construct at any one time.\note{Gavin Lowe \cite{lowe} worked with an earlier
+version of CSO to remove this restriction. }
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Port Type Variance}
+As we have seen, port types are parameterized by the types of
+value that are expected to be read from (written to) them.
+In contrast to Java, in which all parameterized type constructors are 
+covariant in their parameter types, Scala lets us specify the variance 
+of the port type constructors precisely. 
+%
+Below we argue that the \textsc{InPort} constructor should be covariant in its type
+parameter, and the \textsc{OutPort} constructor contravariant in its type 
+parameter. In other words:
+
+\begin{enumerate}
+\item If $T'$ is a subtype of $T$, then a $?[T']$ will
+suffice in a context that requires a  $?[T]$; but not \textit{vice-versa}.
+
+\item If $T'$ is a subtype of $T$, then a $![T]$ will
+suffice in a context that requires a  $![T']$; but not \textit{vice-versa}.
+   
+\end{enumerate}
+
+Our argument is, in effect,  by contradiction. To take a concrete example, suppose that
+we have an interface \textsc{Printer} which has subtype
+\textsc{BonjourPrinter} that has an additional method, \textsc{bonjour}.
+
+Suppose also that we have process generators: 
+\begin{code}
+        def printServer  (printers: ![Printer]) : PROC = ...
+        def bonjourClient(printers: ?[BonjourPrinter]) : PROC = ...
+\end{code}
+
+Then under the uniformly covariant regime of Java the following program would be
+type valid, but it would be unsound:
+\begin{code}
+        val connector = new OneOne[BonjourPrinter]
+        (printServer(connector) || bonjourClient(connector))()
+\end{code}
+The problem is that the server could legitimately write a non-bonjour
+printer that would be of little use to a client that expects to read and use
+bonjour printers. This would, of course, be trapped as a runtime
+error by the JVM, but it is, surely, bad engineering practice
+to rely on this lifeboat if we can avoid launching a doomed ship
+in the first place!\note{This difficulty is analogous to the
+well-known difficulty in Java caused by the covariance of 
+the array constructor.}  
+% 
+And we can: for under CSO's contravariant typing of outports, the
+type of \textsc{connector} is no longer a subtype of \textsc{![Printer]},
+and the expression \textsc{printServer(connector)} would, therefore,
+be ill-typed.
+
+
+
+Discussions of the variance of type constructors are easier to understand
+if we think of the subtype relation as capturing ``satisfies all
+the assumptions we can make about''. In what follows we write $T'\ge
+T$ to mean ``a value of type $T'$ satisfies all the assumptions we
+can make about a value of type $T$'', or alternatively, ``a $T'$ has
+all the methods of a $T$.''
+
+It is a general principle that if a variable $var$ has type $T$, then
+it is acceptable to associate $var$ (by binding or assignment) with a 
+value whose type is $\ge T$, for any \textit{uses} of $var$ in
+its scope can require no more of it than is required of
+a $T$, and any $T'\ge T$ provides this.
+
+We rationalize the variances we have assigned to these constructors
+as follows:
+\begin{enumerate}
+\item If $T'\ge T$ then $?[T']~\ge~?[T]$ 
+\\Rationale: a process that reads from an input port associated with a
+variable declared by $var:~?[T]$ expects to receive objects of type $\ge
+T$. Thus any port of type $?[T']$ (where $T'\ge T$) can be associated
+with $var$.
+
+
+\item If $T'\ge T$ then $![T]~\ge~![T']$ 
+\\Rationale: a process that writes to an output port associated with
+a variable declared by $var:~![T]$ must send objects of a type 
+that is $\ge T$. Thus any port of type $![T']$ (where $T \ge T'$) 
+can be associated with $var$.
+
+\end{enumerate}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Prospects}
+
+We remain committed to the challenge of developing Scala+CSO both
+as a pedagogical tool and in the implementation of realistic
+and efficient programs.
+%
+Several small-scale and a few medium-scale case studies on
+networked multicore machines have given us some confidence that
+our implementation is sound, though we have neither proofs of
+this nor a body of successful (\textit{i.e.} non-failed) 
+model checks. The techniques pioneered by 
+Welch and Martin in \cite{welchandmartin} show the way this could be done.
+
+In the first version of this paper, we wrote:
+\begin{itemize}\item[]
+``The open nature of the Scala compiler permits, at least in principle,
+a variety of compile-time checks on a range of design rules to be
+enforced. It remains to be seen whether there are any combinations
+of expressively useful Scala sublanguage and ``CSO design rule''
+that are worth taking the trouble to enforce. We have started
+our search with an open mind but in some trepidation that
+the plethora of possibilities for aliasing might render
+it fruitless -- save as an exercise in theory.''
+\end{itemize}
+We regret to report that the very rapid evolution of the Scala compiler has
+made it impractical for us to attempt to use it to enforce design rules, or 
+(more importantly) to provide a practical way of using CSO-specific laws to
+guide compile-time optimizations. On the other hand, the rapid advance of 
+the functionality of IDEs for Scala now offers the intriguing prospect 
+of incorporating rules of this kind in an IDE. 
+
+A few years ago Andrew Bate implemented a very high performance
+variant of CSO, in which huge numbers of running processes can be
+multiplexed (as ``fibres'') across smaller numbers of threads. We
+would very much like to make Andrew's dialect and the dialect
+described here compatible at the source-code level, but Andrew's
+implementation depended on extensive post-processing of the JVM
+code generated by Scala/Java, and keeping it up to date would require
+the evolution of the Scala compiler to be tracked: something we 
+don't have the resources to commit to.
+
+\section{Distributed Programming with CSO}
+The prototype  CSO library \textbf{eieio} (Extensible Interface to External I/O)
+provides components that can be used to implement distributed and 
+networked programs. It maps external sockets to internal channels and handles 
+the details of serializing and deserialising data. ß
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section*{Acknowledgements}
+We are grateful to Peter Welch, Gerald Hilderink and their
+collaborators whose early demonstration of the feasibility of using
+\occam-like concurrency in a Java-like language inspired us in the first place.
+Also to Martin Odersky and his collaborators in the design and
+implementation of the Scala language.
+
+Several of our students on the Concurrent and Distributed Programming course at Oxford
+helped us by testing the present work and by questioning the work that 
+preceded and precipitated it.
+Itay Neeman drew Scala to our attention and participated
+in the implementation of a prototype of CSO. Dalizo Zuse and Xie He
+helped us refine our ideas by building families of Web-servers -- using
+a JCSP-like library and the CSO prototype respectively.
+
+Our colleagues Michael Goldsmith and Gavin Lowe (and more recently Andrew Bate)
+have been a constant source of technical advice
+and friendly skepticism; and
+Quentin Miller joined us in research that led to the
+design and prototype implementation of ECSP \cite{ecsp,ecspman}.
+
+Last, but not least, we are grateful to Carsten Heinz and his
+collaborators for their powerful and versatile LaTeX \texttt{listings} package
+\cite{listings}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage\section*{Appendix: Thumbnail Scala and the Coding of CSO}
+In many respects Scala is a conventional object oriented language
+semantically very similar to Java, though notationally somewhat
+different.\note{The main distributed Scala
+implementation translates directly into the JVM; though another compiler
+translates into the \texttt{.net} CLR. The existence of
+the latter compiler encouraged us to build a pure Scala
+CSO library rather than simply providing wrappers for the 
+longer-established JCSP library.}
+%
+It has a number of features that have led some to describe it as a
+\textit{hybrid} functional and object-oriented language, notably
+\begin{itemize}
+\item \textit{Case classes} make it
+      easy to represent free datatypes and to program with them.
+
+\item \textit{Functions are first-class values}. The type expression \textsc{T=>U} 
+      denotes the type of functions that map values of type \textsc{T}
+      into values of type \textsc{U}. One way of denoting
+      such a function anonymously is \textsc{\{ bv => body \}}
+      (providing \textsc{body} has type \textsc{U}).\note{In
+      some contexts fuller type information has to be given,
+      as in: \textsc{\{ case bv: T => body \}}. Functions 
+      may also be defined by cases over free types; for an example see 
+      the match expression within \textsc{receiver} in section \ref{Timed Alternation}}
+\end{itemize}
+The principal novel features of Scala we used in making
+CSO  notationally palatable were:
+\begin{itemize}
+\item   \textit{Syntactic extensibility}: objects may have methods
+        whose names are symbolic operators; and an object
+        with an \textsc{apply} method may be ``applied'' to
+        an argument as if it were a function.
+
+\item   \textit{Call by Name}: a Scala function or method may have 
+        have one or more parameters of type \textsc{=> T}, in which
+        case they are given ``call by name'' semantics and the
+        actual parameter expression is evaluated anew whenever the
+        formal parameter name is mentioned.
+
+\item   \textit{Code blocks}: an expression of the form $\{...\}$
+        may appear as the actual parameter corresponding to a formal
+        parameter of type \textsc{=> T}. 
+\end{itemize}
+The following extracts from the CSO implementation show
+these features used in the implementation of unguarded repetition and \textsc{proc}.
+\begin{code}
+// Implementing unguarded repetition
+def repeat (cmd: => Unit) : Unit =
+{ var go = true
+  while (go) 
+    try   { cmd } 
+    catch { case io.threadcso.process.Stopped(_,_) => go=false } 
+}
+
+// Definition of proc syntax
+def proc (body: => Unit) : PROC = 
+    new Process.Simple(()=>body).withName(Process.genName)
+\end{code}
+Implementation of the guarded event notation of section \ref{Input Alternation}
+is more complex. For example, the formation of an 
+input event from the 
+Scala expression  $(guard\mathtt{\&\&}port)\mathtt{=?\!\!=>}~rhs$ 
+takes place in two stages: first the evaluation of $(guard\mathtt{\&\&}port)$ yields an
+intermediate \textsc{GuardedInPort} object, $ev$; then the evaluation of
+$ev\mathtt{=?\!\!=>}~rhs$ yields the \textsc{InPortEvent} that will be
+a candidate for selection and execution. An unguarded event
+is constructed as an \textsc{InPortEvent} in a simple step.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage\section*{Appendix: JCSP Fair Multiplexer}
+Program \ref{javafairplex} shows the JCSP implementation of a fair multiplexer
+component (taken from \cite{jcsp}) for comparison with the CSO implementation
+of the component with the same functionality in section \ref{scalafairplex}.
+\codestyle{java}
+\begin{code+}[...]{frame=lrtb,label={javafairplex},caption=Fair Multiplexer Component using JCSP}
+  public final class FairPlex implements CSProcess { 
+      private final AltingChannelInput[] in; 
+      private final ChannelOutput        out;
+      public FairPlex ( AltingChannelInput[] in, ChannelOutput out) 
+      { this.in = in; this.out = out; }
+       
+      public void run () { 
+          final Alternative alt = new Alternative (in); 
+          while (true) {  final int i = alt.fairSelect (); 
+                          out.write (in[i].read ()); 
+          } 
+      } 
+  } 
+\end{code+}
+\codestyle{scala}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%% NOTES
+
+\listofendnotes
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+\def\href#1{{\def\~{$\sim$}\ttfamily\footnotesize #1}}
+
+%\newpage
+\begin{thebibliography}{99}
+
+
+\bibitem{ctj}
+Hilderink G.,
+Broenink J.,
+Vervoort W. and
+Bakkers A.
+Communicating Java Threads.
+In \textit{Proceedings of WoTUG-20: ISBN 90 5199 336 6} (1997) 48--76.
+
+\bibitem{ctjapp}
+Hilderink G., Bakkers A. and Broenink J.
+A Distributed Real-Time Java System Based on CSP.
+In \textit{Proceedings of the Third IEEE International Symposium on 
+Object-Oriented Real-Time Distributed Computing}, (2000), 400--407. 
+
+\bibitem{jcsp}
+Website for Communicating Sequential Processes for Java, (2008)
+\\\href{http://www.cs.kent.ac.uk/projects/ofa/jcsp/}
+
+\bibitem{jcsp2}
+Welch P. \textit{et. al.} Integrating and Extending JCSP. 
+In \textit{Communicating Process Architectures} (2007) 48--76.
+
+\bibitem{ecsp}
+Miller Q. and Sufrin B. Eclectic CSP: a language of concurrent processes. 
+In \textit{Proceedings of 2000 ACM symposium on Applied computing}, (2000) 840--842. 
+
+\bibitem{ecspman}
+Sufrin B. and Miller Q. Eclectic CSP. \textit{OUCL Technical Report}, (1998)
+\\\href{http://users.comlab.ox.ac.uk/bernard.sufrin/ECSP/ecsp.pdf}
+
+\bibitem{dearsir}
+Welch P. \textit{et. al.} Letter to the Editor. \textit{IEEE Computer}, (1997)
+\\\href{http://www.cs.bris.ac.uk/\~alan/Java/ieeelet.html}
+
+\bibitem{jfc1}
+Muller H. and Walrath K. Threads and Swing. \textit{Sun Developer Network}, (2000)
+\\\href{http://java.sun.com/products/jfc/tsc/articles/threads/threads1.html}
+
+
+\bibitem{scala}
+Odersky M. \textit{et. al.} An Overview of the Scala Programming Language.
+\textit{Technical Report LAMP-REPORT-2006-001, EPFL, 1015 Lausanne, Switzerland} (2006)
+(also at \href{http://www.scala-lang.org/})
+
+\bibitem{welchandmartin}
+Welch P. and Martin J. Formal Analysis of Concurrent Java Systems.
+In \textit{Proceedings of CPA 2000 (WoTUG-23): ISBN 1 58603 077 9} (2000) 275--301.
+
+
+\bibitem{jcspnet}
+Welch P. CSP Networking for Java (JCSP.net)
+\\\href{http://www.cs.kent.ac.uk/projects/ofa/jcsp/jcsp-net-slides-6up.pdf}
+
+
+\bibitem{actors1}
+Haller P. and Odersky M. Event-based Programming without Inversion of Control.
+In: Lightfoot D.E. and Szyperski C.A. (Eds) JMLC 2006. LNCS 4228, 4--22. 
+Springer-Verlag, Heidelberg (2006)
+\\(also at \href{http://www.scala-lang.org/})
+
+\bibitem{BGJK}
+Geoff Barrett, Michael Goldsmith, Geraint Jones, and Andrew Kay.
+The meaning and implementation of PRI ALT in
+\textbf{\textsf{occam}}.  In \textbf{\textsf{occam}} and the Transputer, 
+research and applications (OUG-9), ed. Charlie Askew, IOS, (September 1988).
+\\(also at \href{ftp://ftp.comlab.ox.ac.uk/pub/Documents/techpapers/Geraint.Jones/\\OCCAM-1-88.ps.Z})
+
+\bibitem{actors2}
+Haller P. and Odersky M. Actors that unify Threads and Events.
+In: Murphy A.L. and Vitek J. (Eds) COORDINATION 2007. LNCS 4467, 171--190.
+Springer-Verlag, Heidelberg (2006)
+\\(also at \href{http://www.scala-lang.org/})
+
+\bibitem{listings}
+Heinz C. The \texttt{\textbf{listings}} Package.
+\\(\href{http://www.ifi.uio.no/it/latex-links/listings-1.3.pdf})
+
+\bibitem{lowe}
+Lowe, G. Implementing Generalised Alt. 
+In \textit{Proceedings of Concurrent Process Architectures} (2011) \mbox{1--34}. 
+\\(\href{http://www.cs.ox.ac.uk/gavin.lowe/Papers/alt.pdf})
+
+\end{thebibliography}
+
+%\appendix
+%\section*{Scala}
+%\section*{CSO}
+
+%\begin{comment}
+%\newpage
+\vfill
+\vfill
+\vfill
+
+{\footnotesize (\verb$Id: cso-paper.tex 306 2017-12-19 16:29:29Z sufrin $)}
+
+\vfill
+%\end{comment}
+\end{document}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
