@@ -124,7 +124,13 @@
    <jar destfile = "${library.jar}"       
         basedir  = "${build.dir}"      
         includes = "**/*.class"
-        excludes = "**/*Test*.class"/>
+        excludes = "**/*Test*.class">
+          <manifest>
+             <attribute name="Built-By" value="${user.name}"/>
+             <attribute name="Implementation-Title"   value="${LIBRARY}-${VERSION}-${SCALAVERSION}"/>
+             <attribute name="Implementation-Version" value="${VERSION}"/>
+          </manifest> 
+        </jar>         
   </target>
     
   <target name="docjar" depends="jar,doc" description="Make a jar containing the library source and its documentation">
@@ -181,3 +187,4 @@
  
   
 </project>
+

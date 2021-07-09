@@ -110,8 +110,6 @@
                    compile      ="${scalac.compile}"
                    compileid    ="${scalac.compileid}"
                    classpathref ="${scalac.classpathref}"
-                   doctitle     =""
-                   docversion   =""
            />
                    
         -->
@@ -123,8 +121,6 @@
         <attribute name="classpathref" default="${scalac.classpathref}"/>        
         <attribute name="indirect-file" default="${build.dir}/scaladoc-arguments"/>        
         <attribute name="timestamp"     default=""/> 
-        <attribute name="doctitle"      default=""/> 
-        <attribute name="docversion"    default=""/> 
 
         <sequential>
             <local name="classpath"/>
@@ -137,8 +133,6 @@
             <echo file="@{indirect-file}" append="true" message=" @{params}"      />
             <echo file="@{indirect-file}" append="true" message=" @{flags}"       />
             <echo file="@{indirect-file}" append="true" message=" @{language}"    />
-            <echo file="@{indirect-file}" append="true" message=" -doc-title '@{doctitle}'"    />
-            <echo file="@{indirect-file}" append="true" message=" -doc-version '@{docversion}'"    />
             <echo file="@{indirect-file}" append="true" message=" ${compileset}" />                
             <execute-and-timestamp executable="scaladoc" 
                                    arg="@{indirect-file}" 
@@ -151,7 +145,7 @@
        <attribute name="arg"/>
        <attribute name="timestamp"/>
        <sequential>
-            <echo message="EX+TS: @{executable} @{timestamp} @{arg}"/>
+            <!-- <echo message="EX+TS: @{executable} @{timestamp} @{arg}"/> -->
             
             <exec dir="${basedir}" executable="@{executable}" failonerror="true">
                <arg line="@@@{arg}"  />
@@ -164,8 +158,23 @@
         <attribute name="refid"/>                          
         <attribute name="uptodate"/>  
         <sequential>
-           <uptodate property="@{uptodate}" targetfile="${build.dir}/@{uptodate}">
+           <uptodate property="@{uptodate}">
                <srcfiles refid="@{refid}"/>
+               <mapper type="merge" to="${build.dir}/@{uptodate}"/>
+          </uptodate>
+        </sequential>                        
+    </macrodef>
+    
+    <!-- THIS DOES NOT WORK AT ALL: WHY? -->
+    <macrodef name="whenuptodatetargets">
+        <attribute name="refid"/>                          
+        <attribute name="uptodate"/>  
+        <attribute name="sources"     default="*.scala"/>  
+        <attribute name="targets"     default="*.class"/>  
+        <sequential>
+           <uptodate property="@{uptodate}">
+               <srcfiles refid="@{refid}"/>
+               <mapper type="glob" from="@{sources}" to="@{targets}"/> <!-- instead of a single uptodate target -->
           </uptodate>
         </sequential>                        
     </macrodef>
@@ -207,42 +216,7 @@
            </exec>
            <echo message="-----------------------"/>
       </sequential>
-    </macrodef> 
-    
-    <macrodef name="makejavamain" description="Make a main program jar runnable by java">
-    <!--
-           Make a java-runnable jar file @{name} from all the compiled files in
-           ${build.dir} and with a class path that includes all the jar
-           files in the fileset ${runtime.classpath} (or that named
-           by the classpathid paramater.
-
-           The name of the main class is @class.
-
-             Example:             <makemain name="test.jar" class="Test1"/>
-             To run this example: java -jar Test
-
-           THIS IS NOT A RELIABLE WAY OF BUILDING A CLOSED AND TRANSPORTABLE
-           JAVA PROGRAM, FOR IT USES ABSOLUTE PATHS ON THE CURRENT HOST.
-    -->    
-        <attribute name="name"/>                           <!-- Name of the program jar file -->
-        <attribute name="class"/>                          <!-- Name of the main class -->
-        <attribute name="classpathid" default="${scala.classpath}"/>  <!-- Id of the runtime classpath -->
-
-        <sequential>
-            <local       name="jar.classpath"/>
-            <pathconvert property="jar.classpath" pathsep=" " refid="@{classpathid}"/>
-            <echo message="JAR CLASSPATH: ${jar.classpath}"/>
-            <jar destfile="${build.dir}/@{name}"
-                 basedir="${build.dir}"
-                 includes="**/*.class">
-                <manifest>
-                    <attribute name="Main-Class" value="@{class}"/>
-                    <attribute name="Class-Path" value="${jar.classpath}"/>
-                </manifest>
-            </jar>
-        </sequential>
-    
-    </macrodef>   
+    </macrodef>    
 </project>
 
 
