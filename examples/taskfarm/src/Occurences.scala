@@ -21,7 +21,7 @@ object Occurences extends App
   /** A `Job` embodies a path (or url) and the pattern that is used to separate its words */
   case class Job
   (
-    var wordpat:  String  = "[a-zA-Z]+",
+    var wordpat:  String  = "[a-z_A-Z][a-z_A-Z0-9]+",
     var include:  String  = "",
     var exclude:  String  = "()",
     var path:     String  = ""
@@ -50,14 +50,14 @@ object Occurences extends App
 
   val Options = List (
                        OPT("-w",      job.wordpat,        "«regexp» word-pattern ($wordpat)"),
-                       OPT("-i",      job.include,        "«regexp» words to include ($include)"),
-                       OPT("-x",      job.exclude,        "«regexp» words to exclude ($exclude)"),
+                       OPT("-i",      job.include,        "«regexp» words to include ($include) -- unused at present"),
+                       OPT("-x",      job.exclude,        "«regexp» words to exclude ($exclude) -- unused at present"),
                        OPT("-r",      readers,            "«int» number of readers"),
                        OPT("-d",      digesters,          "«int» number of digesters"),
-                       OPT("-b",      bufferSize,         "«int» buffer size"),
-                       OPT("-l",      list,       true,   "list word locations"),
-                       OPT("-D",      debugging,  true,   "start debugger"),
-                       OPT("-T",      trials,             "<int> number of times to process the inputs (for timing)"),
+                       OPT("-b",      bufferSize,         "«int» buffer size ($bufferSize)"),
+                       OPT("-l",      list,       true,   "list word locations alphabetically"),
+                       OPT("'+D",     debugging,  true,   "start debugger"),
+                       OPT("-T",      trials,             "<int> number of times to process the inputs (for average timing)"),
                        ELSE("<path>|<url>", { path => jobs.enqueue(job.copy(path=path)) }, "adds a path/url to the list to be processed")
                      )
 
@@ -67,6 +67,7 @@ object Occurences extends App
 
   def Main(): Unit =
   {
+    if (debugging) println(debugger)
     for (i <- 0 until trials) MainProgram
     exit()
   }
@@ -82,10 +83,9 @@ object Occurences extends App
     val digests = for (me <- 0 until digesters) yield
         new scala.collection.mutable.HashMap[String, List[Location]]
 
-    if (debugging) println(debugger)
     val startTime = nanoTime
     ( proc("controller")
-      { repeatFor (jobs) { job => Console.err.println(job); toReaders!job }
+      { repeatFor (jobs) { job => if (debugging) Console.err.println(job); toReaders!job }
         toReaders.closeOut()
       }
       || || (for (me <- 0 until readers)   yield reader(me, toReaders, toDigesters))
@@ -104,7 +104,7 @@ object Occurences extends App
       { println(f"$w%-40s")
         for (occ<-occs.reverse) println(f"  ${occ.path}%-70s ${occ.line}.${occ.char} ")
       }
-    println(s"-r $readers -d $digesters: ${(digestTime-startTime).hms} ${(sortedTime-digestTime).hms} ${(sortedTime-startTime).hms} (${jobs.size} files, ${sorted.size} words / $total digested)")
+    println(s"-T $trials -r $readers -d $digesters: ${(digestTime-startTime).hms} ${(sortedTime-digestTime).hms} ${(sortedTime-startTime).hms} (${jobs.size} files, ${sorted.size} words / $total digested)")
   }
 
   /**
@@ -168,7 +168,7 @@ object Occurences extends App
     */
   def router(in: ?[(String, Location)], toDigesters: Seq[![(String, Location)]]): PROC = proc("router"){
       val size = toDigesters.size
-      @inline def route(word: String): Int = word(0).toInt % size
+      @inline def route(word: String): Int = (word(0).toInt+word.size) % size
       repeat
       { val occurence = in?()
         toDigesters(route(occurence._1)) ! occurence
@@ -267,5 +267,6 @@ object Occurences extends App
   }
 
 }
+
 
 
