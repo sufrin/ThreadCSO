@@ -110,6 +110,8 @@
                    compile      ="${scalac.compile}"
                    compileid    ="${scalac.compileid}"
                    classpathref ="${scalac.classpathref}"
+                   doc-title    ="${LIBRARY}"
+                   doc-version  ="${VERSION}"
            />
                    
         -->
@@ -120,6 +122,8 @@
         <attribute name="compileid"    default="${scalac.compileid}"/>        
         <attribute name="classpathref" default="${scalac.classpathref}"/>        
         <attribute name="indirect-file" default="${build.dir}/scaladoc-arguments"/>        
+        <attribute name="doc-title"     default="${LIBRARY}"/>        
+        <attribute name="doc-version"   default="${VERSION}"/>        
         <attribute name="timestamp"     default=""/> 
 
         <sequential>
@@ -130,7 +134,8 @@
             <echo message="Documenting ${compileset} to @{destdir}"/>
             <echo file="@{indirect-file}" append="false" message="-d  '@{destdir}'"   />
             <echo file="@{indirect-file}" append="true" message=" -cp '${classpath}'" />
-            <echo file="@{indirect-file}" append="true" message=" @{params}"      />
+            <echo file="@{indirect-file}" append="true" message=" -doc-title '@{doc-title}'"      />
+            <echo file="@{indirect-file}" append="true" message=" -doc-version '@{doc-version}'"      />
             <echo file="@{indirect-file}" append="true" message=" @{flags}"       />
             <echo file="@{indirect-file}" append="true" message=" @{language}"    />
             <echo file="@{indirect-file}" append="true" message=" ${compileset}" />                
@@ -218,6 +223,7 @@
       </sequential>
     </macrodef>    
 </project>
+
 
 
 

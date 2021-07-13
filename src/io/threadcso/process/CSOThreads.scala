@@ -16,11 +16,13 @@ package io.threadcso.process
         - `io.threadcso.pool.KIND`      the kind of the pool: ADAPTIVE, SIZED, CACHED, UNPOOLED. See [[CSOThreads.poolKIND]]
         - `io.threadcso.pool.REPORT`    report pool performance on program exit. See [[CSOThreads.poolREPORT]]
 
-        The following runtime properties have specialized interpretations.
+        The following runtime property has a specialized interpretation.
 
-        - `io.threadcso.pool.G + io.threadcso.pool.M + io.threadcso.pool.K` specifies default stacksize for non-SIZED pools. See [[CSOThreads.poolSTACKSIZE]]
-        - io.threadcso.pool.MAX See [[CSOThreads.poolMAX]]
-        - io.threadcso.pool.MIN See [[CSOThreads.poolMIN]]
+        - `io.threadcso.pool.stack` specifies the default stacksize for threads made from ADAPTIVE and CACHED pools. See [[CSOThreads.poolSTACKSIZE]]
+        
+        It is specified by `io.threadcso.pool.stack=`''n'' where ''n'' is a (possibly real) number, possibly 
+        followed by `G`, `K`, or `M` in upper or lower case (default is `K`).
+        
 
 
 */
@@ -112,21 +114,29 @@ object CSOThreads
    val poolREPORT: Boolean = getPropElse("io.threadcso.pool.REPORT", _.toBoolean)(false)
 
    /** Life's too short to construct lovely prose. This is how to recommend
-       the stack sizes of threads made with CACHED or ADAPTIVE pooling. Set
-       the appropriate jdk property/ies with -D<propname>=...
-   {{{
-     val G = 1024*1024*1024*getPropElse("io.threadcso.pool.G", _.toLong)(0)
-     val M =      1024*1024*getPropElse("io.threadcso.pool.M", _.toLong)(0)
-     val K =           1024*getPropElse("io.threadcso.pool.K", _.toLong)(0)
-     G+M+K
-   }}}
+       the stack sizes of threads made with CACHED or ADAPTIVE pooling. 
+       `-Dio.threadcso.pool.stack=`''n''`k` or ''n''m` or ''n''`g`, where ''n'' is a (possibly real) number.
+       
    */
    val poolSTACKSIZE: Long =
-   {
-     val G = 1024*1024*1024*getPropElse("io.threadcso.pool.G", _.toLong)(0)
-     val M =      1024*1024*getPropElse("io.threadcso.pool.M", _.toLong)(0)
-     val K =           1024*getPropElse("io.threadcso.pool.K", _.toLong)(0)
-     G+M+K // because life is too short to document something more complex
+   { def getSize(s: String): Long =
+     {  var r = 0.0D
+        val (n, m) = s.last match
+        { 
+          case 'k' | 'K' => (s.take(s.length-1).toDouble, 1000)
+          case 'm' | 'M' => (s.take(s.length-1).toDouble, 1000000)
+          case 'g' | 'G' => (s.take(s.length-1).toDouble, 1000000000)
+          case _ => (s.toDouble, 1000)
+        }
+        (m.toDouble * n).ceil.toInt
+     }
+
+     try 
+       getPropElse("io.threadcso.pool.stack", getSize(_))(0)
+     catch 
+     { case e: java.lang.Exception => System.err.println(s"io.thread.pool.stack should be specified by m.nK, m.nG, m.nM, or m.n. $e")
+       throw e
+     }
    }
 
    /**
@@ -155,3 +165,4 @@ object CSOThreads
               throw new IllegalArgumentException("io.threadcso.pool.KIND should be SIZED, ADAPTIVE, CACHED, or UNPOOLED")
        }
 }
+

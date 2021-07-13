@@ -127,8 +127,8 @@
                classpathref = "scalac.classpath"
                compileid    = "source"
                timestamp    = "doc.uptodate"
-               doctitle     = "${LIBRARY}"
-               docversion   = "${VERSION}"
+               doc-title     = "${LIBRARY}"
+               doc-version   = "${VERSION}"
                >
        </scaladoc>       
     </target>
@@ -186,3 +186,4 @@
     <target name="publish" depends="jar,doczip,srczip" description="make all artefacts in PUBLISH"/>
     
 </project>
+
