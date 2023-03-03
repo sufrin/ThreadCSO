@@ -1,6 +1,22 @@
 # ThreadCSO
 ## CSP/OCCAM-style channel-based concurrency
 
+### NEWS: February 2023
+
+With M Ahsan Al Mahir we have now made a version of ThreadCSO that can use
+virtual threads (from **jdk20**) alongside platform threads.  Only minor
+changes were necessary (the introduction of a new form of executor); and
+99% of the API remains unchanged. 
+
+These virtual threads provide dramatically enhanced possibilities for
+channel-based programming since tens or hundreds of thousands of them can
+be running in the same address space. Inter-process communication
+performance (between processes running on virtual threads) appears
+(in our tests) to better by orders of magnitude. 
+
+We are presently in a testing and enhancement phase.  All tests have so far
+been passed. An early-access version will be made available around easter.
+
 
 ### Introduction
 
@@ -25,10 +41,7 @@ an up-to-date introductory paper based on the 2007 paper, and
 the slides for the (relevant) lectures given in 2018. Examples of larger
 programs (will) appear elsewhere on GitHub.
 
-In due course we will publish the **EIEIO**  (Extended Interface
-to External I/O) library that provides implementations of cross-host
-channels that can be used to build multi-host applications and
-provides an (extensible) variety  of wire protocols.
+
 
 
 ### Processes and Process Notation 
@@ -349,8 +362,13 @@ Several other solutions will appear in due course.
         }
 
 
+### EIEIO
+In due course we will publish the **EIEIO**  (Extended Interface
+to External I/O) library that provides implementations of cross-host
+channels that can be used to build multi-host applications and
+provides an (extensible) variety  of wire protocols.
 
-*Bernard Sufrin, July 2021*
+*Bernard Sufrin, July 2021, and March 2023*
 
 
 
