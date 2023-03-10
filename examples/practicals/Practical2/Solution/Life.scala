@@ -11,32 +11,38 @@ import io.threadcso._
 */
 object Life
 {
-  val N          = 128                       // size of the grid
+  val N          = 256                       // size of the grid
   
   val grid       = Array.ofDim[Boolean](N,N)
   
 
 
   /** Successor on toroidal grid */
-  def succ(k: Int) = (k+1)%N
+  @inline private def succ(k: Int) = (k+1)%N
   
   /** Predecessor on toroidal grid */
-  def pred(k: Int) = (k+N-1)%N
+  @inline private def pred(k: Int) = (k+N-1)%N
   
   /** 1 if cell(i, j) is alive, else 0 */
-  def ##(i: Int, j: Int) = if (grid(i)(j)) 1 else 0
+  @inline private def ##(i: Int, j: Int) = if (grid(i)(j)) 1 else 0
 
   // parameters: can be set on the command line at startup
-  var p          = 16   // number of processes (must divide N)
-  var frameDwell = 50L  // how long to wait before next frame
+  var p          = 64   // number of processes (must divide N)
+  var frameDwell = 10L  // how long to wait before next frame
   //
   var height = N/p      // height of one strip
   
   // Barrier: constructed at startup
   var barrier: Barrier = null
   
-  /** Worker to handle rows me*height until (me+1)*height; 
-      Uses rows me*height and (me+1)*height read-only
+  /**
+       Worker for the global grid region rows [me*height..(me+1)*height]
+
+       On each round
+       1: calculates the next generation of its region into a local array
+       2: copies the local array back to its region
+       3: (me==0 only) draws the grid and pauses for a "dwell time" so it can be seen
+          this "dwell" in worker 0 is overlapped with phase 1 in the other workers
   */
   
   def Worker(me: Int, display: Display) = proc (s"Worker($me)") {
@@ -54,8 +60,8 @@ object Life
     */
 
     while (true) {
-      //** Calculate next generation rows
-            
+
+      //** Calculate next generation rows            
       for (i <- start until end; j <- 0 until N) {
         val neighbours = // number of live neighbours
           ##(pred(i), pred(j)) + ##(pred(i), j) + ##(pred(i), succ(j)) +
@@ -63,6 +69,7 @@ object Life
           ##(succ(i), pred(j)) + ##(succ(i), j) + ##(succ(i), succ(j))
         nextGen(i-start)(j) = (grid(i)(j) && neighbours==2) || neighbours==3
       }
+      
       barrier.sync()
       for (i <- start until end) 
       {   val nextRow = nextGen(i-start)
