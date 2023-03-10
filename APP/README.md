@@ -1,4 +1,5 @@
 # App/Opt 
+
 ## Parsing arguments for Scala command-line applications
 
 An `App` is the core of a command-line application.  Its `Options`

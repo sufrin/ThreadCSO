@@ -14,8 +14,7 @@ be running in the same address space. Inter-process communication
 performance (between processes running on virtual threads) appears
 (in our tests) to better by orders of magnitude. 
 
-We are presently in a testing and enhancement phase.  All tests have so far
-been passed. An early-access version will be made available around easter.
+To build this version
 
 
 ### Introduction

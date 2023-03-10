@@ -1,3 +1,0 @@
-CP=lib/threadcso.jar:lib/jsoup.jar
-scala -cp bin:$CP "$@"
-

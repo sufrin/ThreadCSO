@@ -1,0 +1,68 @@
+#!/bin/bash
+#
+#  Minimal build script for threadcso and examples, bypassing sbt
+#
+#  PRECONDITIONS:
+#     1. you have downloaded a jdk-20.jdk 
+#     2. scala and scalac are versions 2.13.7 or 2.13.8
+#
+export JAVA_HOME=$HOME/Downloads/jdk-20.jdk/Contents/Home
+#
+#
+BUILD=BUILD-TEMP
+JARVERSION=1.0
+JAR=threadcso-2.13+jdk20+$JARVERSION.jar
+EXAMPLES=threadcsoexamples.jar
+#
+#
+function findscala () {
+        root=${1-.}
+        find $root -name "*.scala" 2>/dev/null
+}
+scalac="scalac -deprecation -unchecked "
+#
+#
+function BUILDER() { 
+[ -d $BUILD ] || mkdir $BUILD
+rm -rfv $BUILD/*
+#
+# 1. Compile the macros
+echo Compiling Macros
+$scalac -d $BUILD           app/src/main/scala/app/App.scala
+$scalac -d $BUILD -cp $BUILD app/src/main/scala/app/OPT.scala
+$scalac -d $BUILD  $(findscala macros)
+
+# 2. Compile the core code (without tests)
+echo Compiling Core 
+$scalac -d $BUILD -cp $BUILD $(findscala core/src/main)
+
+# 3. Make a jar
+echo Building $JAR
+jar cf $JAR -C $BUILD .
+rm -rf $BUILD/*
+
+# 4. Compile the examples
+echo Building $EXAMPLES
+$scalac -d $EXAMPLES -cp $JAR $(findscala examples)
+
+}
+
+#
+#
+#
+if [ ! \( -f $JAR \) ]
+then
+   BUILDER
+else
+ARGS='"$@"'
+cat > runcso << ENDRUN
+#!/bin/bash
+export JAVA_OPTS="-Xmx256M -Xms32M --enable-preview"
+export JAVA_HOME="$JAVA_HOME"
+scala -cp $EXAMPLES:$JAR $ARGS
+ENDRUN
+chmod +x runcso
+echo Examples can be run with, eg: ./runcso Life
+fi
+
+ls -l *.jar

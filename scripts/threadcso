@@ -1,0 +1,70 @@
+#!/bin/zsh
+#  
+#  cso              - creates and shows JAVA_HOME, CSOPATH, JAVA_OPTS variables
+#  cso  args        - run scala -cp $CSOPATH args...
+#  cso  -jars       - show file details of the jars that will be on the CSOPATH
+#  cso  -sbt args   - run sbt with the appropriate JAVA_HOME and JAVA_OPTS
+#  csoc args        - run scalac -cp $CSOPATH args...
+#  source pathtocso - creates and exports JAVA_HOME, CSOPATH, JAVA_OPTS variables
+#
+#  Installation: cso should be somewhere on PATH, with csoc linked to it symbolically
+#
+unset CSOPATH
+unset JAVA_HOME
+unset JAVA_OPTS
+#
+#
+#
+CSO=/Users/sufrin/GitHomes/threadcso/ThreadCSO
+JAVA_OPTS="-Xmx256M -Xms32M --enable-preview"
+JAVA_HOME=/Users/sufrin/Downloads/jdk-20.jdk/Contents/Home
+
+case $0 in
+  *csoc)   PROGRAM=scalac;;
+  *cso)    PROGRAM=scala;;
+  *)       PROGRAM=echo;;
+esac
+
+
+#
+# Interpret any special arguments
+#
+case $1 in
+  -jars)
+     find $CSO -name "*.jar" -a -not \( -path "*sbt*" \) -exec stat -f "%Sm%n  %N" \{\} \;  ;
+     exit;;
+
+  -sbt);;
+  
+  -h)
+     echo "Usage: "
+     echo " cso        - creates and shows JAVA_HOME, CSOPATH, JAVA_OPTS variables";
+     echo " cso  args  - run scala -cp \$CSOPATH args...";
+     echo " cso  -jars - show file details of the jars that will be on the CSOPATH" ;
+     echo " cso  -sbt args - run sbt args using JAVA_HOME and JAVA_OPTS" ;     
+     echo " csoc args  - run scalac -cp \$CSOPATH args...";
+     echo " source cso - creates and exports JAVA_HOME, CSOPATH, JAVA_OPTS variables";
+     exit;;
+esac
+#
+# Collect jar files for the path
+#
+for jar in $(find $CSO -name "*.jar" | grep -v sbt)
+do
+  CSOPATH=$jar:$CSOPATH
+done
+
+export CSOPATH
+export JAVA_HOME
+export JAVA_OPTS
+
+if [ "$1" = "-sbt" ]
+then
+   shift
+   sbt "$@"
+elif [ $# -ne 0 ]
+then
+   $PROGRAM -cp $CSOPATH "$@"
+else
+   printenv | egrep "(CSOPATH|JAVA_HOME|JAVA_OPTS)"
+fi

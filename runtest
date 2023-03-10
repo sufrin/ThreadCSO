@@ -1,4 +1,0 @@
-# Run a compiled test
-CP=TESTS:$(echo PUBLISH/threadcso*jar)
-scala -cp $CP "$@"
- 

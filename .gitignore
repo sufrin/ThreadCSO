@@ -1,14 +1,9 @@
 *.class
 *.log
-BUILD/*
-DOC/*
-MACROS/*
-*.uptodate
-scalac-arguments
-scaladoc-arguments
-*~
 
-
-
-
-
+target/
+.bloop/
+.metals/
+metal.sbt
+.bsp/
+core/src/test/scala/LISTING.pdf
