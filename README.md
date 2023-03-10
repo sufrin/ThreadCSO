@@ -1,25 +1,8 @@
 # ThreadCSO
-## CSP/OCCAM-style channel-based concurrency
-
-### NEWS: February 2023
-
-With M Ahsan Al Mahir we have now made a version of ThreadCSO that can use
-virtual threads (from **jdk20**) alongside platform threads.  Only minor
-changes were necessary (the introduction of a new form of executor); and
-99% of the API remains unchanged. 
-
-These virtual threads provide dramatically enhanced possibilities for
-channel-based programming since tens or hundreds of thousands of them can
-be running in the same address space. Inter-process communication
-performance (between processes running on virtual threads) appears
-(in our tests) to better by orders of magnitude. 
-
-To build this version
+## CSP/OCCAM-style channel-based concurrency on the JVM
 
 
-### Introduction
-
-**ThreadCSO** is the second implementation of the *Communicating
+**ThreadCSO** is the second substantive implementation of the *Communicating
 Scala Objects* DSL (**CSO**) designed and built by Bernard Sufrin
 at Oxford University in 2007 to support the *Concurrent Programming*
 course that he taught there between 2004 and 2018, alternating every
@@ -40,6 +23,86 @@ an up-to-date introductory paper based on the 2007 paper, and
 the slides for the (relevant) lectures given in 2018. Examples of larger
 programs (will) appear elsewhere on GitHub.
 
+
+### NEWS: February/March 2023 Early access to virtual threads 
+
+With the assistance of M Ahsan Al Mahir we have now made a version
+of ThreadCSO that can use virtual threads (from **jdk20**) alongside
+platform threads.  Only minor changes were necessary (the introduction
+of a new form of executor); and 99% of the API remains unchanged.
+
+These virtual threads provide dramatically enhanced possibilities for
+channel-based programming since tens or hundreds of thousands of them can
+be running in the same address space. Inter-process communication
+performance (between processes running on virtual threads) appears
+(in our tests) to better by order(s) of magnitude. 
+
+#### To build and test this version
+
+First **ensure** you have exported `JAVA_HOME` set to the path of
+a jdk that is no earlier than jdk 20
+
+##### If you have mastered sbt:
+
+Just run
+
+    sbt clean test package
+
+This will produce a few `.jar` files that should be placed in
+the scala / scalac class path as you run / compile a scala
+program that uses `threadcso`. The script `scripts/threadcso`
+will -- with a little editing to get the absolute paths bound
+to the symbols `CSO` and `JAVA_HOME` correct for your computer
+-- be able to make appropriate class path and other exports,
+or will run or compile a program that uses `threadcso`. Take
+a look at it. 
+       
+    .../core/target/scala-2.13/threadcso_2.13-0.1.1-SNAPSHOT.jar
+    .../app/target/scala-2.13/app_2.13-1.0.1-SNAPSHOT.jar
+    .../target/scala-2.13/threadcso_2.13-0.1.1-SNAPSHOT.jar
+    .../macros/target/scala-2.13/macros_2.13-1.0.1-SNAPSHOT.jar
+    .../manualtests/target/scala-2.13/manualtests_2.13-0.1.1-SNAPSHOT.jar
+    .../examples/target/scala-2.13/examples_2.13-0.1.1-SNAPSHOT.jar     
+
+If the (rudimentary) tests were passed you can start a session with `sbt`
+and run some of the examples directly. Here's an example of a (two command)
+session:
+
+    sbt:threadcso> project examples
+    sbt:examples> runMain Life
+
+You can, of course, prolong the session; edit sources and try running
+again, etc.
+
+##### If you have not mastered sbt
+    
+Just adjust the symbol bound to `JAVA_HOME` to the path to
+your downloaded *jdk* (which must be no earlier than *jdk 20*),
+then run
+
+    sh scripts/minimalbuildscript
+
+This will build a `.jar` file that consolidates all the necessary
+components to compile and run `threadcso` programs, as well as
+one containing the compiled `examples`. It will also generate a
+script `runcso` that will run any of the examples mentioned
+in `examples/README.md`. Try one of these:
+
+    ./runcso Life
+    ./runcso Particles s -9 P 40 
+    ./runcso Particles S 4  P 40  w=1800 h=1000 
+
+Or if you want to look at the corpse of a deadlocked non-solution
+to the dining philosophers problem, try:
+
+    ./runcso Phils
+
+Then, when the program appears to deadlock, use a web browser to
+connect to the debugger whose port is announced as the program
+starts.
+
+
+### Introduction
 
 
 

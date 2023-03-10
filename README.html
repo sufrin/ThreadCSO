@@ -785,15 +785,40 @@ padding-left: 128px!important;
 </head>
 <body>
 <h1 id="threadcso">ThreadCSO</h1>
-<h2 id="cspoccam-style-channel-based-concurrency">CSP/OCCAM-style channel-based concurrency</h2>
-<h3 id="news-february-2023">NEWS: February 2023</h3>
-<p>With M Ahsan Al Mahir we have now made a version of ThreadCSO that can use virtual threads (from <strong>jdk20</strong>) alongside platform threads. Only minor changes were necessary (the introduction of a new form of executor); and 99% of the API remains unchanged.</p>
-<p>These virtual threads provide dramatically enhanced possibilities for channel-based programming since tens or hundreds of thousands of them can be running in the same address space. Inter-process communication performance (between processes running on virtual threads) appears (in our tests) to better by orders of magnitude.</p>
-<p>We are presently in a testing and enhancement phase. All tests have so far been passed. An early-access version will be made available around easter.</p>
-<h3 id="introduction">Introduction</h3>
-<p><strong>ThreadCSO</strong> is the second implementation of the <em>Communicating Scala Objects</em> DSL (<strong>CSO</strong>) designed and built by Bernard Sufrin at Oxford University in 2007 to support the <em>Concurrent Programming</em> course that he taught there between 2004 and 2018, alternating every few years with Gavin Lowe, who with Andrew Bate, made important contributions to the DSL and to the course.</p>
+<h2 id="cspoccam-style-channel-based-concurrency-on-the-jvm">CSP/OCCAM-style channel-based concurrency on the JVM</h2>
+<p><strong>ThreadCSO</strong> is the second substantive implementation of the <em>Communicating Scala Objects</em> DSL (<strong>CSO</strong>) designed and built by Bernard Sufrin at Oxford University in 2007 to support the <em>Concurrent Programming</em> course that he taught there between 2004 and 2018, alternating every few years with Gavin Lowe, who with Andrew Bate, made important contributions to the DSL and to the course.</p>
 <p>Though there are several more modern programming languages that provide channel-based communication, few provide the low-overhead compositional blend of <strong>CSO</strong> -- inspired by CSP/OCCAM -- that includes (potentially-guarded and timed) input and output alternations, &quot;upstream&quot; channel closing, straightforward clean network termination, <em>etc</em>.</p>
 <p><strong>ThreadCSO</strong> is published on GitHub now, with a few small example programs, in the hope that it may prove useful to someone as a pedagogical or a practical tool. The folder <code>Lectures</code> contains an up-to-date introductory paper based on the 2007 paper, and the slides for the (relevant) lectures given in 2018. Examples of larger programs (will) appear elsewhere on GitHub.</p>
+<h3 id="news-februarymarch-2023-early-access-to-virtual-threads">NEWS: February/March 2023 Early access to virtual threads</h3>
+<p>With the assistance of M Ahsan Al Mahir we have now made a version of ThreadCSO that can use virtual threads (from <strong>jdk20</strong>) alongside platform threads. Only minor changes were necessary (the introduction of a new form of executor); and 99% of the API remains unchanged.</p>
+<p>These virtual threads provide dramatically enhanced possibilities for channel-based programming since tens or hundreds of thousands of them can be running in the same address space. Inter-process communication performance (between processes running on virtual threads) appears (in our tests) to better by order(s) of magnitude.</p>
+<h4 id="to-build-and-test-this-version">To build and test this version</h4>
+<p>First <strong>ensure</strong> you have exported <code>JAVA_HOME</code> set to the path of a jdk that is no earlier than jdk 20</p>
+<h5 id="if-you-have-mastered-sbt">If you have mastered sbt:</h5>
+<p>Just run</p>
+<pre><code>sbt clean test package</code></pre>
+<p>This will produce a few <code>.jar</code> files that should be placed in the scala / scalac class path as you run / compile a scala program that uses <code>threadcso</code>. The script <code>scripts/threadcso</code> will -- with a little editing to get the absolute paths bound to the symbols <code>CSO</code> and <code>JAVA_HOME</code> correct for your computer -- be able to make appropriate class path and other exports, or will run or compile a program that uses <code>threadcso</code>. Take a look at it.</p>
+<pre><code>.../core/target/scala-2.13/threadcso_2.13-0.1.1-SNAPSHOT.jar
+.../app/target/scala-2.13/app_2.13-1.0.1-SNAPSHOT.jar
+.../target/scala-2.13/threadcso_2.13-0.1.1-SNAPSHOT.jar
+.../macros/target/scala-2.13/macros_2.13-1.0.1-SNAPSHOT.jar
+.../manualtests/target/scala-2.13/manualtests_2.13-0.1.1-SNAPSHOT.jar
+.../examples/target/scala-2.13/examples_2.13-0.1.1-SNAPSHOT.jar     </code></pre>
+<p>If the (rudimentary) tests were passed you can start a session with <code>sbt</code> and run some of the examples directly. Here&#39;s an example of a (two command) session:</p>
+<pre><code>sbt:threadcso&gt; project examples
+sbt:examples&gt; runMain Life</code></pre>
+<p>You can, of course, prolong the session; edit sources and try running again, etc.</p>
+<h5 id="if-you-have-not-mastered-sbt">If you have not mastered sbt</h5>
+<p>Just adjust the symbol bound to <code>JAVA_HOME</code> to the path to your downloaded <em>jdk</em> (which must be no earlier than <em>jdk 20</em>), then run</p>
+<pre><code>sh scripts/minimalbuildscript</code></pre>
+<p>This will build a <code>.jar</code> file that consolidates all the necessary components to compile and run <code>threadcso</code> programs, as well as one containing the compiled <code>examples</code>. It will also generate a script <code>runcso</code> that will run any of the examples mentioned in <code>examples/README.md</code>. Try one of these:</p>
+<pre><code>./runcso Life
+./runcso Particles s -9 P 40 
+./runcso Particles S 4  P 40  w=1800 h=1000 </code></pre>
+<p>Or if you want to look at the corpse of a deadlocked non-solution to the dining philosophers problem, try:</p>
+<pre><code>./runcso Phils</code></pre>
+<p>Then, when the program appears to deadlock, use a web browser to connect to the debugger whose port is announced as the program starts.</p>
+<h3 id="introduction">Introduction</h3>
 <h3 id="processes-and-process-notation">Processes and Process Notation</h3>
 <p><em>(Some extracts from the introductory paper)</em></p>
 <p>A CSO process is a value with Scala type <code>PROC</code> and is what an experienced object oriented programmer would call a <em>stereotype</em> for a thread. When a process is <em>started</em> any fresh threads that are necessary for it to run are acquired from a pool; they are returned to the pool when the process terminates. The present default pool implementation acquires new worker threads from the underlying JVM when necessary and &#39;&#39;retires&#39;&#39; threads that have remained dormant in the pool for more than a certain period. Several varieties of pool implementation are available: all can be specified and parameterized at run-time.</p>
