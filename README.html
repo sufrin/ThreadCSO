@@ -821,7 +821,7 @@ sbt:examples&gt; runMain Life</code></pre>
 <h3 id="introduction">Introduction</h3>
 <h3 id="processes-and-process-notation">Processes and Process Notation</h3>
 <p><em>(Some extracts from the introductory paper)</em></p>
-<p>A CSO process is a value with Scala type <code>PROC</code> and is what an experienced object oriented programmer would call a <em>stereotype</em> for a thread. When a process is <em>started</em> any fresh threads that are necessary for it to run are acquired from a pool; they are returned to the pool when the process terminates. The present default pool implementation acquires new worker threads from the underlying JVM when necessary and &#39;&#39;retires&#39;&#39; threads that have remained dormant in the pool for more than a certain period. Several varieties of pool implementation are available: all can be specified and parameterized at run-time.</p>
+<p>A CSO process is a value with Scala type <code>PROC</code> and is what an experienced object oriented programmer would call a <em>stereotype</em> for a thread. When a process is <em>started</em> any fresh threads that are necessary for it to run are acquired from a pool; they are returned to the pool when the process terminates. The present default pool implementation acquires new worker threads from the underlying JVM when necessary and &#39;&#39;retires&#39;&#39; threads that have remained dormant in the pool for more than a certain period. Several varieties of pool implementation are available: all can be specified and parameterized at run-time. (Note added Feb 2023: in the present setup <em>virtual threads</em> are used to run processes: the exact form of thread it will use when running can be specified at process abstration time)</p>
 <p>Simple process expressions yield values of type <code>PROC</code> and take one of the following forms</p>
 <ol type="1">
 <li><code>proc { </code><em>expression</em> <code>}</code></li>
@@ -845,26 +845,26 @@ sbt:examples&gt; runMain Life</code></pre>
 <p>3. <em>p1</em> <code>||</code> <em>p2</em> <code>||</code> ... <em>pN</em></p>
 <p>Each of the processes except one is run in a new thread of its own; the remaining process is run in the current thread. The process as a whole terminates only when <em>every</em> component <em>pi</em> has terminated. But if one or more of the components terminated by throwing an uncaught exception then <em>when and only when they have all terminated</em> these exceptions are bundled into a <code>ParException</code> which is re-thrown, <em>unless they are all subtypes of</em> <code>io.threadcso.process.Stopped</code>; in which case a <em>single</em> <code>io.threadcso.process.Stopped</code> is thrown. (The reasons for this exception are explained in detail in the introductory paper. They are the foundation of the <em>network termination</em> protocol.)</p>
 <p><strong>Forking</strong></p>
-<p>It can sometimes simplify the construction of a large system to have processes that run (more or less permanently) in the background. The expression <code>fork(</code><em>p</em><code>)</code> runs <em>p</em> in a new thread concurrent with the thread that invoked <code>fork</code>, and returns a <em>handle</em> on the running process that can be used (to some extent) to manipulate it. The new thread is recycled when the process terminates.</p>
+<p>It can sometimes simplify the construction of a large system to have processes that run (more or less permanently) in the background. The expression <code>fork(</code><em>p</em><code>)</code> runs <em>p</em> in a new thread concurrent with the thread that invoked <code>fork</code>, and returns a <em>handle</em> on the running process that can be used (to some extent) to manipulate it. The new thread is recycled (2023: or abandoned if it is a virtual thread) when the process terminates.</p>
 <h3 id="ports-and-channels">Ports and Channels</h3>
-<p>A CSO channel has two ports, one at each end, and in general is intended to transmit (for reading) to its <em>input port</em> the data that is written to its <em>output port</em>. Ports are parameterized by the type of data the channel transmits, and we define the abbreviations <code>?[T]</code> and <code>![T]</code> respectively for <code>InPort[T]</code> and <code>OutPort[T]</code>.</p>
-<p>The most important method of an output port <em>op</em><code>: ![T]</code> is its writing method <em>op</em><code>!(</code><em>value</em><code>:T)</code>.</p>
-<p>The most important methods of an input port <em>ip</em><code>:?[T]</code> are its reading method <em>ip</em><code>?():T</code>, and its read-and-evaluate method <em>ip</em><code>?{[U](</code><em>f</em><code>:T=&gt;U):U</code>. If <em>f</em><code>:T=&gt;U</code>, the expression <em>ip</em><code>?(</code><em>f</em><code>)</code> has exactly the same effect as <em>f</em><code>(</code><em>ip</em><code>?())</code>, namely to read a datum from <em>ip</em> (waiting, if necessary, for one to become available) then apply the function <em>f</em> to it.</p>
-<p>The type <code>Chan[T]</code> is implemented by all channels that carry values of type <code>T</code>; it is a subtype of both <code>![T]</code> and <code>?[T]</code>. The implicit contract of every conventional <code>Chan</code> implementation is that it transmits the data written at its output port to its input port in the order in which the data is written.</p>
+<p>A CSO channel has two ports, one at each end, and in general is intended to transmit (for reading) to its <em>input port</em> the data that is written to its <em>output port</em>. Ports are parameterized by the type of data the channel transmits, and we define the abbreviations <code>??[T]</code> and <code>!![T]</code> respectively for <code>InPort[T]</code> and <code>OutPort[T]</code>. (2023: the abbreviations used to be <code>?[T]</code> and <code>![T]</code> but one or both of these are now forbidden in Scala 2.13)</p>
+<p>The most important method of an output port <em>op</em><code>: !![T]</code> is its writing method <em>op</em><code>!(</code><em>value</em><code>:T)</code>.</p>
+<p>The most important methods of an input port <em>ip</em><code>:??[T]</code> are its reading method <em>ip</em><code>?():T</code>, and its read-and-evaluate method <em>ip</em><code>?{[U](</code><em>f</em><code>:T=&gt;U):U</code>. If <em>f</em><code>:T=&gt;U</code>, the expression <em>ip</em><code>?(</code><em>f</em><code>)</code> has exactly the same effect as <em>f</em><code>(</code><em>ip</em><code>?())</code>, namely to read a datum from <em>ip</em> (waiting, if necessary, for one to become available) then apply the function <em>f</em> to it.</p>
+<p>The type <code>Chan[T]</code> is implemented by all channels that carry values of type <code>T</code>; it is a subtype of both <code>!![T]</code> and <code>??[T]</code>. The implicit contract of every conventional <code>Chan</code> implementation is that it transmits the data written at its output port to its input port in the order in which the data is written.</p>
 <p>CSO provides a variety of channel implementations , with different synchronization behaviours (synchronised, buffered, <em>etc</em>) and different restrictions on the numbers of processes that may access (<em>i.e.</em> use the principal methods of) their ports at any time (many-to-many, one-to-one, <em>etc</em>). Channels may be closed by their creator or from processes communicating using their ports: after being closed they (eventually or immediately) cease to transmit data.</p>
 <p>A variety of other CSO constructs are designed to simplify the programming of components / server processes that can be connected in networks tjhat can straightforwardly be terminated. For example, a read from the input port of a channel that is, or becomes, closed throws a <code>Stopped</code> exception, and such exceptions <em>naturally</em> terminate <strong>repeat</strong> loops and propagate through <code>||</code> compositions.</p>
 <p>For detailed descriptions of the varieties of channel, and of the conventions for fuss-free clean network termination see the introductory paper and Lectures/04....</p>
 <p>As an example of the flavour of programming components in CSO, the <code>tee</code> process generator below builds a process that, when started, broadcasts data from its input port to all its output ports concurrently: if the input port closes, or if any output port is closed before or during a broadcast, then the process stops broadcasting and closes all its ports, before itself terminating.</p>
-<pre><code>    def tee[T](in: ?[T], outs: Seq[![T]]) =
+<pre><code>    def tee[T](in: ??[T], outs: Seq[!![T]]) =
     proc { var data = in.nothing  // unspecified initial value
            val cast = || for (out&lt;-outs) yield proc { out!data }
            repeat { data = in?(); cast() }
            for (out&lt;-outs) out.closeOut; in.closeIn
          }</code></pre>
-<p>Any process that happens to be reading or writing at the time will (if it is written using the termination conventions) itself do likewise, thereby propagating termination across the communications network.</p>
+<p>Any process that happens to be reading or writing at the time will (if it is written using the termination conventions) itself do likewise, thereby propagating termination across the communications network. To simplify compliance with the network termination convention Channel closure is idempotent: once a channel is closed it can be re-closed without having any discernible effects elsewhere.</p>
 <p><strong>Alternation</strong></p>
 <p>It is often useful to be able to input from the first available channel of a collection of channels: the <strong>alt</strong> construct supports this. For example, a process generated by <code>tagger</code> (shown below) repeatedly inputs from one of two input ports, then outputs the value that was input &quot;tagged&quot; with either <code>0</code> or <code>1</code> to indicate its origin:</p>
-<pre><code>    def tagger[T](l: ?[T], r: ?[T], out: ![(Int, T)]): PROC = 
+<pre><code>    def tagger[T](l: ??[T], r: ??[T], out: !![(Int, T)]): PROC = 
     proc { repeat { alt ( l =?=&gt; { vl =&gt; out!(0, vl) } 
                         | r =?=&gt; { vr =&gt; out!(1, vr) } 
                         ) 
@@ -872,7 +872,7 @@ sbt:examples&gt; runMain Life</code></pre>
            l.closeIn; r.closeIn; out.closeOut 
          }</code></pre>
 <p>When either or both input ports can provide input, the <strong>alt</strong> chooses (in principle nondeterministically) between those that can. The nondeterministic choice is not necessarily made fairly, so one of the ports can &quot;get ahead&quot; of the other in some circumstances. One way of making things fairer is to program the repeated <strong>alt</strong> as a <strong>serve</strong> construct, thus:</p>
-<pre><code>    def tagger[T](l: ?[T], r: ?[T], out: ![(Int, T)]): PROC = 
+<pre><code>    def tagger[T](l: ??[T], r: ??[T], out: !![(Int, T)]): PROC = 
     proc { serve ( l =?=&gt; { vl =&gt; out!(0, vl) } 
                  | r =?=&gt; { vr =&gt; out!(1, vr) } 
                  ) 
@@ -882,7 +882,7 @@ sbt:examples&gt; runMain Life</code></pre>
 <p>Both these &quot;taggers&quot; obey the termination protocol. The (<strong>repeat</strong>ed) <strong>alt</strong> fails with a <code>Stopped</code> exception, thereby terminating the <strong>repeat</strong>, either if <code>out</code> becomes closed, or <em>both</em> <code>l</code>, and <code>r</code> become closed. The <strong>serve</strong> has identical termination behaviour.</p>
 <p>Notice that the above alternations are composed of a sequence of <strong>events</strong> of the form <em>inport</em><code>=?=&gt;</code><em>function</em>. The <em>function</em> is invoked when the port <em>can</em> provide input and is <em>chosen</em> by the alternation to do so. Such events can also be guarded with boolean guards, and a port is not considered by an alternation construct if its guard is false.</p>
 <p>A good example of the use of guarded events, and a mix of input and output events is the (purely pedagogic) example of a two-place buffer implementation that appears in the chapter on alternation: Lectures/06.</p>
-<pre><code>    def Buff2Alt[T](in: ?[T], out: ![T]) = proc {
+<pre><code>    def Buff2Alt[T](in: ??[T], out: !![T]) = proc {
         var x     = in?()
         var empty = false
         serve ( (empty  &amp;&amp; in)  =?=&gt; { y =&gt; x=y; empty=false }
@@ -924,7 +924,7 @@ sbt:examples&gt; runMain Life</code></pre>
       val report = N2NBuf[String] (0, 0, 1, &quot;report&quot;)
       
       // A single philosopher with identity `me`: 0 is right-handed
-      def Phil(me: Int, left: ![Action], right: ![Action]) = proc(&quot;Phil&quot;+me) {
+      def Phil(me: Int, left: !![Action], right: !![Action]) = proc(&quot;Phil&quot;+me) {
         repeat {
           Think
           if (me==0) {

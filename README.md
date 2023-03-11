@@ -119,7 +119,9 @@ pool implementation acquires new worker threads from the underlying
 JVM when necessary and ''retires'' threads that have remained dormant
 in the pool for more than a certain period. Several varieties of
 pool implementation are available: all can be specified and parameterized
-at run-time.
+at run-time. (Note added Feb 2023: in the present setup *virtual
+threads* are used to run processes: the exact form of thread it will use
+when running can be specified at process abstration time)
 
 Simple process expressions yield values of type `PROC` and
 take one of the following forms
@@ -187,26 +189,28 @@ have processes that run (more or less permanently) in the background.
 The expression `fork(`*p*`)` runs *p*  in a new thread concurrent
 with the thread that invoked `fork`, and returns a *handle* on the
 running process that can be used (to some extent) to manipulate it.
-The new thread is recycled when the process terminates.
+The new thread is recycled (2023: or abandoned if it is a virtual thread)
+when the process terminates.
        
 ### Ports and Channels
 
 A CSO channel has two ports, one at each end, and in general is intended to transmit
 (for reading) to its *input port* the data that is written to its *output port*. Ports
 are parameterized by the type of data the channel transmits, and we define the abbreviations
-`?[T]` and `![T]` respectively for
-`InPort[T]` and `OutPort[T]`.
+`??[T]` and `!![T]` respectively for
+`InPort[T]` and `OutPort[T]`. (2023: the abbreviations used to be `?[T]` and `![T]` but
+one or both of these are now forbidden in Scala 2.13)
 
-The most important method of an output port *op*`: ![T]` is its writing method *op*`!(`*value*`:T)`.
+The most important method of an output port *op*`: !![T]` is its writing method *op*`!(`*value*`:T)`.
 
-The most important methods of an input port *ip*`:?[T]` are its reading method *ip*`?():T`, and
+The most important methods of an input port *ip*`:??[T]` are its reading method *ip*`?():T`, and
 its read-and-evaluate method *ip*`?{[U](`*f*`:T=>U):U`. If *f*`:T=>U`, the expression *ip*`?(`*f*`)`
 has exactly the same effect as *f*`(`*ip*`?())`, namely to read a datum from *ip* 
 (waiting, if necessary, for one to become available) then apply 
 the function *f* to it.
 
 The type `Chan[T]` is implemented by all channels that
-carry values of type `T`; it is a subtype of both `![T]` and `?[T]`.
+carry values of type `T`; it is a subtype of both `!![T]` and `??[T]`.
 The implicit contract of every conventional `Chan` implementation
 is that it transmits the data written at its output port to its input
 port in the order in which the data is written.  
@@ -239,17 +243,19 @@ concurrently: if the input port closes, or if any output port is
 closed before or during a broadcast, then the process stops
 broadcasting and closes all its ports, before itself terminating.
 
-        def tee[T](in: ?[T], outs: Seq[![T]]) =
+        def tee[T](in: ??[T], outs: Seq[!![T]]) =
         proc { var data = in.nothing  // unspecified initial value
                val cast = || for (out<-outs) yield proc { out!data }
                repeat { data = in?(); cast() }
                for (out<-outs) out.closeOut; in.closeIn
              }
 
-Any process that happens to be reading or writing
-at the time will (if it is written using the termination conventions) 
-itself do likewise, thereby propagating
-termination across the communications network.
+Any process that happens to be reading or writing at the time will
+(if it is written using the termination conventions) itself do
+likewise, thereby propagating termination across the communications
+network. To simplify compliance with the network termination
+convention Channel closure is idempotent: once a channel is closed it
+can be re-closed without having any discernible effects elsewhere.
 
 **Alternation**
 
@@ -261,7 +267,7 @@ to indicate its origin:
 
 
 
-        def tagger[T](l: ?[T], r: ?[T], out: ![(Int, T)]): PROC = 
+        def tagger[T](l: ??[T], r: ??[T], out: !![(Int, T)]): PROC = 
         proc { repeat { alt ( l =?=> { vl => out!(0, vl) } 
                             | r =?=> { vr => out!(1, vr) } 
                             ) 
@@ -275,7 +281,7 @@ choice is not necessarily made fairly, so one of the ports can "get ahead" of
 the other in some circumstances. One way of making things fairer is to
 program the repeated **alt** as a **serve** construct, thus:
 
-        def tagger[T](l: ?[T], r: ?[T], out: ![(Int, T)]): PROC = 
+        def tagger[T](l: ??[T], r: ??[T], out: !![(Int, T)]): PROC = 
         proc { serve ( l =?=> { vl => out!(0, vl) } 
                      | r =?=> { vr => out!(1, vr) } 
                      ) 
@@ -300,7 +306,7 @@ A good example of the use of guarded events, and a mix of input and
 output events is the (purely pedagogic) example of a two-place buffer
 implementation that appears in the chapter on alternation: Lectures/06.
 
-        def Buff2Alt[T](in: ?[T], out: ![T]) = proc {
+        def Buff2Alt[T](in: ??[T], out: !![T]) = proc {
             var x     = in?()
             var empty = false
             serve ( (empty  && in)  =?=> { y => x=y; empty=false }
@@ -352,7 +358,7 @@ Several other solutions will appear in due course.
           val report = N2NBuf[String] (0, 0, 1, "report")
           
           // A single philosopher with identity `me`: 0 is right-handed
-          def Phil(me: Int, left: ![Action], right: ![Action]) = proc("Phil"+me) {
+          def Phil(me: Int, left: !![Action], right: !![Action]) = proc("Phil"+me) {
             repeat {
               Think
               if (me==0) {
