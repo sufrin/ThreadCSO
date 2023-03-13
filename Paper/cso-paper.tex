@@ -1,6 +1,6 @@
 \documentclass[12pt]{IOS-Book-Article-CPA-2017}
 \usepackage{cso-paper,RCS}
-\SVN    $Id: cso-paper.tex 306 2017-12-19 16:29:29Z sufrin $
+%\SVN    $Id: cso-paper.tex 306 2017-12-19 16:29:29Z sufrin $
 \def\AND{\mathtt{\&\&}}
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -20,17 +20,14 @@
 \begin{document}
 \begin{frontmatter}
 \setcounter{page}{1}
-
-\title{Communicating Scala Objects\\ (2017 Revision)}
-\runningtitle{Communicating Scala Objects (CSO Version 1.2, 2017 Revision)}
+\title{Communicating Scala Objects\\ (2023 Revision)}
+\runningtitle{Communicating Scala Objects (CSO Version 1.3, 2023 Revision)}
 \runningauthor{Bernard Sufrin}
 
 \author{\fnms{Bernard} \snm{SUFRIN}}
 \address{
-Oxford University Department of Computer Science \\and\\
-   Worcester College, 
-   \\ 
-   Oxford OX1 2HB, England
+Oxford University Department of Computer Science\\
+   Oxford OX1 3QD, England
    \\[4pt]
    {\small {\tt Bernard.Sufrin@cs.ox.ac.uk}}
 }
@@ -44,8 +41,13 @@ Oxford University Department of Computer Science \\and\\
    programming language that is compiled to Java Virtual Machine
    (JVM) code.
       
-   \noindent\textit{This revision uses CSO notation compatible with
-           version 1.2 of CSO. 
+   \noindent This revision describes version \textbf{1.3} of CSO as promulgated on
+          \textbf{GitHub} in the repository \texttt{/sufrin/ThreadCSO}. It is
+           compatible with \textbf{scala 2.13, and \textbf{Java 20}}. {The
+           main notational difference is the use of \texttt{??[T]} and \texttt{!![T]}
+           as abbreviations for \texttt{InPort[T]} and \texttt{OutPort[T]}. The
+           doubling-up of \texttt{?} and \texttt{!} are a consequence of
+           the deprecation of these identifiers in type names.           
           } 
    
 \end{abstract}
@@ -283,16 +285,16 @@ associated with the newly started thread and can be used to discover when
 A CSO channel has two ports, one at each end, and in general is intended to transmit
 to its \textit{input port} the data that is written to its \textit{output port}. Ports
 are parameterized by the type of data the channel transmits, and we define the abbreviations
-\textscala{?[T]} and \textscala{![T]} respectively for
+\textscala{??[T]} and \textscala{!![T]} respectively for
 \textscala{InPort[T]} and \textscala{OutPort[T]}.
 
 The most important method of 
-an \textscala{![T]} is its write method
+an \textscala{!![T]} is its write method
 \begin{code}[]
     ! (value: T) 
 \end{code}
 and the most frequently-used methods of
-an \textscala{?[T]} are its read method
+an \textscala{??[T]} are its read method
 \begin{code}[]
     ? () : T
 \end{code}
@@ -440,11 +442,11 @@ Readers familiar with JCSP may find it useful to compare this
 with the network illustrated in section 1.5 of \cite{jcsp2}.
 
 \begin{code+}[...]{float,frame=lrtb,label=jcspnet,caption={A network of producers connected to consumers by a multiplexed channel}}
-    def producer(i: int, ![T]) : PROC = ...
-    def consumer(i: int, ?[T]) : PROC = ...
+    def producer(i: int, !![T]) : PROC = ...
+    def consumer(i: int, ??[T]) : PROC = ...
     
-    def mux[T] (ins: Seq[?[T]],   out: ![(int, T)]) : PROC = ...
-    def dmux[T](in:  ?[(int, T)], outs: Seq[![T]])  : PROC = ...
+    def mux[T] (ins: Seq[??[T]],   out: !![(int, T)]) : PROC = ...
+    def dmux[T](in:  ??[(int, T)], outs: Seq[!![T]])  : PROC = ...
     
     
     val left, right = 
@@ -464,8 +466,8 @@ JVM; and in \Listing \ref{jcspnet1} we show a network in which producers
 and consumers are connected directly.
 
 \begin{code+}{float,frame=lrtb,label=jcspnet1,caption={A network in which producers are connected directly to consumers}}
-    def producer(i: int, ![T]) : PROC = ...
-    def consumer(i: int, ?[T]) : PROC = ...
+    def producer(i: int, !![T]) : PROC = ...
+    def consumer(i: int, ??[T]) : PROC = ...
     
     val con = for (_ <- 0 until n) yield OneOne[T]
     
@@ -495,7 +497,7 @@ the plain form of read $(mid?())$ and its read-and-evaluate form $(ins(i) ? { v 
 simply to give an example of the latter.}
 
 \begin{code+}[...]{float,label=mux,frame=tblr,caption={Two multiplexers and a demultiplexer}}
-  def mux1[T] (ins: Seq[?[T]], out: ![(Int, T)]) : PROC =
+  def mux1[T] (ins: Seq[??[T]], out: !![(Int, T)]) : PROC =
   { val mid = N2N[(Int, T)](0, 1) // Many writers; one reader
     (  proc { while(true) { out!(mid?()) } } ||
     || (for (i<-0 until ins.length) yield 
@@ -504,11 +506,11 @@ simply to give an example of the latter.}
     
   }   
    
-  def mux2[T] (ins: Seq[?[T]], out: SharedOutPort[(Int, T)]) : PROC =
+  def mux2[T] (ins: Seq[??[T]], out: SharedOutPort[(Int, T)]) : PROC =
       || (for (i<-0 until ins.length) yield 
               proc { while (true) {out!(i, ins(i)?())} })   
 
-  def dmux[T](in:  ?[(Int, T)], outs: Seq[![T]]) : PROC = proc { 
+  def dmux[T](in:  ??[(Int, T)], outs: Seq[!![T]]) : PROC = proc { 
     while (true) { val (n, v) = in?(); outs(n)!v  } 
   }
 \end{code+}
@@ -546,7 +548,7 @@ reader process}. It is only when this computation terminates
 that the read is considered to have terminated and the writing process
 is permitted to proceed.
 
-The usual form of an extended rendezvous read from \textsc{in: ?[T]} is\note{The
+The usual form of an extended rendezvous read from \textsc{in: ??[T]} is\note{The
 most general form of extended rendezvous read is \textsc{in??f} where \textsc{f} denotes
 a function of type \textsc{T=>U}. The type of \textsc{in??f} is then \textsc{U}.}
 \begin{code}
@@ -561,7 +563,7 @@ is permitted to proceed and the result of the application is returned from the r
 
 
 \begin{comment}
-In CSO the notation for an extended rendezvous read from \textsc{in: ?[T]} is
+In CSO the notation for an extended rendezvous read from \textsc{in: ??[T]} is
 \textsc{in ? f}, where \textsc{f: T=>U} denotes function of type \textsc{T=>U}. 
 The expression \textsc{in ? f} has type \textsc{U}, and it is evaluated by 
 transferring a value, $v$, from the process at the output end of the
@@ -637,7 +639,7 @@ deadlock:
 
 \noindent It is a simple matter to abstract this into a reusable component:
 \begin{code+}[...]{}
-    def tap[T](in: ?[T], out: ![T], mon: ![T]) =
+    def tap[T](in: ??[T], out: !![T], mon: !![T]) =
         proc
         { repeat { in ? { v => {(proc{mon!v} || proc{out!v})()} } } }
 \end{code+}
@@ -656,12 +658,12 @@ object netstuff
 {
 \end{code*}
 \begin{code+}{}
-    def copyToNet[T](in: ?[T], net: ![T], ack: ?[Unit]) =
+    def copyToNet[T](in: ??[T], net: !![T], ack: ??[Unit]) =
         proc { repeat { in ?? { v => { net!v; ack?() } } } }
 \end{code+}
 and
 \begin{code+}[netstuff.scala]{}
-    def copyFromNet[T](net: ?[T], ack: ![Unit], out: ![T]) =
+    def copyFromNet[T](net: ??[T], ack: !![Unit], out: !![T]) =
         proc { repeat { out!(net?()); ack!(()) } }
 \end{code+}
 
@@ -677,16 +679,16 @@ acknowledgements. Then we connect the producer to the
 network via the adapter:
 
 \begin{code+}[...]{}
-    def producer(out: ![T]) = ...    
-    val (toNet, fromNet): (![T], ?[Unit]) = ...
+    def producer(out: !![T]) = ...    
+    val (toNet, fromNet): (!![T], ??[Unit]) = ...
     val left = OneOne[T]    
     ( producer(left) || copyToNet(left, toNet, fromNet) )()
 \end{code+}
 
 At the consumer end the dual setup is employed
 \begin{code+}[...]{}
-    def consumer(in: ?[T]) = ...   
-    val (toNet, fromNet): (![Unit], ?[T]) = ...
+    def consumer(in: ??[T]) = ...   
+    val (toNet, fromNet): (!![Unit], ??[T]) = ...
     val right = OneOne[T]    
     ( copyFromNet(fromNet, toNet, right) || consumer(right) )()
 \end{code+}
@@ -839,7 +841,7 @@ that are destined to be part of a network. For example, consider
 the \textsc{copy} component of \Listing \ref{copy}, which has an iterative 
 copying phase followed by a close-down phase.
 \begin{code+}[...]{float,label=copy,caption={A terminating copy component}}
-    def copy[T](in: ?[T], out: ![T]) = 
+    def copy[T](in: ??[T], out: !![T]) = 
     proc {
       repeat { out!(in?()) }    // copying
       out.closeOut; in.closeIn  // close-down
@@ -894,7 +896,7 @@ in parallel by the more complicated:
 }
 
 \begin{code+}[...]{float,label=tee,caption={A data broadcasting component}}
-   def tee[T](in: ?[T], outs: Seq[![T]]) =
+   def tee[T](in: ??[T], outs: Seq[!![T]]) =
    proc { var data      = in.nothing  // unspecified initial value
           val broadcast = || for (out<-outs) yield proc { out!data }
           repeat { in ?? { d => { data=d;  broadcast() }}}
@@ -973,7 +975,7 @@ cleanly when its output port is closed, or if both its
 input channels have been closed. 
 %{frame=tlbr,label=tagger,caption={a tagging multiplexer}}
 \begin{code+}[...]{}
-  def tagger[T](l: ?[T], r: ?[T], out: ![(Int, T)]) = 
+  def tagger[T](l: ??[T], r: ??[T], out: !![(Int, T)]) = 
   proc
   { var diff = 0
     serve ( (diff < 5  && l) =?=> { x => out!(0, x); diff+=1 }
@@ -1003,7 +1005,7 @@ outputs them when there is demand from \verb/out/. The serve loop
 will terminate when none of the guarded events can occur -- after which 
 the three ports are closed.
 \begin{code+}[...]{}
-  def taggedMerge[T](l: ?[T], r: ?[T], out: ![(Int, T)]) = 
+  def taggedMerge[T](l: ??[T], r: ??[T], out: !![(Int, T)]) = 
   proc
   { var seqn = 0 // sequence number
     var nbuf = 0 // number buffered 
@@ -1057,7 +1059,7 @@ object fairPlex
 %{frame=lrtb,label=scalafairplex,caption=Fair Multiplexer: CSO}
 \label{scalafairplex}
 \begin{code+}{}
-  def fairPlex[T](ins: Seq[?[T]], out: ![T]) = 
+  def fairPlex[T](ins: Seq[??[T]], out: !![T]) = 
       proc { serve (| (for (in <- ins) yield in =?=> { t => out!t })) }
 \end{code+}
 \begin{code*}[]
@@ -1074,7 +1076,7 @@ object minmax
 { 
 \end{code*}
 \begin{code}
-  def primux[T](MIN: ?[Int], MAX: ?[Int], ins: Seq[?[T]], out: ![T]) = 
+  def primux[T](MIN: ??[Int], MAX: ??[Int], ins: Seq[??[T]], out: !![T]) = 
   proc
   { var min = 0
     var max = ins.length - 1
@@ -1118,7 +1120,7 @@ to measure delays or timeouts in small numbers of nanoseconds, so
 appropriate multipliers, such as \textsc{microSec, milliSec, Sec, Min, Hour, Day}
 are provided as part of the CSO package.}
 \begin{code}
-def transmitter[T](pulse: Nanoseconds, in: ?[T], out: ![Message]) = 
+def transmitter[T](pulse: Nanoseconds, in: ??[T], out: !![Message]) = 
   proc 
   { serve (in =?=> {x=>out!Data(x)} | after(pulse) ==> { out!Ping }) } 
 \end{code}
@@ -1131,7 +1133,7 @@ received before the current deadline, the receiver backs off a little more,
 but eventually a message is sent to the \textsc{fail} channel.
 
 \begin{code}
- def receiver[T](pulse: Nanoseconds, in: ?[Message], out: ![T], fail: ![Unit]) = 
+ def receiver[T](pulse: Nanoseconds, in: ??[Message], out: !![T], fail: !![Unit]) = 
  proc 
  { var backoff = 10
    serve( in =?=> { case Ping      => backoff = (backoff+1) % 10
@@ -1159,7 +1161,7 @@ from \textsc{in}, and ``pongs'' every two seconds regardless of
 what else happens.
 
 \begin{code+}[...]{float=h,frame=tlbr,label=transmitter2,caption={A conventionally-programmed transmitter}}
- def transmitter2[T](pulse: Nanoseconds, in: ?[T], out: ![Message]) = 
+ def transmitter2[T](pulse: Nanoseconds, in: ??[T], out: !![Message]) = 
  proc 
  { val tick  = periodicTimer(pulse)
    val tock  = periodicTimer(2*Sec)
@@ -1178,7 +1180,7 @@ to the channel whose input port represents the timer. Closing the
 input port terminates the \textsc{repeat} the next time the interval
 expires, and thereby terminates the thread.
 \begin{code+}[...]{float=hb,frame=tlbr,label=periodictimer,caption={A simple periodic timer}}
- def periodicTimer(interval: Nanoseconds) : ?[Unit] = 
+ def periodicTimer(interval: Nanoseconds) : ??[Unit] = 
  { val chan = OneOne[Unit]
    proc { repeat { sleep(interval); chan!() } } . fork
    return chan
@@ -1208,11 +1210,11 @@ parameter, and the \textsc{OutPort} constructor contravariant in its type
 parameter. In other words:
 
 \begin{enumerate}
-\item If $T'$ is a subtype of $T$, then a $?[T']$ will
-suffice in a context that requires a  $?[T]$; but not \textit{vice-versa}.
+\item If $T'$ is a subtype of $T$, then a $??[T']$ will
+suffice in a context that requires a  $??[T]$; but not \textit{vice-versa}.
 
-\item If $T'$ is a subtype of $T$, then a $![T]$ will
-suffice in a context that requires a  $![T']$; but not \textit{vice-versa}.
+\item If $T'$ is a subtype of $T$, then a $!![T]$ will
+suffice in a context that requires a  $!![T']$; but not \textit{vice-versa}.
    
 \end{enumerate}
 
@@ -1222,8 +1224,8 @@ we have an interface \textsc{Printer} which has subtype
 
 Suppose also that we have process generators: 
 \begin{code}
-        def printServer  (printers: ![Printer]) : PROC = ...
-        def bonjourClient(printers: ?[BonjourPrinter]) : PROC = ...
+        def printServer  (printers: !![Printer]) : PROC = ...
+        def bonjourClient(printers: ??[BonjourPrinter]) : PROC = ...
 \end{code}
 
 Then under the uniformly covariant regime of Java the following program would be
@@ -1242,7 +1244,7 @@ well-known difficulty in Java caused by the covariance of
 the array constructor.}  
 % 
 And we can: for under CSO's contravariant typing of outports, the
-type of \textsc{connector} is no longer a subtype of \textsc{![Printer]},
+type of \textsc{connector} is no longer a subtype of \textsc{!![Printer]},
 and the expression \textsc{printServer(connector)} would, therefore,
 be ill-typed.
 
@@ -1264,17 +1266,17 @@ a $T$, and any $T'\ge T$ provides this.
 We rationalize the variances we have assigned to these constructors
 as follows:
 \begin{enumerate}
-\item If $T'\ge T$ then $?[T']~\ge~?[T]$ 
+\item If $T'\ge T$ then $??[T']~\ge~??[T]$ 
 \\Rationale: a process that reads from an input port associated with a
-variable declared by $var:~?[T]$ expects to receive objects of type $\ge
-T$. Thus any port of type $?[T']$ (where $T'\ge T$) can be associated
+variable declared by $var:~??[T]$ expects to receive objects of type $\ge
+T$. Thus any port of type $??[T']$ (where $T'\ge T$) can be associated
 with $var$.
 
 
-\item If $T'\ge T$ then $![T]~\ge~![T']$ 
+\item If $T'\ge T$ then $!![T]~\ge~!![T']$ 
 \\Rationale: a process that writes to an output port associated with
-a variable declared by $var:~![T]$ must send objects of a type 
-that is $\ge T$. Thus any port of type $![T']$ (where $T \ge T'$) 
+a variable declared by $var:~!![T]$ must send objects of a type 
+that is $\ge T$. Thus any port of type $!![T']$ (where $T \ge T'$) 
 can be associated with $var$.
 
 \end{enumerate}
@@ -1299,32 +1301,16 @@ can be associated with $var$.
 We remain committed to the challenge of developing Scala+CSO both
 as a pedagogical tool and in the implementation of realistic
 and efficient programs.
-%
-Several small-scale and a few medium-scale case studies on
-networked multicore machines have given us some confidence that
-our implementation is sound, though we have neither proofs of
-this nor a body of successful (\textit{i.e.} non-failed) 
-model checks. The techniques pioneered by 
-Welch and Martin in \cite{welchandmartin} show the way this could be done.
 
-In the first version of this paper, we wrote:
+Several small-scale and a few medium-scale case studies on networked
+multicore machines have given us some confidence that our implementation
+is sound, though we have neither proofs of this nor a body of
+successful (\textit{i.e.} non-failed) model checks. The techniques
+pioneered by Welch and Martin in \cite{welchandmartin} show the way
+this could be done.
+
+In an earlier version of this paper, we wrote:
 \begin{itemize}\item[]
-``The open nature of the Scala compiler permits, at least in principle,
-a variety of compile-time checks on a range of design rules to be
-enforced. It remains to be seen whether there are any combinations
-of expressively useful Scala sublanguage and ``CSO design rule''
-that are worth taking the trouble to enforce. We have started
-our search with an open mind but in some trepidation that
-the plethora of possibilities for aliasing might render
-it fruitless -- save as an exercise in theory.''
-\end{itemize}
-We regret to report that the very rapid evolution of the Scala compiler has
-made it impractical for us to attempt to use it to enforce design rules, or 
-(more importantly) to provide a practical way of using CSO-specific laws to
-guide compile-time optimizations. On the other hand, the rapid advance of 
-the functionality of IDEs for Scala now offers the intriguing prospect 
-of incorporating rules of this kind in an IDE. 
-
 A few years ago Andrew Bate implemented a very high performance
 variant of CSO, in which huge numbers of running processes can be
 multiplexed (as ``fibres'') across smaller numbers of threads. We
@@ -1334,12 +1320,21 @@ implementation depended on extensive post-processing of the JVM
 code generated by Scala/Java, and keeping it up to date would require
 the evolution of the Scala compiler to be tracked: something we 
 don't have the resources to commit to.
+\end{itemize}
+
+We are delighted to say that the advent of \textbf{virtual threads}
+in the JVM (in jdk 20 and subsequent) meant that our implementation
+was easily adapted to delivering ``huge numbers of running processes''
+very efficiently. The API explains the details, but the short story
+is that \textit{processes will now run as virtual threads by default
+on a JVM that implements virtual threads}.
+
 
 \section{Distributed Programming with CSO}
 The prototype  CSO library \textbf{eieio} (Extensible Interface to External I/O)
 provides components that can be used to implement distributed and 
 networked programs. It maps external sockets to internal channels and handles 
-the details of serializing and deserialising data. ß
+the details of serializing and deserialising data. 
 
 
 
@@ -1347,6 +1342,7 @@ the details of serializing and deserialising data. ß
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
 \section*{Acknowledgements}
 We are grateful to Peter Welch, Gerald Hilderink and their
 collaborators whose early demonstration of the feasibility of using
@@ -1354,19 +1350,24 @@ collaborators whose early demonstration of the feasibility of using
 Also to Martin Odersky and his collaborators in the design and
 implementation of the Scala language.
 
-Several of our students on the Concurrent and Distributed Programming course at Oxford
-helped us by testing the present work and by questioning the work that 
-preceded and precipitated it.
-Itay Neeman drew Scala to our attention and participated
-in the implementation of a prototype of CSO. Dalizo Zuse and Xie He
-helped us refine our ideas by building families of Web-servers -- using
-a JCSP-like library and the CSO prototype respectively.
+Several of our students on the Concurrent and Distributed Programming
+course at Oxford helped us by testing the present work and by
+questioning the work that preceded and precipitated it.  Itay Neeman
+drew Scala to our attention and participated in the implementation
+of a prototype of CSO. Dalizo Zuse and Xie He helped us refine our
+ideas by building families of Web-servers -- using a JCSP-like
+library and the CSO prototype respectively.
 
-Our colleagues Michael Goldsmith and Gavin Lowe (and more recently Andrew Bate)
-have been a constant source of technical advice
-and friendly skepticism; and
-Quentin Miller joined us in research that led to the
-design and prototype implementation of ECSP \cite{ecsp,ecspman}.
+Our colleagues Michael Goldsmith and Gavin Lowe (and later
+Andrew Bate) were a constant source of technical advice and
+friendly skepticism; and Quentin Miller joined us in research that
+led to the design and prototype implementation of ECSP \cite{ecsp,ecspman}.
+
+M. Ahsan al Mahir, of St John's College Oxford, was responsible in
+February 2023 for the first implementation of the virtual thread
+gactory that was needed to enable processes to run as virtual
+threads. He was also responsible for adapting the source repository
+and making it compatible with \texttt{sbt}.
 
 Last, but not least, we are grateful to Carsten Heinz and his
 collaborators for their powerful and versatile LaTeX \texttt{listings} package
