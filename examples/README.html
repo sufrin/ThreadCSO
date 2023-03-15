@@ -790,7 +790,7 @@ padding-left: 128px!important;
 <p>Bernard Sufrin, Oxford. 2011, 2017, 2023</p>
 <h2 id="solutions-to-practicals">Solutions to Practicals</h2>
 <p>In this section we have collected solutions to practical problems set as part of the Concurrent &amp; Distributed Programming course at the University of Oxford that was delivered either by Bernard Sufrin or by Gavin Lowe between the years 2004 and 2022.</p>
-<p>The course content variedPracticals were accompanied by briefings and take up aspects of the course materials from the year they were first set.</p>
+<p>The course content varied. Practicals were accompanied by briefings and take up aspects of the course materials from the year they were first set.</p>
 <h3 id="dining-philosophers">Dining Philosophers</h3>
 <p>Except for <code>Phils.scala</code>, the <code>.scala</code> programs are his solutions to a practical set often by Bernard Sufrin. <code>Phils.scala</code> is a deadlocking non-solution that illustrates the problem. It is very easy to change the number of Philosphers (in the source text).</p>
 <h4 id="the-complete-practical-briefing">The Complete Practical Briefing</h4>
@@ -844,6 +844,10 @@ padding-left: 128px!important;
 <h4 id="advice-2023">Advice (2023)</h4>
 <p>Experience suggests suggests that when using kernel threads, allocating a process to each square in the grid means that only a small grid can be dealt with before the operating system or the jvm begins to run out of thread resources. Using virtual threads (as provided by recent versions of threadcso) would be a better bet for a serious attempt (and we will present one due to Jones and Goldsmith (Programming in <strong>occam2</strong>) in due course). Other message-passing solutions will have workers working on larger rectangular regions of the grid, and exchanging the edges of their regions with neighbour workers on every generation.</p>
 <h2 id="additional-examples">Additional Examples</h2>
+<h3 id="boids">Boids</h3>
+<p>This is an example of a hybrid concurrent implementation using <a href="https://github.com/sufrin/ThreadCSO">ThreadCSO</a> barriers, semaphores, and channels to simulates a collection of flocking birds, as originally specified in <a href="https://en.wikipedia.org/wiki/Boids">Boids</a>.</p>
+<p>Once started it displays the flock at the specified framerate, and permits various parameters to be set dynamically from the keyboard of the terminal from which it was started. Each bird is simulated by a single threadcso process, as are the display controller, the interaction controller, and the keyboard.</p>
+<p>Birds and the display synchronise on a barrier (twice per displayed frame), and the keyboard communicates by a channel with the interaction controller that can set the bird parameters. There is no synchronisation involved here, though a purist might complain that different birds might thereby read different parameters during the same display cycle.</p>
 <h3 id="particles">Particles</h3>
 <p>A demonstration of pseudo-gravitational particle calculations done by several workers in lock-step, coordinated by barriers, with (many) parameters of the simulation settable from the GUI. A description of the technique used for particle computations is given in the Particle Computations section of the lecture notes on <a href="https://github.com/sufrin/ThreadCSO/blob/main/Lectures/03-dataparallel.pdf">Synchronous Data Parallel Programming</a>.</p>
 <ol type="1">
@@ -884,6 +888,6 @@ padding-left: 128px!important;
 <pre><code>runMain Particles s -9 P 40                # 80 particles, G = 6.79E-9
 runMain Particles S 4  P 40  w=1800 h=1000 # 320 particles, G = 6.79E-11 </code></pre></li>
 </ul>
-<p>Things can get a bit hectic when gravitation is high and there are lots of particles; but you can moderate behaviour from the control panel of the viewer. When there are too many particles on a small screen they can be indistinguishable at first -- the screen just looks like a greenish blob. THis is remedied by</p>
+<p>Things can get a bit hectic when gravitation is high and there are lots of particles; but you can moderate behaviour from the control panel of the viewer.</p>
 </body>
 </html>

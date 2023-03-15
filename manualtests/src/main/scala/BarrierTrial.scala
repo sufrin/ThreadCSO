@@ -61,21 +61,27 @@ object BarrierTrial {
     val cb = Barrier(N, "Calculate")
     val ub = if (sep) Barrier(N, "Update") else cb
     for (i <- 0 until N) { t(i) = i; u(i) = 0 }
-    def printt(t: Seq[Int]) = for (i <- 0 until N) print(f"${t(i)}%5s ")
+    def printt(t: Seq[Int]) = if (N<10) for (i <- 0 until N) print(f"${t(i)}%5s ")
     def agent(n: Int) =
       proc(s"agent($n)") {
         var i = 0
+        var time = 0L
         while (i < 20) {
-          if (!(n == 0 && i == stallC)) cb.sync()
+          if (!(n == 0 && i == stallC)) {
+             val now = nanoTime
+             cb.sync()
+             if (n==0) time += (nanoTime - now)
+          }
           log.log(-1, s"$n calculates")
           if (n != 0) {
             u(n) = t(n) + t((n + 1) % N)
-            sleep((math.random() * 150).toLong * milliSec)
+            sleep((math.random() * 250).toLong * milliSec)
           }
           if (!(n == 0 && i == stallU)) ub.sync()
           log.log(-1, s"$n updates")
           if (n == 0) {
-            print(s"$i\t"); printt(t.toIndexedSeq); print("\t"); printt(u.toIndexedSeq);
+            print(f"$i%5d"); printt(t.toIndexedSeq); print("\t"); printt(u.toIndexedSeq);
+            print(f"${time.toDouble/N}%8gns sync")
             println()
             val tt = t; t = u; u = tt
           }

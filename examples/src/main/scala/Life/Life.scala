@@ -36,7 +36,7 @@ class Life (val N: Int = 256, val W : Int = 64, val frameDwell: Long = 10L) {
     * worker 0 is overlapped with phase 1 in the other workers
     */
 
-  def Worker(me: Int, display: Display) = proc(s"Worker($me)") {
+  def Worker(me: Int, display: LifeDisplay) = proc(s"Worker($me)") {
     val start = me * height
     val end = (me + 1) * height
 
@@ -179,7 +179,7 @@ class Life (val N: Int = 256, val W : Int = 64, val frameDwell: Long = 10L) {
   
   def animate(): Unit = {
       println(s"Life -n$N -w$W -f$frameDwell (height=$height)")
-      val display = new Display(N, grid) // set up displaydisplay.draw
+      val display = new LifeDisplay(N, grid) // set up displaydisplay.draw
       run(||(for (i <- 0 until W) yield Worker(i, display)))
     }
 }

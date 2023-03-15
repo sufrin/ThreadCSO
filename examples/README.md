@@ -20,7 +20,7 @@ set as part of the Concurrent & Distributed Programming course at
 the University of Oxford that was delivered either by Bernard Sufrin
 or by Gavin Lowe between the years 2004 and 2022. 
 
-The course content variedPracticals were accompanied
+The course content varied. Practicals were accompanied
 by briefings and take up aspects of the course materials
 from the year they were first set.
 
@@ -207,6 +207,26 @@ workers on every generation.
 
 ## Additional Examples
 
+### Boids
+
+This is an example of a hybrid concurrent implementation using 
+[ThreadCSO](https://github.com/sufrin/ThreadCSO)
+barriers, semaphores, and channels
+to simulates a collection of flocking birds, as
+originally specified in [Boids](https://en.wikipedia.org/wiki/Boids).
+
+Once started it displays the flock at the specified framerate, and permits
+various parameters to be set dynamically from the keyboard of the terminal
+from which it was started.  Each bird is simulated by a single
+threadcso process, as are the display controller, the interaction
+controller, and the keyboard.
+
+Birds and the display synchronise on a barrier (twice per displayed frame), and the
+keyboard communicates by a channel with the interaction controller that can
+set the bird parameters.  There is no synchronisation involved here,
+though a purist might complain that different birds might thereby read
+different parameters during the same display cycle.  
+
 ### Particles
 
 
@@ -307,7 +327,5 @@ Other examples:
 
 Things can get a bit hectic when gravitation is high and there are lots of
 particles; but you can moderate behaviour from the control panel of the
-viewer. When there are too many particles on a small screen they can be
-indistinguishable at first -- the screen just looks like a greenish blob.
-THis is remedied by 
+viewer. 
 
