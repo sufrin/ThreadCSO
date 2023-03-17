@@ -38,7 +38,16 @@ trait PROC extends (() => Unit) {
   /**
    * Set the executor (see CSOThreads for possible values).
    */
-  def withExecutor(anExecutor: CSOExecutor): PROC = { executor = anExecutor; this }
+  def withExecutor(anExecutor: CSOExecutor): PROC = {
+      executor = anExecutor
+      this
+  }
+
+  /**
+   * Set the executor (see CSOThreads for possible values).
+   */
+  def withExecutor(poolKind: String): PROC =
+      withExecutor(io.threadcso.process.CSOThreads.getExecutor(poolKind))
 
 
   /** Syntactic parallel composition of `this` with `other`. */

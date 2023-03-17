@@ -256,6 +256,9 @@ object CSOThreads {
     */
    def executor(): CSOExecutor = getExecutor(poolKIND)
 
+   /**
+     * Get the thread pool (Executor) with the given kind
+     */
    def getExecutor(poolKind: String): CSOExecutor =
    poolKind.toUpperCase match {
       case "SIZED"        => SIZED
@@ -272,7 +275,7 @@ object CSOThreads {
      *        It's only used to debrief the pooled executors.
      */
     def shutDown(): Unit =
-    {
+    {  
        for { ex <- List(SIZED,ADAPTIVE,CACHED,UNPOOLED,VIRTUAL) } ex.shutdown()
     }
 
