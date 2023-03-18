@@ -30,8 +30,7 @@ import io.threadcso.lock.LogBarrier
   * Variations can be played on omitting sync calls, using a single sync in two
   * phases, etc. etc.
   */
-object LogBarrierTrial 
-{
+object LogBarrierTrial {
   import io.threadcso.debug.Logger
   val log = Logger("LogBarrier", 200)
   def main(args: Array[String]): Unit = {
@@ -59,12 +58,12 @@ object LogBarrierTrial
       }
     if (deb) println(debugger)
     var t, u = Array.ofDim[Int](N)
-    val cb = new LogBarrier(N, "Calculate")
-    val ub = if (sep) new LogBarrier(N, "Update") else cb
+    val cb = LogBarrier(N, "Calculate")
+    val ub = if (sep) LogBarrier(N, "Update") else cb
     for (i <- 0 until N) { t(i) = i; u(i) = 0 }
 
     def printt(t: Seq[Int]) =
-        if (N<10) for (i <- 0 until N) print(f"${t(i)}%5s ")
+      if (N < 10) for (i <- 0 until N) print(f"${t(i)}%5s ")
 
     def agent(n: Int) =
       proc(s"agent($n)") {
@@ -73,9 +72,9 @@ object LogBarrierTrial
         while (i < 20) {
           var time = 0L
           if (!(n == 0 && i == stallC)) {
-             val now = nanoTime
-             cb.sync(n)
-             if (n==0) time += (nanoTime - now)
+            val now = nanoTime
+            cb.sync(n)
+            if (n == 0) time += (nanoTime - now)
           }
           log.log(-1, s"$n calculates")
           if (n != 0) {
@@ -87,7 +86,7 @@ object LogBarrierTrial
           if (n == 0) {
             print(f"${i}%5d");
             printt(t.toIndexedSeq); print("\t"); printt(u.toIndexedSeq);
-            print(f"${time.toDouble/N}%8gns sync")
+            print(f"${time.toDouble / N}%8gns sync")
             println()
             val tt = t; t = u; u = tt
           }

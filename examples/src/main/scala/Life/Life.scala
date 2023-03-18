@@ -26,7 +26,7 @@ class Life (val N: Int = 256, val W : Int = 64, val frameDwell: Long = 10L) {
   var height = N / W   // height of one strip
 
   // Barrier: constructed at startup
-  var barrier: Barrier = new Barrier(W)
+  var barrier: Barrier = Barrier(W)
 
   /** Worker for the global grid region rows [me*height..(me+1)*height]
     *

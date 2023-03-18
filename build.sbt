@@ -6,11 +6,15 @@
 ThisBuild / organization := "ox"
 Global / resolvers += "scala-integration" at
   "https://scala-ci.typesafe.com/artifactory/scala-integration/"
-ThisBuild / scalaVersion := "2.13.11-bin-114c1da"
+ThisBuild / scalaVersion := "2.13.11-bin-36da1b3"
 ThisBuild / version := "0.1.1-SNAPSHOT"
 ThisBuild / fork := true
 ThisBuild / javaOptions ++= Seq("--enable-preview") // when running
-ThisBuild / javacOptions ++= Seq("--enable-preview", "--release", "14") // when compiling,
+ThisBuild / javacOptions ++= Seq(
+    "--enable-preview", 
+    "--release", 
+    "14"
+  ) // when compiling,
 
 lazy val scalaReflect = Def.setting {
   "org.scala-lang" % "scala-reflect" % scalaVersion.value

@@ -23,8 +23,8 @@ class JavaLock(fair: Boolean) extends ReentrantLock(fair) with Lock {
   }
 
   /** Return an approximate list of the threads waiting to acquire this lock */
-  def getWaiting
-      : collection.Seq[Thread] = { // import scala.collection.convert.WrapAsScala.collectionAsScalaIterable
+  def getWaiting: collection.Seq[Thread] = {
+    // import scala.collection.convert.WrapAsScala.collectionAsScalaIterable
     // import scala.collection.JavaConverters._
     import scala.jdk.CollectionConverters._
     getQueuedThreads.asScala.toList

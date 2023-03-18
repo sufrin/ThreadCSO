@@ -428,7 +428,7 @@ object Particles extends App {
     C =
       Vector.Value(width / (CF * deltaT), height / (CF * deltaT), 0.0).magnitude
     Corner = Vector.Value(width, height)
-    barrier = new Barrier(P + 1)
+    barrier = Barrier(P + 1)
 
     allParticles = Array.ofDim[Particle](N)
     localForces = Array.ofDim[Position](P, N)
