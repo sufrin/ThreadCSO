@@ -1,7 +1,7 @@
 package io.threadcso.semaphore.jdk
 
 import io.threadcso.basis.{Identity, NameGenerator}
-import io.threadcso.debug.REGISTRY._
+// import io.threadcso.debug.REGISTRY._
 import io.threadcso.semaphore.Semaphore
 import java.util.concurrent.atomic.AtomicReference
 

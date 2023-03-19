@@ -2,15 +2,15 @@ package io.threadcso.alternation
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import io.SourceLocation._
-import io.threadcso.alternation.event._
+import io.SourceLocation.SourceLocation
+import io.threadcso.alternation.event.{Event, NormalAlt}
 import io.threadcso.channel.{CLOSEDSTATE, PortState, READYSTATE, UNKNOWNSTATE}
 import io.threadcso.debug.{Logging, REGISTRY}
 import io.threadcso.nanoTime
-import io.threadcso.process._
+import io.threadcso.process.{Stopped}
 
-import scala.annotation._
-import scala.annotation.elidable._
+import scala.annotation.elidable
+import scala.annotation.elidable.FINEST
 
 /** The `Stopped` exception raised by an `alt/prialt` with no `orelse` clause
   * when it is has run out of feasible events that might become ready.
@@ -29,44 +29,44 @@ case object AltAbort extends Stopped()
   * '''Registration''', '''Waiting''', '''Unregistration''', and
   * '''Execution'''.
   *
-  * \I. '''Registration''': The current feasibility of all participating events
-  * is recorded as `UNKNOWNSTATE`, `INFEASIBLE`, or `READYSTATE`, and their
-  * associated ports are marked as being involved in ''this'' running
-  * alternation construct. An event for a port that is closed at this stage will
-  * never become feasible. An event is infeasible if its associated port has
-  * been closed, or if its associated guard is false.
+  *   - '''Registration''': The current feasibility of all participating events
+  *     is recorded as `UNKNOWNSTATE`, `INFEASIBLE`, or `READYSTATE`, and their
+  *     associated ports are marked as being involved in ''this'' running
+  *     alternation construct. An event for a port that is closed at this stage
+  *     will never become feasible. An event is infeasible if its associated
+  *     port has been closed, or if its associated guard is false.
   *
-  * \I. '''Waiting''': If, after registration, no `READYSTATE` event is present,
-  * but some events are still feasible, then the alternation will wait (with the
-  * appropriate deadline, if there's an '''after''' event; and ''sine-die''
-  * otherwise) for a port to change state. If there's an '''after''' event and
-  * the wait timed-out, then the after event is marked to be executed. If no
-  * events are feasible by this phase, or if the last feasible event becomes
-  * infeasible as a consequence of a state change (because its port closed
-  * during the wait), then the '''orelse''' path is taken, to wit: the
-  * '''orelse''' event (if any) is marked to be executed.
+  *   - '''Waiting''': If, after registration, no `READYSTATE` event is present,
+  *     but some events are still feasible, then the alternation will wait (with
+  *     the appropriate deadline, if there's an '''after''' event; and
+  *     ''sine-die'' otherwise) for a port to change state. If there's an
+  *     '''after''' event and the wait timed-out, then the after event is marked
+  *     to be executed. If no events are feasible by this phase, or if the last
+  *     feasible event becomes infeasible as a consequence of a state change
+  *     (because its port closed during the wait), then the '''orelse''' path is
+  *     taken, to wit: the '''orelse''' event (if any) is marked to be executed.
   *
-  * \I. '''Unregistration''': All ports of all feasible events are now
-  * unregistered from their participation in this running alt. If during this
-  * phase any already-feasible events are found to be ready then one of them is
-  * chosen and marked for execution. The precise method of choice depends on
-  * whether or not the alternation construct is supposed to be fair. In this
-  * implementation all but '''serve''' alternations choose the first event (in
-  * order of appearance in the alternation) found to be ready during
-  * unregistration. (''Unregistration of feasible events actually takes place in
-  * reverse order of appearance in the alternation, giving "higher priority"
-  * feasible events a little more time to become ready.'')
+  *   - '''Unregistration''': All ports of all feasible events are now
+  *     unregistered from their participation in this running alt. If during
+  *     this phase any already-feasible events are found to be ready then one of
+  *     them is chosen and marked for execution. The precise method of choice
+  *     depends on whether or not the alternation construct is supposed to be
+  *     fair. In this implementation all but '''serve''' alternations choose the
+  *     first event (in order of appearance in the alternation) found to be
+  *     ready during unregistration. (''Unregistration of feasible events
+  *     actually takes place in reverse order of appearance in the alternation,
+  *     giving "higher priority" feasible events a little more time to become
+  *     ready.'')
   *
-  * \I. '''Execution''': When all event ports have been unregistered, then:
-  * \- If a feasible event has been marked for execution, then it is executed;
-  * or </li>
-  * \- If '''after''' has been marked for execution, then it is executed; or
-  * </li>
-  * \- If '''orelse''' has been marked for execution, then it is executed (and
-  * if the executing alternative is a serve, the serve is terminated)</li>
-  * \- If nothing has been marked for execution, then an '''alt''' or
-  * '''prialt''' will abort; and a '''serve''' or '''priserve''' will terminate.
-  * </li>
+  *   - '''Execution''': When all event ports have been unregistered, then:
+  *     - If a feasible event has been marked for execution, then it is
+  *       executed; or
+  *     - If '''after''' has been marked for execution, then it is executed; or
+  *     - If '''orelse''' has been marked for execution, then it is executed
+  *       (and if the executing alternative is a serve, the serve is terminated)
+  *     - If nothing has been marked for execution, then an '''alt''' or
+  *       '''prialt''' will abort; and a '''serve''' or '''priserve''' will
+  *       terminate.
   *
   * The present implementation is highly unadventurous and may be less than
   * optimally efficient, though it is (intended to be) scrutable. My experience
@@ -75,15 +75,15 @@ case object AltAbort extends Stopped()
   *
   * Possible improvements/speedups include:
   *
-  * \- Run the first event found to be ready during registration in an
-  * `priserve` or `prialt`.</li>
-  * \- Give the programmer more control of the algorithm that chooses ''fairly''
-  * between events run during the execution of a `serve`. The `round-robin`
-  * method is not always effective -- particularly when certain patterns of
-  * guarded event are present in the alternation.
-  * \- Distinguish between `alt` and `prialt` implementation by using an
-  * ''efficient'' source of ''randomness'' to choose among events that become
-  * ready before unregistration.
+  *   - Run the first event found to be ready during registration in an
+  *     `priserve` or `prialt`.
+  *   - Give the programmer more control of the algorithm that chooses
+  *     ''fairly'' between events run during the execution of a `serve`. The
+  *     `round-robin` method is not always effective -- particularly when
+  *     certain patterns of guarded event are present in the alternation.
+  *   - Distinguish between `alt` and `prialt` implementation by using an
+  *     ''efficient'' source of ''randomness'' to choose among events that
+  *     become ready before unregistration.
   *
   * {{{
   * @author Bernard Sufrin, Oxford,
@@ -99,7 +99,6 @@ case object AltAbort extends Stopped()
   *   Source loc'n of the alternation (implicit SourceLocation parameter to
   *   alt/prialt/serve/priserve)
   */
-
 sealed class Run(register: Boolean, syntax: Event, loc: SourceLocation)
     extends Runnable
     with REGISTRY.Debuggable {
@@ -164,15 +163,16 @@ sealed class Run(register: Boolean, syntax: Event, loc: SourceLocation)
       spin = 0
     )
 
-  /* NB: September 2017
-        The definition of poll as the threadcso rather than the jdk semaphore makes it unnecessary
-        to register with the debugger, for when an active alternation thread is
-        awaiting the semaphore, its state is available to the debugger because it is
-        recorded as the component that called for the thread to be suspended.
-
-        If the threadcso semaphore proves to be unreliable (!) its construction can be replaced by
-        // io.threadcso.semaphore.jdk.CountingSemaphore (0,"Run", true, false)
-   */
+  /** NB: September 2017 The definition of poll as the threadcso rather than the
+    * jdk semaphore makes it unnecessary to register with the debugger, for when
+    * an active alternation thread is awaiting the semaphore, its state is
+    * available to the debugger because it is recorded as the component that
+    * called for the thread to be suspended.
+    *
+    * If the threadcso semaphore proves to be unreliable (!) its construction
+    * can be replaced by // io.threadcso.semaphore.jdk.CountingSemaphore
+    * (0,"Run", true, false)
+    */
 
   /** Normalised syntax of the alt body: ''i/o event sequence, after event,
     * orelse event''
@@ -296,7 +296,8 @@ sealed class Run(register: Boolean, syntax: Event, loc: SourceLocation)
       // TODO: this was reported a small number of times
       if (readyCount.get > 0) {
         val message =
-          (s"$toString with R$readyCount/F$feasibleCount NO SELECTION $getReadiness (channel may have closed while alternation believes it ready)")
+          s"$toString with R$readyCount/F$feasibleCount NO SELECTION " +
+            s"$getReadiness (channel may have closed while alternation believes it ready)"
         log(UNREG, message)
         throw new IllegalStateException(message)
       }
@@ -353,7 +354,8 @@ sealed class Run(register: Boolean, syntax: Event, loc: SourceLocation)
       // TODO: this was reported a handful of times
       if (readyCount.get > 0) {
         val message =
-          (s"$toString with R$readyCount/F$feasibleCount NO SELECTION $getReadiness (channel may have closed while alternation believes it ready)")
+          s"$toString with R$readyCount/F$feasibleCount NO SELECTION " +
+            s"$getReadiness (channel may have closed while alternation believes it ready)"
         log(UNREG, message)
         throw new IllegalStateException(message)
       }
@@ -441,10 +443,59 @@ sealed class Run(register: Boolean, syntax: Event, loc: SourceLocation)
   @inline def prialt(): Unit = alt()
 
   /** Run this alternation as an '''alt''' */
-  def alt(): Unit = // withDebugger (registerWithDebugger)
-    { // remaining time to wait before timeout
+  def alt(): Unit = { // withDebugger (registerWithDebugger)
+    // remaining time to wait before timeout
+    val wait = if (afterEvent == null) 0L else afterEvent.deadline()
+    altkind = "alt"
+
+    registerReadiness()
+
+    awaitSomething(wait)
+
+    // timed out || feasibleCount.get<=0 || readyCount.get>0
+
+    if (feasibleCount.get <= 0) // nothing can possibly happen now
+      doOrElse()
+    else if (readyCount.get > 0) // something is ready to happen
+      findAndRun()
+    else
+      doAfter() // nothing is yet ready -- timed out
+
+    log(TERM, s"alt terminated: $this)")
+  }
+
+  /** Run this alternation as a '''priserve''' */
+  def priserve(): Unit = { // withDebugger (registerWithDebugger)
+    altkind = "priserve"
+
+    io.threadcso.repeat { // remaining time to wait before timeout
       val wait = if (afterEvent == null) 0L else afterEvent.deadline()
-      altkind = "alt"
+
+      registerReadiness()
+
+      awaitSomething(wait)
+
+      // timed out || feasibleCount.get==0 || readyCount.get>0
+
+      if (feasibleCount.get <= 0) // nothing can possibly happen now
+        doOrElseAndStop()
+      else if (readyCount.get > 0) // something is ready to happen
+        findAndRun()
+      else
+        doAfter() // nothing is yet ready -- timed out
+
+      poll.reInitialize()
+    }
+    log(TERM, s"priserve terminated: $this")
+
+  }
+
+  /** Run this alternation as a '''serve''' */
+  def serve(): Unit = { // withDebugger (registerWithDebugger)
+    altkind = "serve"
+
+    io.threadcso.repeat { // remaining time to wait before timeout
+      val wait = if (afterEvent == null) 0L else afterEvent.deadline()
 
       registerReadiness()
 
@@ -453,66 +504,15 @@ sealed class Run(register: Boolean, syntax: Event, loc: SourceLocation)
       // timed out || feasibleCount.get<=0 || readyCount.get>0
 
       if (feasibleCount.get <= 0) // nothing can possibly happen now
-        doOrElse()
+        doOrElseAndStop()
       else if (readyCount.get > 0) // something is ready to happen
-        findAndRun()
+        findFairlyAndRun()
       else
         doAfter() // nothing is yet ready -- timed out
 
-      log(TERM, s"alt terminated: $this)")
+      poll.reInitialize()
     }
-
-  //    /** Run this alternation as a '''priserve''' */
-  def priserve(): Unit = // withDebugger (registerWithDebugger)
-    {
-      altkind = "priserve"
-
-      io.threadcso.repeat { // remaining time to wait before timeout
-        val wait = if (afterEvent == null) 0L else afterEvent.deadline()
-
-        registerReadiness()
-
-        awaitSomething(wait)
-
-        // timed out || feasibleCount.get==0 || readyCount.get>0
-
-        if (feasibleCount.get <= 0) // nothing can possibly happen now
-          doOrElseAndStop()
-        else if (readyCount.get > 0) // something is ready to happen
-          findAndRun()
-        else
-          doAfter() // nothing is yet ready -- timed out
-
-        poll.reInitialize()
-      }
-      log(TERM, s"priserve terminated: $this")
-
-    }
-
-  /** Run this alternation as a '''serve''' */
-  def serve(): Unit = // withDebugger (registerWithDebugger)
-    {
-      altkind = "serve"
-
-      io.threadcso.repeat { // remaining time to wait before timeout
-        val wait = if (afterEvent == null) 0L else afterEvent.deadline()
-
-        registerReadiness()
-
-        awaitSomething(wait)
-
-        // timed out || feasibleCount.get<=0 || readyCount.get>0
-
-        if (feasibleCount.get <= 0) // nothing can possibly happen now
-          doOrElseAndStop()
-        else if (readyCount.get > 0) // something is ready to happen
-          findFairlyAndRun()
-        else
-          doAfter() // nothing is yet ready -- timed out
-
-        poll.reInitialize()
-      }
-      log(TERM, s"serve terminated: $this")
-    }
+    log(TERM, s"serve terminated: $this")
+  }
 
 }

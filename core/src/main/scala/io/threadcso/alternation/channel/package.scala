@@ -1,14 +1,5 @@
 package io.threadcso.alternation
 
-import java.util.concurrent.atomic.AtomicReference
-
-import io.threadcso.channel._
-import io.threadcso.debug.Logging
-import io.threadcso.lock.SimpleLock
-
-import scala.annotation._
-import scala.annotation.elidable._
-
 /** This package defines channels that can participate in the CSO alternation
   * constructs.
   *
@@ -30,7 +21,6 @@ import scala.annotation.elidable._
   * \$Date: 2017-10-13 18:12:11 +0100 (Fri, 13 Oct 2017) $
   * }}}
   */
-
 package object channel {
-  import io.threadcso.alternation.event._
+  // import io.threadcso.alternation.event._
 }

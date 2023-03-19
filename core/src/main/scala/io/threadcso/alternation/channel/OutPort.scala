@@ -1,6 +1,7 @@
 package io.threadcso.alternation.channel
 
 import io.threadcso.channel.PortState
+import io.threadcso.alternation.Runnable
 import io.threadcso.alternation.event.{OutPortEvent}
 
 /** Alt-capable output port */

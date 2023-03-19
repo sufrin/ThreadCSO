@@ -20,7 +20,6 @@ trait DebugExports {
     else
       new io.threadcso.debug.DEBUGGER(debuggerPort)
   }
-  {}
 
   /** A concrete debuggable class whose `toString` method evaluates the
     * expression `theFormat` whenever it is called (normally by the debugger).

@@ -35,7 +35,8 @@ object Process {
       * return a handle on the running thread.
       */
     def fork: Handle = {
-      val handle = new Handle(name, body, new CountDownLatch(1), stackSize, executor)
+      val handle =
+        new Handle(name, body, new CountDownLatch(1), stackSize, executor)
       handle.start()
       handle
     }
@@ -67,7 +68,13 @@ object Process {
       val latch = new CountDownLatch(procs.size - 1)
       val peerHandles =
         for (proc <- procs.tail)
-          yield new Handle(proc.name, proc, latch, proc.stackSize, proc.executor)
+          yield new Handle(
+            proc.name,
+            proc,
+            latch,
+            proc.stackSize,
+            proc.executor
+          )
 
       val firstHandle = {
         val proc = procs.head
@@ -105,7 +112,8 @@ object Process {
     }
 
     def fork: Handle = {
-      val handle = new Handle(name, apply _, new CountDownLatch(1), stackSize, executor)
+      val handle =
+        new Handle(name, apply _, new CountDownLatch(1), stackSize, executor)
       handle.start()
       handle
     }
@@ -134,7 +142,7 @@ object Process {
 
     /** The executor that will be used to run the body */
     val executor: CSOExecutor =
-        if (procExecutor == null) CSOThreads.executor() else procExecutor
+      if (procExecutor == null) CSOThreads.executor() else procExecutor
 
     /** The throwable, if any, thrown by a terminating process. */
     var thrown: Throwable = _
@@ -182,7 +190,6 @@ object Process {
     }
   }
 
-  
   def exit(): Unit = exit(0)
 
   def exit(code: Int): Unit = { CSOThreads.shutDown(); System.exit(code) }

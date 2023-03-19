@@ -1,6 +1,6 @@
 package io.threadcso.debug
 
-import io.threadcso.process._
+import io.threadcso.process.CSOThreads
 
 /** A simple server that responds to browser requests with a description of the
   * state of active `CSO` threads, open channel, and monitored

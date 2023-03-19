@@ -1,6 +1,6 @@
 package io.threadcso.semaphore
 
-import java.util.concurrent.atomic._
+import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.LockSupport
 import io.threadcso.basis.{Identity, NameGenerator}
 

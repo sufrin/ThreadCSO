@@ -1,6 +1,6 @@
 package io.threadcso
 
-import io.threadcso.process._
+import io.threadcso.process.Process.Simple
 
 import scala.language.implicitConversions
 
@@ -17,9 +17,8 @@ import scala.language.implicitConversions
   * confusing behaviour at run-time.
   */
 object coerce {
-  import Process.Simple
 
   /** Implicit coercion from unit-valued expressions to simple processes.
     */
-  implicit def UnitProc(body: => Unit): PROC = new Process.Simple(() => body)
+  implicit def UnitProc(body: => Unit): PROC = new Simple(() => body)
 }

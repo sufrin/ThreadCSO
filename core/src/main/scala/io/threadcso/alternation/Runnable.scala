@@ -6,8 +6,8 @@ import io.threadcso.channel.PortState
   * implementations of `alt` and `serve` (etc) used in a CSO implementation.
   * {{{
   * @author Bernard Sufrin, Oxford
-  * \$Revision: 212 $
-  * \$Date: 2017-09-29 18:07:56 +0100 (Fri, 29 Sep 2017) $
+  * $Revision: 212 $
+  * $Date: 2017-09-29 18:07:56 +0100 (Fri, 29 Sep 2017) $
   * }}}
   */
 trait Runnable {
@@ -20,8 +20,7 @@ trait Runnable {
   def notifyPortEvent(theIndex: Int, portState: PortState): Unit
 }
 
-/** A `Runnable` that ignores port event notifications.
-  */
+/** A `Runnable` that ignores port event notifications. */
 object IgnorePortEvents extends Runnable {
   def notifyPortEvent(theIndex: Int, portState: PortState): Unit = {}
 }

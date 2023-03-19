@@ -1,13 +1,13 @@
 package io.threadcso
 
-import io.SourceLocation._
+import io.SourceLocation.SourceLocation
 import io.threadcso.alternation.ChannelExports
 
 /** <p> A collection of several process-generators that (mostly) yield processes
   * to work on (or produce) finite or infinite streams of values presented as
-  *  All are designed to terminate cleanly -- 'i.e.' to `closeIn` or
-  * `closeOut` all the that they communicate on in the appropriate
-  * direction for the type of port.
+  * All are designed to terminate cleanly -- 'i.e.' to `closeIn` or `closeOut`
+  * all the that they communicate on in the appropriate direction for the type
+  * of port.
   *
   * Some of these components were inspired by (or copied from) components from
   * the Plug'n'Play collection of JCSP (without necessarily retaining the P'n'P
@@ -20,8 +20,9 @@ import io.threadcso.alternation.ChannelExports
   *   $Date: 2017-10-20 15:00:00 +0100 (Fri, 20 Oct 2017) $
   * }}}
   */
-package object component extends ChannelExports {
+package object component {
   // import scala.language.postfixOps
+
   /** An implicit class that equips an `Iterable[T]` collection with methods
     * that write all its members to an output port.
     *
@@ -58,9 +59,9 @@ package object component extends ChannelExports {
     *               \|----> x, ...
     * }}}
     */
-  def tee[T](in: ??[T], outs: !![T]*): PROC = π("tee") {
+  def tee[T](in: ??[T], outs: !![T]*): PROC = proc("tee") {
     var v = null.asInstanceOf[T] // in.nothing
-    val outputs = ||(for (out <- outs) yield π { out ! v })
+    val outputs = ||(for (out <- outs) yield proc { out ! v })
     repeat { v = in ? (); run(outputs) }
     in.closeIn()
     for (out <- outs) out.closeOut()
@@ -74,7 +75,7 @@ package object component extends ChannelExports {
     *    >---->|/
     * }}}
     */
-  def merge[T](ins: collection.Seq[??[T]], out: !![T]): PROC = π("merge") {
+  def merge[T](ins: collection.Seq[??[T]], out: !![T]): PROC = proc("merge") {
     serve(ins.head =?=> { x => out ! x })
     // serve ( | (for (in <- ins) yield in =?=> { x => out!x } ) )
     out.closeOut()
@@ -87,10 +88,10 @@ package object component extends ChannelExports {
   def zipwith[L, R, O](
       f: (L, R) => O
   )(lin: ??[L], rin: ??[R], out: !![O]): PROC =
-    π("zipWith") {
+    proc("zipWith") {
       var l = lin.nothing
       var r = rin.nothing
-      val input = π { l = lin ? () } || π { r = rin ? () }
+      val input = proc { l = lin ? () } || proc { r = rin ? () }
 
       repeat { input(); out ! f(l, r) }
 
@@ -104,10 +105,10 @@ package object component extends ChannelExports {
       rin: ??[R],
       out: !![(L, R)]
   ): PROC =
-    π("zip") {
+    proc("zip") {
       var l = lin.nothing
       var r = rin.nothing
-      val doInputs = π { l = lin ? () } || π { r = rin ? () }
+      val doInputs = proc { l = lin ? () } || proc { r = rin ? () }
 
       repeat { doInputs(); out ! (l, r) }
 
@@ -123,7 +124,7 @@ package object component extends ChannelExports {
     * +------------+
     * }}}
     */
-  def const[T](ts: T*)(out: !![T]): PROC = π("const") {
+  def const[T](ts: T*)(out: !![T]): PROC = proc("const") {
     for (t <- ts) out ! t; out.closeOut()
   }
 
@@ -149,13 +150,13 @@ package object component extends ChannelExports {
     * arriving on `inj`.
     */
 
-  def inj[T](in: ??[T], inj: ??[T], out: !![T]): PROC = π("inj") {
+  def inj[T](in: ??[T], inj: ??[T], out: !![T]): PROC = proc("inj") {
     priserve(inj =?=> { x => out ! x } | in =?=> { x => out ! x })
     out.closeOut(); in.closeIn(); inj.closeIn()
   }
 
   /** Repeatedly reads pairs inputs from its two input channel, and outputs them
-    * (in parallel, and ordered) to its two output 
+    * (in parallel, and ordered) to its two output
     * {{{
     * x, ...--->[\/]---> max(x,y), ...
     * y, ...--->[/\]---> min(x,y), ...
@@ -180,10 +181,10 @@ package object component extends ChannelExports {
       hi: !![T]
   )(implicit ev: T => Ordered[T]) /*[T <% Ordered[T]]*/
       : PROC =
-    π("exchanger") {
+    proc("exchanger") {
       var lv, rv = l.nothing
-      val rdBoth = π { lv = l ? () } || π { rv = r ? () }
-      val wrBoth = π { lo ! rv } || π { hi ! lv }
+      val rdBoth = proc { lv = l ? () } || proc { rv = r ? () }
+      val wrBoth = proc { lo ! rv } || proc { hi ! lv }
       repeat {
         rdBoth()
         if (lv < rv) { val t = lv; lv = rv; rv = t }
@@ -206,7 +207,9 @@ package object component extends ChannelExports {
   def Ticker(periodNS: Nanoseconds): ??[Unit] = {
     val ticks = OneOne[Unit]
     val Ping = () // avoid adaptation warning from scalac for ticks!()
-    fork(π(s"Ticker($periodNS)") { repeat { ticks ! Ping; sleep(periodNS) } })
+    fork(proc(s"Ticker($periodNS)") {
+      repeat { ticks ! Ping; sleep(periodNS) }
+    })
     return ticks
   }
 
@@ -232,7 +235,7 @@ package object component extends ChannelExports {
       relativeTo: Nanoseconds = 0L
   ): ??[Nanoseconds] = {
     val out = OneOne[Long](s"Timer($periodNS)")
-    val gen = π(s"Timer($periodNS)") {
+    val gen = proc(s"Timer($periodNS)") {
       repeat {
         val now = System.nanoTime
         out.writeBefore(periodNS)(now - relativeTo)
@@ -246,25 +249,24 @@ package object component extends ChannelExports {
   /** Drop the first value read from `in`, then copy values from `in` to `out`.
     */
   def tail[T](in: ??[T], out: !![T]): PROC =
-    π("tail") { in ? (); copy(in, out)() }
+    proc("tail") { in ? (); copy(in, out)() }
 
   /** Output the given `ts` to `out`, then copy values from `in` to `out`,
     * respecting the network-termination convention.
     */
   def prefix[T](ts: T*)(in: ??[T], out: !![T]): PROC =
-    π("prefix") { attempt { for (t <- ts) out ! t; copy(in, out)() } {} }
+    proc("prefix") { attempt { for (t <- ts) out ! t; copy(in, out)() } {} }
 
-  /** Repeatedly copy values from `in` to `out`.
-    */
+  /** Repeatedly copy values from `in` to `out`. */
   def copy[T](in: ??[T], out: !![T]): PROC =
-    π("copy") { repeat { out ! (in ? ()) }; out.closeOut(); in.closeIn() }
+    proc("copy") { repeat { out ! (in ? ()) }; out.closeOut(); in.closeIn() }
 
   /** Copy values from `in` to `out` that satisfy `pass`.
     */
   def filter[T](
       pass: T => Boolean
   )(in: ??[T], out: !![T]): PROC =
-    π("filter") {
+    proc("filter") {
       repeat { val v = in ? (); if (pass(v)) out ! v }
       out.closeOut()
       in.closeIn()
@@ -275,7 +277,7 @@ package object component extends ChannelExports {
     * }}}
     */
   def map[I, O](f: I => O)(in: ??[I], out: !![O]): PROC =
-    π("map") {
+    proc("map") {
       repeat { out ! f(in ? ()) }
       out.closeOut()
       in.closeIn()
@@ -285,7 +287,7 @@ package object component extends ChannelExports {
     * standard output stream.
     */
   def console[T](in: ??[T]): PROC =
-    π("console") { repeat { Console.println(in ? ()) } }
+    proc("console") { repeat { Console.println(in ? ()) } }
 
   /** Repeatedly output lines read from the given <tt>LineNumberReader</tt>. <p>
     * When `in` is associated with the user's terminal, rather than a file,
@@ -364,8 +366,8 @@ package object component extends ChannelExports {
       out.closeOut()
     }
 
-  /** Read data from `in` as as it appears there, copying the
-    * most-recently read datum to `out` every `periodNS` nanoseconds.
+  /** Read data from `in` as as it appears there, copying the most-recently read
+    * datum to `out` every `periodNS` nanoseconds.
     */
   def sampler[T](periodNS: Long, in: ??[T], out: !![T]): PROC =
     proc("sampler") {

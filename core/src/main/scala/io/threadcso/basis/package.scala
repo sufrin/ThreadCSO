@@ -10,66 +10,22 @@ package io.threadcso
   *   - [[io.threadcso.basis.NameGenerator]] -- Systematic generation of names
   *     for classes of CSO objects
   *   - [[io.threadcso.basis.Named]] -- Mixin to name objects during or after
-  *     construction
-  *   - 
+  *     construction \-
   */
 
 package object basis {
 
-  /** Systematic generation of names for classes of CSO object.
+  /** Units of time expressed as nanoseconds: (eg) sleep(3*Day+14*Hour) */
+  type Nanoseconds = Long
+
+  /** Units of time expressed as milliseconds: */
+  type Milliseconds = Long
+
+  /** Implicit class to print thread names and identities
     */
-  class NameGenerator(_kind: String) {
-    private val occurs = new java.util.concurrent.atomic.AtomicLong
-
-    /** The kind of object */
-    private[threadcso] val kind = _kind
-
-    /** Return <tt>name</tt> if non-null, else an invented name constructed from
-      * <tt>kind</tt>.
-      */
-    private[threadcso] def genName(name: String) = {
-      if (name == null) kind + "-" + occurs.getAndIncrement else name
-    }
-
-    /** Return an invented name constructed from <tt>kind</tt>.
-      */
-    private[threadcso] def newName() = {
-      kind + "-" + occurs.getAndIncrement.toString
-    }
-
-    /** Return an invented name constructed from <tt>kind</tt>.
-      */
-    private[threadcso] def newName(kind: String) = {
-      kind + "-" + occurs.getAndIncrement.toString
-    }
-  }
-
-  /** A mixin to support the naming of objects during or after construction.
-    */
-  trait Named[+T] {
-    self: T =>
-
-    /** Return the name of the object */
-    def name: String = _name
-
-    /** The name of the object */
-    private var _name: String = "<anonymous>"
-
-    /** Set the name of this object and return it */
-    def withName(__name: String): T = {
-      _name = __name
-      this
-    }
-
-    /** Discover the name generator */
-    def nameGenerator: NameGenerator
-
-    /** Set the name using the name generator */
-    def setName(name: String): Unit = {
-      _name = nameGenerator.genName(name)
-    }
-
-    override def toString: String = name
+  implicit class Identity(thr: Thread) {
+    def identity: String =
+      if (thr == null) "?" else s"${thr.getName}#${thr.threadId}"
   }
 
   /** Return `coerce(`''text''`)` for a property specified on the scala command
@@ -84,21 +40,6 @@ package object basis {
   def getPropElse(name: String)(orelse: String): String = {
     val prop = java.lang.System.getProperty(name)
     if (prop == null) orelse else prop
-  }
-
-  /** Units of time expressed as nanoseconds: (eg) sleep(3*Day+14*Hour)
-    */
-  type Nanoseconds = Long
-
-  /** Units of time expressed as milliseconds:
-    */
-  type Milliseconds = Long
-
-  /** Implicit class to print thread names and identities
-    */
-  implicit class Identity(thr: Thread) {
-    def identity: String =
-      if (thr == null) "?" else s"${thr.getName}#${thr.threadId}"
   }
 
   /** Wait until `deadline` for `condition` to become true. If it became true

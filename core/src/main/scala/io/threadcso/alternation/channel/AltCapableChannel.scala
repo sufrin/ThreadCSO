@@ -2,7 +2,7 @@ package io.threadcso.alternation.channel
 
 import java.util.concurrent.atomic.AtomicReference
 
-import io.threadcso.channel._
+import io.threadcso.channel.{PortState, CLOSEDSTATE, UNKNOWNSTATE}
 import io.threadcso.debug.Logging
 import io.threadcso.lock.SimpleLock
 import io.threadcso.alternation.{LoggingFlags, IgnorePortEvents, Runnable}
@@ -10,10 +10,9 @@ import io.threadcso.alternation.{LoggingFlags, IgnorePortEvents, Runnable}
 import scala.annotation.elidable
 import scala.annotation.elidable.FINEST
 
-/** <p> Mixin for channels that are capable of participating in alternations.
-  * Deals with registration/unregistration of a channel with a running
-  * alternation, and with detailed logging (when not elided) of port-state
-  * changes.
+/** Mixin for channels that are capable of participating in alternations. Deals
+  * with registration/unregistration of a channel with a running alternation,
+  * and with detailed logging (when not elided) of port-state changes.
   *
   * Typical examples of its use can be found in the definitions of channel
   * constructors such as [[io.threadcso.alternation.channel.OneOne]] and
@@ -56,7 +55,8 @@ trait AltCapableChannel[T] extends Chan[T] {
   def registerIn(alt: Runnable, index: Int): PortState = mutex withLock {
     if (!theAlt.compareAndSet(IgnorePortEvents, alt))
       throw new IllegalStateException(
-        s"Channel $index cannot participate in more than one alt simultaneously: $alt} and ${theAlt.get}"
+        s"Channel $index cannot participate in more than " +
+          s"one alt simultaneously: $alt} and ${theAlt.get}"
       )
     theIndex = index
     val state = inPortState
@@ -64,8 +64,7 @@ trait AltCapableChannel[T] extends Chan[T] {
     state
   }
 
-  /** Unregister an input event with this channel, and return the port state
-    */
+  /** Unregister an input event with this channel, and return the port state */
   def unregisterIn(): PortState = mutex withLock {
     theAlt.set(IgnorePortEvents)
     theIndex = -1
@@ -78,7 +77,8 @@ trait AltCapableChannel[T] extends Chan[T] {
   def registerOut(alt: Runnable, index: Int): PortState = mutex withLock {
     if (!theAlt.compareAndSet(IgnorePortEvents, alt))
       throw new IllegalStateException(
-        s"Channel $index cannot participate in more than one alt simultaneously: $alt} and ${theAlt.get}"
+        s"Channel $index cannot participate in more than " +
+          s"one alt simultaneously: $alt} and ${theAlt.get}"
       )
     theIndex = index
     val state = outPortState

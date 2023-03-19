@@ -2,7 +2,7 @@ package io.threadcso.alternation.event
 
 import io.threadcso.alternation.event.EventHelpers._
 import io.threadcso.alternation.channel.{InPort, OutPort}
-// import io.threadcso.alternation.Runnable
+import io.threadcso.alternation.Runnable
 import io.threadcso.channel.PortState
 
 /** `ExecutableEvent`s are composed ''syntactically'' by infix `|` and its

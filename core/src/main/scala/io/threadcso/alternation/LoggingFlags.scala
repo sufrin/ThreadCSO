@@ -3,7 +3,6 @@ package io.threadcso.alternation
 /** Flags used to control the level of detail recorded when the execution of
   * alternations is logged.
   */
-
 object LoggingFlags {
 
   /** Log start and end of registration: 1 */

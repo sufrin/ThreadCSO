@@ -8,15 +8,6 @@ package io.threadcso.alternation.channel
 import io.threadcso.basis.NameGenerator
 import io.threadcso.channel.PortState
 
-/** Static generator for OneOne
-  *
-  * @see
-  *   [[io.threadcso.alternation.channel.OneOne]]
-  */
-object OneOne extends NameGenerator("OneOne") {
-  def apply[T](name: String = newName()): OneOne[T] = new OneOne[T](name)
-}
-
 /** A version of its namesake from [[io.threadcso.channel]] with the capacity to
   * participate in `alt` and `serve` commands
   *
@@ -32,7 +23,15 @@ class OneOne[T](name: String = null)
   override def outPortEvent(portState: PortState): Unit = setOutPortStateImp(
     portState
   )
+}
 
+/** Static generator for OneOne
+  *
+  * @see
+  *   [[io.threadcso.alternation.channel.OneOne]]
+  */
+object OneOne extends NameGenerator("OneOne") {
+  def apply[T](name: String = newName()): OneOne[T] = new OneOne[T](name)
 }
 
 /** Static generator for N2N
@@ -90,7 +89,7 @@ object OneOneBuf extends NameGenerator("OneOneBuf") {
   *   [[io.threadcso.channel.N2NBuf]]
   */
 class OneOneBuf[T](size: Int, name: String)
-    extends io.threadcso.channel.OneOneBuf[T](
+    extends io.threadcso.channel.N2NBuf[T](
       size,
       writers = 1,
       readers = 1,
