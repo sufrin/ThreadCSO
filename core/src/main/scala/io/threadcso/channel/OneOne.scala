@@ -1,6 +1,6 @@
 package io.threadcso.channel
 
-import java.util.concurrent.atomic._
+import java.util.concurrent.atomic.{AtomicReference, AtomicBoolean, AtomicLong}
 import java.util.concurrent.locks.LockSupport
 
 import io.threadcso.basis.{Identity, NameGenerator, parkUntilElapsedOr}
