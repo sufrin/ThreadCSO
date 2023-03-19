@@ -14,5 +14,4 @@ class DeadlineManyOne[T](name: String = "") extends DeadlineOneOne[T](name) {
     lock.synchronized {
       super.writeBefore(nsWait)(value)
     }
-
 }

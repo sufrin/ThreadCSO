@@ -3,7 +3,7 @@ package io.threadcso.alternation
 trait AlternationExports {
   type Run = io.threadcso.alternation.Run
 
-  import io.threadcso.alternation.event._
+  import event._
   import io.threadcso.process.Stopped
   import io.threadcso.basis.Nanoseconds
 
@@ -78,15 +78,15 @@ trait AlternationExports {
 
   /** after syntax for 'alt' bodies */
   val after: (=> Nanoseconds) => AfterDeadline =
-    io.threadcso.alternation.event.after _
+    event.EventHelpers.after _
 
   /** orelse syntax for 'alt' bodies */
-  val orelse: io.threadcso.alternation.event.orelse.type =
-    io.threadcso.alternation.event.orelse
+  val orelse: event.orelse.type =
+    event.orelse
 
   /** prefix | syntax for 'alt' bodies */
   val | : (collection.Seq[ExecutableEvent]) => ExecutableEventSyntax =
-    io.threadcso.alternation.event.|
+    event.EventHelpers.|
 
   /** Evaluate `body` and return its value unless an exception ''ex'' is thrown.
     * If ''ex'' is a `Stopped` then evaluate and return the value of
@@ -127,8 +127,8 @@ trait AlternationExports {
       }
   }
 
-  /** `repeatFor (it: Iterable[T]) { bv => body }` applies the function `{ bv =>
-    * body }` to each of the elements of an iterator formed from the iterable.
+  /** `repeatFor (it: Iterable[T]) { bv => body }` applies the function `{ by =>
+    * body }` to each of the elements of an iterator formed from the Iterable.
     * If an exception ''ex'' is thrown, then stop the iteration, then unless
     * ''ex'' is a `Stopped` re-throw ''ex''.
     */

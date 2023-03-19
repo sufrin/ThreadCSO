@@ -5,13 +5,13 @@ trait ChannelExports {
   /** Type of an '''alt-capable''' channel as returned by the standard factory
     * methods of the `io.threadcso` API.
     */
-  type Chan[T] = channel.Chan[T]
+  type Chan[T] = io.threadcso.alternation.channel.Chan[T]
 
-  type ??[T] = channel.InPort[T]
-  type !![T] = channel.OutPort[T]
+  type ??[T] = io.threadcso.alternation.channel.InPort[T]
+  type !![T] = io.threadcso.alternation.channel.OutPort[T]
 
-  type InPort[T] = ??[T]
-  type OutPort[T] = !![T]
+  // type InPort[T] = io.threadcso.channel.InPort[T]
+  // type OutPort[T] = io.threadcso.channel.OutPort[T]
 
   import channel.SharedAltCapableChannel
 

@@ -256,7 +256,8 @@ class OneOne[T](name_ : String) extends SyncChan[T] {
   def writeBefore(timeoutNS: Long)(value: T): Boolean = {
     assert(
       writer.get == null,
-      s"!($value) in ${Thread.currentThread.identity} overtaking !($buffer) [${writer.get.identity}]"
+      s"!($value) in ${Thread.currentThread.identity} "
+        + s"overtaking !($buffer) [${writer.get.identity}]"
     )
     checkOpen
     buffer = value

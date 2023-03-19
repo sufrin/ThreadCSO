@@ -90,7 +90,12 @@ object OneOneBuf extends NameGenerator("OneOneBuf") {
   *   [[io.threadcso.channel.N2NBuf]]
   */
 class OneOneBuf[T](size: Int, name: String)
-    extends io.threadcso.channel.N2NBuf[T](size, writers = 1, readers = 1, name)
+    extends io.threadcso.channel.OneOneBuf[T](
+      size,
+      writers = 1,
+      readers = 1,
+      name
+    )
     with AltCapableChannel[T] {
 
   override def inPortEvent(portState: PortState): Unit =
@@ -116,7 +121,7 @@ object N2NBuf extends NameGenerator("N2NBuf") {
       fairOut: Boolean = false,
       fairIn: Boolean = false
   ): N2NBuf[T] =
-    N2NBuf(size, writers, readers, name, fairOut, fairIn)
+    new N2NBuf(size, writers, readers, name, fairOut, fairIn)
 }
 
 /** A version of its namesake from [[io.threadcso.channel]] with the capacity to
