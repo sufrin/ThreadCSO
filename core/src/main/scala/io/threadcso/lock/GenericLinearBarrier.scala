@@ -2,22 +2,22 @@ package io.threadcso.lock
 
 import io.threadcso.semaphore.BooleanSemaphore
 
-/** A `LinearBarrier(n)` supports the ''repeated'' synchronization of `n`
-  * processes.
+/** A `GenericLinearBarrier(n, e, _ ⊕ _)` supports the (repeated)
+  * synchronization of `n` processes.
   *
-  * If `b` is such a barrier then `b.sync` calls are stalled until `n` have been
-  * made. When `n==1` then `b.sync` returns immediately: this is so multi-worker
-  * structures can be tested with only a single-worker, and may be helpful when
-  * testing cellular automata.
+  * If `b` is such a barrier then `b.sync(x)` calls are stalled until `n` have
+  * been made. We say that such a call ''contributes'' `x`. If the syncing calls
+  * contribute `x1`, `x2`, ... `xn` then the value they all return is `e ⊕ x1 ⊕
+  * ... ⊕ xn`. The function `⊕` must be associative.
   *
-  * This implementation is simple-minded.
+  * This implementation takes O(n) time to synchronize, and O(1) to construct.
   */
-abstract class LinearBarrier[T](
+abstract class GenericLinearBarrier[T](
     private val n: Int,
     private val e: T,
     private val op: (T, T) => T,
     val name: String = ""
-) extends Barrier[T] {
+) extends GenericBarrier[T] {
   assert(n >= 1)
 
   private[this] val shared = n > 1
@@ -62,12 +62,11 @@ abstract class LinearBarrier[T](
   def sync(t: T): T = sync(0, t)
 }
 
-class BarrierUnit(n: Int, name: String = "")
-    extends LinearBarrier[Unit](n, (), (_: Unit, _: Unit) => (), name) {
+class LinearBarrier(n: Int, name: String = "")
+    extends GenericLinearBarrier[Unit](n, (), (_: Unit, _: Unit) => (), name) {
   def sync(): Unit = sync(0, ())
 }
 
 object LinearBarrier {
-  def apply(n: Int, name: String = "") =
-    new BarrierUnit(n)
+  def apply(n: Int, name: String = "") = new LinearBarrier(n)
 }

@@ -1,11 +1,6 @@
-// import io.threadcso.channel.OneOne
-// import io.threadcso.process.Stopped
-// import org.scalatest.flatspec.AnyFlatSpec
-// import scala.util.Random
-
 import org.scalatest.flatspec.AnyFlatSpec
 import io.threadcso.debug.Log
-import io.threadcso.lock.LogBarrier
+import io.threadcso.lock.GenericBarrier
 import io.threadcso._
 import scala.util.Random
 
@@ -16,7 +11,7 @@ case class Arrive(id: Int) extends LogEvent
 case class Leave(id: Int) extends LogEvent
 
 sealed trait BarrierConstructor {
-  def apply(p: Int): Barrier
+  def apply(p: Int): GenericBarrier[Unit]
 }
 
 object LinearBarrierCons extends BarrierConstructor {
@@ -39,7 +34,7 @@ class BarrierSync(cons: BarrierConstructor) {
     def worker(me: Int) = proc(f"barrier_$me") {
       for (_ <- 0 until iters) {
         log.add(me, Arrive(me))
-        barrier.sync(me)
+        barrier.sync(me, ())
         log.add(me, Leave(me))
       }
     }
@@ -85,13 +80,17 @@ class BarrierSync(cons: BarrierConstructor) {
 
 class BarrierTests extends AnyFlatSpec {
 
-  it should "work" in {
+  behavior of "LinearBarrier"
+
+  it should "synchronization should work" in {
     val sync = new BarrierSync(LinearBarrierCons)
     sync.test()
     // assert(ct.test())
   }
 
-  it should "work (log)" in {
+  behavior of "LogBarrier"
+
+  it should "synchronization should work" in {
     val sync = new BarrierSync(LogBarrierCons)
     sync.test()
     // assert(ct.test())

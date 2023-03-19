@@ -99,7 +99,8 @@ package object threadcso {
   type Semaphore = io.threadcso.semaphore.Semaphore
   type Latch = io.threadcso.semaphore.Latch
   type Flag = io.threadcso.semaphore.Flag
-  type Barrier = lock.Barrier[Unit]
+  type Barrier = lock.LinearBarrier
+  type LogBarrier = lock.LogBarrier
   type CombiningBarrier[T] = lock.CombiningBarrier[T]
 
   /** Factory for `BooleanSemaphore`s. @see
@@ -127,7 +128,11 @@ package object threadcso {
   val Flag = io.threadcso.semaphore.Flag
 
   /** Factory for `Barrier`s */
-  def Barrier(n: Int, name: String = ""): Barrier = new lock.BarrierUnit(n, name)
+  def Barrier(n: Int, name: String = ""): Barrier =
+    new lock.LinearBarrier(n, name)
+
+  def LogBarrier(n: Int, name: String = ""): LogBarrier =
+    new lock.LogBarrier(n, name)
 
   /** Factory for `CombiningBarrier`s */
   def CombiningBarrier[T](
@@ -408,7 +413,7 @@ package object threadcso {
     * designed for point-to-point communication. There is a (weak) dynamic check
     * against multiple processes writing/reading simultaneously.
     */
-   
+
   def OneOne[T](name: String = null): Chan[T] =
     new io.threadcso.alternation.channel.OneOne[T](name)
 
