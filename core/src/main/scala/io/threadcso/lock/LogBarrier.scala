@@ -50,6 +50,45 @@ class LogBarrier(n: Int, name: String = "") {
   
 }
 
-object LogBarrier {
-  def apply(n: Int, name: String = ""): LogBarrier = new LogBarrier(n, name)
+class CombiningLogBarrier[T](n: Int, e: T, op: (T, T) => T, name: String = "") {
+  import io.threadcso.lock.primitive.DataChan
+
+  assert(n >= 1)
+  /** thread signals parent that it's ready */
+  val ready = Array.fill(n)(DataChan[T](s"$name.ready"))
+  /** parent signals thread that it can proceed */
+  val go    = Array.fill(n)(DataChan[T](s"$name.go"))
+  
+  @inline private def left(id: Int): Int  = 1+2*id
+  @inline private def right(id: Int): Int = 2+2*id
+
+  def sync(id: Int)(myResult: T): T = {
+    val l = left(id)
+    val r = right(id)
+    var result: T = myResult
+    // await both children and incorporate their answers
+    if (l<n) result = op(result, ready(l).read())
+    if (r<n) result = op(result, ready(r).read())
+    // children ready
+    if (id != 0) {
+       ready(id).write(result) // tell parent
+       result = go(id).read()  // await parent's result
+    }
+    if (l<n) go(l).write(result)
+    if (r<n) go(r).write(result)
+    result
+  }
 }
+
+
+object LogBarrier {
+  def apply(n: Int, name: String = ""): LogBarrier =
+      new LogBarrier(n, name)
+}
+
+object CombiningLogBarrier {
+  def apply[T](n: Int, e: T, op: (T, T) => T, name: String = ""): CombiningLogBarrier[T] =
+      new CombiningLogBarrier(n, e, op, name)
+}
+
+
