@@ -5,7 +5,11 @@ import io.threadcso.process.Stopped
 import org.scalatest.flatspec.AnyFlatSpec
 import scala.util.Random
 
-/** Elementary trials of channel communication */
+/**
+ * Trials of channel communication
+ * (slowly being extended)
+ */
+
 abstract class ChannelTest(implicit loc: SourceLocation) {
 
   def test(): Boolean = test(Array[String]())
@@ -81,18 +85,21 @@ class Chan1 extends ChannelTest {
   }
 }
 
-/** Check channels throw Stopped properly */
+
+/**
+ * Check OneOne channels throw Stopped properly
+ */
 class Chan2 extends ChannelTest {
   private val N = 100
   private val reps = 1000
 
   // send the contents of arr over the channel chan
-  private def sender(chan: OneOne[Int]) = proc("up") {
+  private def sender(chan: OneOne[Int]) = proc("sender") {
     chan.closeOut()
   }
 
   // receive the contents of channel chan and check the order with arr
-  private def receiver(chan: OneOne[Int]) = proc("down") {
+  private def receiver(chan: OneOne[Int]) = proc("receiver") {
     var go = true
     while (go) {
       try {
@@ -119,9 +126,136 @@ class Chan2 extends ChannelTest {
   }
 }
 
+/**
+ * Check N2NBuf channels throw Stopped properly on write-closing
+ */
+class ChanN2NWrite extends ChannelTest {
+  private val N       = 100
+  private val reps    = 5
+  private val writers = 10
+
+  // send the contents of arr over the channel chan
+  private def writer(chan: !![Int]) = proc("writer") {
+    chan!3
+    chan.closeOut()
+  }
+
+  // receive the contents of channel chan and check the order with arr
+  private def receiver(chan: ??[Int]) = proc("receiver") {
+    var go = true
+    while (go) {
+      try {
+        val x = chan ? ()
+      } catch {
+        case e: Throwable => { assert(e.isInstanceOf[Stopped]); go = false }
+      }
+    }
+    chan.closeIn()
+  }
+
+  def test(args: Array[String]): Boolean = {
+    println(debugger)
+    var okay = true
+    for (trial <- 0 until reps) {
+
+      val chan = N2NBuf[Int](10, writers=writers, readers=1)
+      if (trial==0) println(s"Before Trial $trial\nChan state: $chan")
+
+      try {
+        val senders = ||(for { i<-0 until writers} yield writer(chan))
+        run(senders || receiver(chan))
+      } catch {
+        case e: AssertionError => okay = false
+        case e: Throwable      => { okay = false; println(e) }
+      }
+      if (trial==0) println(s"After Trial $trial\nChan state: $chan")
+
+    }
+    okay
+  }
+}
+
+
+class ChanCopy extends ChannelTest {
+  // uses the standard OneOne and N2NBuf factories
+  private val N    = 5000
+  private val reps = 100
+
+  // send the contents of arr over the channel chan
+  private def sender(writers: Int, chan: !![Int], arr: Array[Int]) = proc("up") {
+    for (x <- arr) { chan ! x }
+    for (_ <- 0 until writers) chan.closeOut()
+  }
+
+  // receive the contents of channel chan and check the order with arr
+  private def receiver(chan: ??[Int], dest: Array[Int]) = proc("down") {
+    var i = 0
+    repeat {
+      dest(i) = chan?()
+      i += 1
+    }
+    assert(i == N)
+  }
+
+  def test(args: Array[String]): Boolean = {
+    val closers = if (args contains "3") 3 else 1
+    
+    
+    for (trial <- 0 until reps) {
+    
+      val source = Array.fill(N)(Random.nextInt(Int.MaxValue))
+      val dest   = Array.fill(N)(0)
+      
+      val chan   =
+          if (args contains "n2n")
+             io.threadcso.N2NBuf[Int](10, readers=1, writers=closers)
+          else
+             io.threadcso.OneOne[Int]("chan")
+
+      run(sender(writers=closers, chan, source) || receiver(chan, dest))
+
+      for { i <- 0 until N } assert(dest(i) == source(i))
+
+      if (trial==0) println(s"After Trial $trial\nChan state: $chan")
+    }
+    true
+  }
+}
+
+/*class TransmissionDownstream {
+      def test(args: Array[String]): Unit = {
+        val mid =
+          if (args contains ("-a")) OneOne[String]("mid")
+          else io.threadcso.channel.OneOne[String]("mid")
+        run(π {
+          repeat {
+            Console.print("> ")
+            val ln = readLine
+            if (ln == null || ln == "") stop
+            mid ! ln
+          }
+          mid.closeOut()
+        }
+          || π {
+            repeat {
+              Console.println(mid ? ())
+            }
+          })
+        System.exit(0)
+      }  
+}
+*/
+
 
 class ChannelTests extends AnyFlatSpec {
 
+  behavior of "N2N channels"
+  
+  it should "throw Stopped upon outPort of an N2NBuf(...writers=4...) closing" in {
+    val ct = new ChanN2NWrite
+    assert(ct.test())
+  }
+ 
   behavior of "OneOne channels"
 
   it should "send one input to the output" in {
@@ -134,271 +268,99 @@ class ChannelTests extends AnyFlatSpec {
     assert(ct.test())
   }
 
-  it should "throw Stopped upon inPort closing" in {
+  it should "throw Stopped upon outPort of a OneOne closing" in {
     val ct = new Chan2
     assert(ct.test())
   }
+   
+  it should "have copied elements in a repeat using a channel made by the standard OneOne" in {
+    val ct = new ChanCopy
+    assert(ct.test())
+  }
+  
+  it should "have copied elements in a repeat using a channel made by a standard N2NBUF(10, 1, 1)" in {
+    val ct = new ChanCopy
+    assert(ct.test(Array("n2n")))
+  }
+  
+  it should "have copied elements in a repeat using a channel made by a standard N2NBUF(10, 3, 3)" in {
+    val ct = new ChanCopy
+    assert(ct.test(Array("n2n", "3")))
+  }
+
 }
 
-//////////////////////////////////////////////////////////////////
+class PrimitiveTests extends AnyFlatSpec {
+    import io.threadcso._
+    import io.threadcso.lock.primitive.{UnitChan,DataChan}
+    
+    
+    def testUnit (N: Int=500): Unit = {
+      println(debugger)
+      val sync = new UnitChan()
+      var n = 0
+      val inc = proc("inc")
+      {  for { i<-0 until N } {
+            sync.read(); n=n+1; sync.write(())
+         }
+      }
+      val dec = proc("dec")   {
+         for { i<-0 until N } {
+          sync.read(); n=n-1; sync.write(())
+         }
+      }
+      sync!() // allow the first 
+      val s = nanoTime
+      (dec || inc)()
+      val e = (nanoTime - s).toDouble
+      val tot = e / 1.0E9
+      val per = e / N.toDouble
+      println(s"N=$N in $tot secs ($per ns / communication)")
+      assert(n==0)
+    }
+    
+    def testData (N: Int=500): Unit = {
+      println(debugger)
+      val data = DataChan[Int]()
+    
+      var n = 0 // owned by reader
+    
+      val reader = proc("reader")
+      {  var going = true
+         while (going) {
+            data?{ r => n=r }
+            going = n>=0
+         }
+      }
+      
+      val writer = proc("writer")   {
+         for { i <-0 to N } {
+           if (i%100==0) {
+             // println(s"w$i")
+             data!i
+           }
+           data.write(i)
+         }
+         assert(n==N, s"n is $n; should be $N")
+         data!(-1)
+      }
+      
+      val s = nanoTime
+      (writer || reader)()
+      val e = (nanoTime - s).toDouble
+      val tot = e / 1.0E9
+      val per = e / N.toDouble
+      println(s"N=$N in $tot secs ($per ns / communication)")
+      assert(n == -1)
+    }
 
-///** Tests downstream transmission and closing and repeat/stop */
-//object Chan2 extends ChannelTests {
-//  def MAIN(args: Array[String]): Unit = {
-//    val mid =
-//      if (args contains ("-a")) OneOne[String]("mid")
-//      else io.threadcso.channel.OneOne[String]("mid")
-//    run(π {
-//      repeat {
-//        Console.print("> ")
-//        val ln = readLine
-//        if (ln == null || ln == "") stop
-//        mid ! ln
-//      }
-//      mid.closeOut()
-//    }
-//      || π {
-//        repeat {
-//          Console.println(mid ? ())
-//        }
-//      })
-//    System.exit(0)
-//  }
-//}
-
-///** Tests downstream transmission and closing, and upstream closing */
-////noinspection VarCouldBeVal
-//object Chan3 extends ChannelTests {
-//  def MAIN(args: Array[String]): Unit = {
-//    val mid =
-//      if (args contains ("-a")) OneOne[String]("mid")
-//      else io.threadcso.channel.OneOne[String]("mid")
-//    run(π {
-//      var go = true
-//      while (go) {
-//        Console.print("> ")
-//        var ln = readLine
-//        if (ln == null || ln == "") go = false
-//        mid ! ln // we expect this to fail after a "." has passed
-//      }
-//      mid.closeOut()
-//    }
-//      || π {
-//        repeat {
-//          val line = mid ? ()
-//          Console.println(line)
-//          if (line == ".") mid.closeIn()
-//        }
-//      })
-//    System.exit(0)
-//  }
-//}
-
-///** <p>Tests downstream transmission and closing, upstream closing; and extended
-//  * rendezvous.
-//  *
-//  * Sender repeatedly prompts, reads a keyboard line, sends it to mid Listener
-//  * reads from mid and (in an extended rendezvous) prints the line (without NL)
-//  * pauses and prints a newline.
-//  *
-//  * Sender terminates at eof; receiver closes mid and terminates at "."
-//  */
-////noinspection VarCouldBeVal
-//object Chan4 extends ChannelTests {
-//  def MAIN(args: Array[String]): Unit = {
-//    val mid =
-//      if (args contains ("-a")) OneOne[String]("mid")
-//      else io.threadcso.channel.OneOne[String]("mid")
-//    run(π("Sender") {
-//      var go = true
-//      while (go) {
-//        Console.print("> ")
-//        var ln = readLine
-//        if (ln == null || ln == "") go = false else mid ! ln
-//      }
-//      mid.close()
-//    }
-//      || π("Listener") {
-//        repeat {
-//          def showWait(s: String): String = {
-//            Console.print(s); sleep(2 * Sec); Console.println("!"); s
-//          }
-//          val line = mid ?? showWait
-//          if (line == ".") mid.closeIn()
-//        }
-//      })
-//    System.exit(0)
-//  }
-//}
-
-///** As Chan4 but with deadlines on the receiver read */
-////noinspection VarCouldBeVal,VarCouldBeVal
-//object Chan5 extends ChannelTests {
-//  def MAIN(args: Array[String]): Unit = {
-//    val mid =
-//      if (args contains ("-a")) OneOne[String]("mid")
-//      else io.threadcso.channel.OneOne[String]("mid")
-//    var patience = 1000 * milliSec
-//    run(π {
-//      var go = true
-//      while (go) {
-//        Console.print("> ")
-//        var ln = readLine
-//        if (ln == null || ln == "") go = false else mid ! ln
-//      }
-//      mid.close()
-//    }
-//      || proc("Listener") {
-//        var delayed = 0
-//        repeat(delayed < 25) {
-//          mid.readBefore(patience) match {
-//            case None       => print("."); delayed += 1
-//            case Some(line) => if (line == ".") mid.closeIn() else println(line)
-//          }
-//        }
-//        mid.closeIn()
-//        println("Stopped listening")
-//      })
-//    System.exit(0)
-//  }
-//}
-
-///** <p> Various tests of OneOne or `N2N(writers, readers=1)` used as an
-//  * intermediate channel between (possibly many) writers/senders and a listener
-//  * process.
-//  *
-//  * The constant factor is that the listener process uses extended rendezvous,
-//  * and thus keeps the {{{send-N}}} processes engaged for 500ms after they send.
-//  * This is shorter than the time taken to start a concurrently-running
-//  * {{{send-N}}}, and this means that a OneOne gets '''output-barged'''. Of
-//  * course a {{{ManyOne}}} doesn't, for any contention to output to the channel
-//  * is resolved in the synchronized wait for !.
-//  * {{{
-//  * //
-//  * // -s sequential sending; otherwise sends are in parallel
-//  * // -m use N2N(writers=0, readers=1) channel; otherwise uses a OneOne channel
-//  * // -n use N2N(writers=#args, 1) channel; otherwise use a OneOne channel
-//  * // -o use close of mid after sending; otherwise uses closeout
-//  * // Here we describe what happens when #args>1
-//  * // -m -o   args -- terminates
-//  * // -m      args -- hangs in Listener (and MAIN) after whole sender terminates
-//  * // -n      args -- terminates
-//  * // -s [-o] args -- terminates if -o is set, else hangs in Listener
-//  * //         args -- throws output-barging exceptions and hangs in Listener
-//  * }}}
-//  */
-//object Chan6 extends ChannelTests {
-
-//  def MAIN(args: Array[String]): Unit = {
-//    val mid: Chan[String] =
-//      if (args contains "-m")
-//        N2N(writers = 0, readers = 1, "mid")
-//      else if (args contains "-n")
-//        N2N(args.length, readers = 1, "mid")
-//      else
-//        OneOne("mid")
-//    val sendPar = ||(for (arg <- args) yield π("send-" + arg) { mid ! arg })
-//    val sendParClose = ||(for (arg <- args) yield π("send-" + arg) {
-//      mid ! arg; mid.closeOut()
-//    })
-//    val sendSeq = π { for (arg <- args) π("send-" + arg) { mid ! arg }() }
-//    val send =
-//      if (args contains "-s") sendSeq
-//      else if (args contains "-n") sendParClose
-//      else sendPar
-//    run(π {
-//      send()
-//      Console.println("---")
-//      if (args contains "-o") mid.close()
-//    }
-
-//      || π("Listener") {
-//        repeat {
-//          def showWait(s: String): String = {
-//            Console.print(s); sleepms(500); Console.println(""); s
-//          }
-//          val line = mid ?? showWait
-//          if (line == ".") mid.closeIn()
-//        }
-//      })
-//    System.exit(0)
-//  }
-//}
-
-///** <p>The near-"dual" of Chan6 -- receiving is multiplexed.
-//  * {{{
-//  * //
-//  * // -s sequential (not concurrent) receiving
-//  * // -m OneMany (not OneOne) channel
-//  * // +  Force a single extra read in the Listener (for attempt)
-//  * // Here we describe what we expect to happen:
-//  * // -m args -- terminates
-//  * // -s args -- terminates
-//  * //    args -- if there are several args then it is likely that
-//  * //            the Listener will terminate with a ParException composed
-//  * //            of the IllegalState exceptions thrown by the overtaking
-//  * //            reading processes.
-//  * }}}
-//  */
-//object Chan7 extends ChannelTests {
-
-//  def MAIN(args: Array[String]): Unit = {
-//    def showWait(s: String): String = {
-//      Console.print(s); sleep(500); Console.println(""); s
-//    }
-//    val mid: Chan[String] =
-//      if (args contains "-m")
-//        N2N[String](readers = 1, writers = 0, name = "mid")
-//      else
-//        OneOne[String]("mid")
-//    val recPar =
-//      (||(for (arg <- args) yield π("rec-" + arg) { showWait(mid ? ()) }))
-//    val recSeq = π {
-//      for (arg <- args) run(π("rec-" + arg) { showWait(mid ? ()) })
-//    }
-//    run(π {
-//      for (arg <- args) mid ! arg
-//      Console.println("---")
-//      mid.closeOut()
-//    }
-
-//      || π("Listener") {
-//        attempt {
-//          if (args contains "-s") recSeq() else recPar()
-//          Console.println("***")
-//          if (args contains "+") showWait(mid ? ())
-//        } {
-//          Console.println("******")
-//        }
-//        mid.close()
-//      })
-//    System.exit(0)
-//  }
-//}
-
-///** Makes a cyclic live/deadlock so as to test the debugger */
-//object Deadlock extends ChannelTests {
-//  def fwd(in: ??[String], out: !![String]): PROC =
-//    proc(s"forward ${in.name} to ${out.name}") {
-//      repeat { val v = in ? (); Console.println(in.name); out ! v }
-//    }
-//  def MAIN(args: Array[String]): Unit = {
-//    val chans = for (arg <- args) yield OneOne[String](arg)
-//    val procs = ||(
-//      for (i <- chans.indices)
-//        yield fwd(chans(i), chans((i + 1) % chans.length))
-//    )
-//    if (args(0) == "live") proc { chans(0) ! "_x" }.fork
-//    run(procs)
-//  }
-//}
-
-// private val N = 100
-
-// private val alpha =
-//   "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-// protected def randStr(M: Int) = {
-//   val n = Random.nextInt(M) + 2
-//   (1 to n).map(_ => alpha(Random.nextInt(alpha.length))).mkString
-// }
+    it should "have run N*{ sync?(); n+=1; sync!() } || N*{ sync?(); n-=1; sync!() } for sync:UnitChan" in {
+       testUnit(10000)
+       testUnit(20000)
+    }
+    
+    it should "have transmitted N integers using a DataChan[Int]" in {
+       testData(10000)
+       testData(20000)
+    }
+}

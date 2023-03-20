@@ -5,8 +5,6 @@ import scala.util.Random
 
 abstract class AbstractParTest(implicit loc: SourceLocation) {
 
-  locally { scala.util.Properties.setProp("io.threadcso.pool.REPORT", "true") }
-
   def withCurrentPool(expr: PROC) =
       expr.withExecutor(io.threadcso.process.CSOThreads.poolKIND)
  
@@ -132,7 +130,10 @@ class PoolTest extends AnyFlatSpec {
 
 class ParTests extends AnyFlatSpec {
 
-  locally { scala.util.Properties.setProp("io.threadcso.pool.REPORT", "true") }
+  locally {
+     scala.util.Properties.setProp("io.threadcso.pool", "20")
+     scala.util.Properties.setProp("io.threadcso.pool.REPORT", "true")
+  }
 
   private val N = 1500
 

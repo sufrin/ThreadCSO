@@ -28,7 +28,7 @@ rm -rfv $BUILD/*
 #
 # 1. Compile the macros
 echo Compiling Macros
-$scalac -d $BUILD           app/src/main/scala/app/App.scala
+$scalac -d $BUILD            app/src/main/scala/app/App.scala
 $scalac -d $BUILD -cp $BUILD app/src/main/scala/app/OPT.scala
 $scalac -d $BUILD  $(findscala macros)
 
@@ -43,7 +43,7 @@ rm -rf $BUILD/*
 
 # 4. Compile the examples
 echo Building $EXAMPLES
-$scalac -d $EXAMPLES -cp $JAR $(findscala examples)
+$scalac -d $EXAMPLES -cp $JAR $(findscala examples) $(findscala manualtests)
 
 }
 
