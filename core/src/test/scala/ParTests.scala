@@ -5,10 +5,9 @@ import scala.util.Random
 
 abstract class AbstractParTest(implicit loc: SourceLocation) {
 
-  val shutDown: Thread = new Thread() {
-    override def run(): Unit = { Console.println("Shut down") }
-  }
-
+  def withCurrentPool(expr: PROC) =
+      expr.withExecutor(io.threadcso.process.CSOThreads.poolKIND)
+ 
   def job(args: Array[String]): Array[String]
 
   def apply(args: Array[String]): Array[String] = {
@@ -73,6 +72,11 @@ object FAILTEST extends AbstractParTest {
 }
 
 class ParTests extends AnyFlatSpec {
+
+  locally {
+     scala.util.Properties.setProp("io.threadcso.pool", "20")
+     scala.util.Properties.setProp("io.threadcso.pool.REPORT", "true")
+  }
 
   private val N = 1500
 
