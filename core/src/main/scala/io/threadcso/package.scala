@@ -96,6 +96,8 @@ package object threadcso {
   type Flag = io.threadcso.semaphore.Flag
   type Barrier = lock.Barrier
   type CombiningBarrier[T] = lock.CombiningBarrier[T]
+  type LogBarrier = lock.LogBarrier
+  type CombiningLogBarrier[T] = lock.CombiningLogBarrier[T]
 
   /** Factory for `BooleanSemaphore`s. @see
     * [[io.threadcso.semaphore.BooleanSemaphore]]
@@ -132,6 +134,18 @@ package object threadcso {
       name: String = ""
   ): CombiningBarrier[T] =
     new CombiningBarrier[T](n, e, f, name)
+
+  /** Factory for `LogBarrier`s */
+  def LogBarrier(n: Int, name: String=""): LogBarrier = new LogBarrier(n, name)
+
+  /** Factory for `CombiningLogBarrier`s */
+  def CombiningLogBarrier[T](
+                           n: Int,
+                           e: T,
+                           f: (T, T) => T,
+                           name: String = ""
+                         ): CombiningLogBarrier[T] =
+    new lock.CombiningLogBarrier[T](n, e, f, name)
 
   ///////////////////////
 

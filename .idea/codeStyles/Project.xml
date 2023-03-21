@@ -1,0 +1,14 @@
+<component name="ProjectCodeStyleConfiguration">
+  <code_scheme name="Project" version="173">
+    <ScalaCodeStyleSettings>
+      <option name="FORMATTER" value="1" />
+      <option name="USE_SCALADOC2_FORMATTING" value="true" />
+      <option name="MULTILINE_STRING_CLOSING_QUOTES_ON_NEW_LINE" value="true" />
+      <option name="TRAILING_COMMA_MODE" value="TRAILING_COMMA_ADD_WHEN_MULTILINE" />
+      <option name="TRAILING_COMMA_TUPLE_ENABLED" value="true" />
+      <option name="TRAILING_COMMA_TUPLE_TYPE_ENABLED" value="true" />
+      <option name="TRAILING_COMMA_PATTERN_ARG_LIST_ENABLED" value="true" />
+      <option name="TRAILING_COMMA_TYPE_PARAMS_ENABLED" value="true" />
+    </ScalaCodeStyleSettings>
+  </code_scheme>
+</component>
