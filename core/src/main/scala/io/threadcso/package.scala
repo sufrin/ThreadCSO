@@ -8,14 +8,9 @@ import io.threadcso.alternation.Run
   * import io.threadcso._
   * }}}
   *
-  * The present version of the ThreadCSO library API is `1.2R`''r'' (for some
-  * number ''r'')
+  * March 2023: changes 1.2 => 1.3
   *
-  * The revision number (`R`''r'') will change if bugs are corrected but the
-  * code remains consistent with the previous API. Its minor version number will
-  * change if there is a correction to the code that breaks consistency with the
-  * previous API. Its major version will change if there is a substantial change
-  * in the semantics of an important CSO construct.
+  *   - virtual threads incorporated (requires jdk20)
   *
   * August 2017: changes 1.1 => 1.2
   *

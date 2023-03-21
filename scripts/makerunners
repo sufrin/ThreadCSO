@@ -1,0 +1,46 @@
+#!/bin/bash
+#
+#  Minimal build script for the "runner" scripts
+#
+source $(dirname $0)/configuration.sh
+#
+#
+# Assign a literal string
+ARGS='"$@"'
+#
+echo --- Making runner scripts
+#
+#
+#
+cat > runexample << ENDRUN
+#!/bin/bash
+export JAVA_OPTS="-Xmx256M -Xms32M --enable-preview"
+export JAVA_HOME="$JAVA_HOME"
+scala -cp $EXAMPLESJAR:$LIBJAR $ARGS
+ENDRUN
+chmod +x runexample
+echo ./runexample ...
+echo "   " runs "scala -cp $LIBJAR:$EXAMPLESJAR ..." 
+
+cat > cso << ENDRUN
+#!/bin/bash
+export JAVA_OPTS="-Xmx256M -Xms32M --enable-preview"
+export JAVA_HOME="$JAVA_HOME"
+scala -cp $LIBJAR $ARGS
+ENDRUN
+chmod +x cso
+echo ./cso ...
+echo "   " runs "scala -cp $LIBJAR ..." 
+
+cat > csoc << ENDRUN
+#!/bin/bash
+export JAVA_OPTS="-Xmx256M -Xms32M --enable-preview"
+export JAVA_HOME="$JAVA_HOME"
+scalac -cp $LIBJAR $ARGS
+ENDRUN
+chmod +x csoc
+echo ./csoc ...
+echo "   " runs "scalac -cp $LIBJAR ..."
+
+echo ---
+

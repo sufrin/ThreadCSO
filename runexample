@@ -1,0 +1,4 @@
+#!/bin/bash
+export JAVA_OPTS="-Xmx256M -Xms32M --enable-preview"
+export JAVA_HOME="/Users/sufrin/Downloads/jdk-20.jdk/Contents/Home"
+scala -cp threadcsoexamples-2.13+jdk20+1.3.jar:threadcso-2.13+jdk20+1.3.jar "$@"
