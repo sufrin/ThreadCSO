@@ -1,4 +1,7 @@
 #!/bin/bash
-export JAVA_OPTS="-Xmx256M -Xms32M --enable-preview"
+ELIDABLE='(java[.]|scala[.]reflect|scala[.]tools[.]nsc|.*jdk[.]internal).*'
+##ELIDE=-Dio.threadcso.debug.suppress=$ELIDABLE
+DEBUG=-Dio.threadcso.debugger.port=9999
+export JAVA_OPTS="-Xmx256M -Xms32M --enable-preview $DEBUG $ELIDE"
 export JAVA_HOME="/Users/sufrin/Downloads/jdk-20.jdk/Contents/Home"
 scala -cp threadcsoexamples-2.13+jdk20+1.3.jar:threadcso-2.13+jdk20+1.3.jar "$@"

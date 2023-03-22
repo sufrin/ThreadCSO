@@ -206,6 +206,7 @@ object CSOThreads {
                   vThreads    += ((id, current))
                   try {
                     r.run()
+                    vThreads.remove(id)
                   } catch {
                     case thr: Throwable => vThreads.remove(id); throw thr
                   }

@@ -66,14 +66,27 @@ class DEBUGGER(debugPort: Int = 0) {
   /** Frames to be suppressed in stack backtrace match this pattern */
   private val SUPPRESS = io.threadcso.basis.getPropElse(
     "io.threadcso.debug.suppress"
-  )("""^j(ava|dk).util.concurrent.lock.*""")
+  )("""(java[.]|scala[.]reflect|scala[.]tools[.]nsc|.*jdk[.]internal).*""")
 
   private def showStackTrace(thread: Thread, out: PrintWriter) = {
     val trace = thread.getStackTrace
+    var omitted = 0
+    var native  = 0
+    var depth   = 0
+
     for (
       frame <- trace
-      if !frame.isNativeMethod && !frame.getClassName.matches(SUPPRESS)
-    ) { out.println(unmangle(frame.toString)) }
+    ) {
+      if (frame.isNativeMethod)
+        native += 1
+      else if (frame.getClassName.matches(SUPPRESS))
+        omitted += 1
+      else
+        out.println(f"$depth%5d ${unmangle(frame.toString)}")
+      depth += 1
+    }
+    if (omitted!=0) out.println(s"($omitted/$depth) elided $SUPPRESS")
+    if (native!=0) out.println(s"($native/$depth) native")
     out.println("")
   }
 
