@@ -1,5 +1,5 @@
 #!/bin/bash
-ELIDABLE='(java[.]|scala[.]reflect|scala[.]tools[.]nsc|.*jdk[.]internal).*'
+ELIDABLE='{java.*,scala.*,*internal.*}'
 ##ELIDE=-Dio.threadcso.debug.suppress=$ELIDABLE
 DEBUG=-Dio.threadcso.debugger.port=9999
 export JAVA_OPTS="-Xmx256M -Xms32M --enable-preview $DEBUG $ELIDE"
