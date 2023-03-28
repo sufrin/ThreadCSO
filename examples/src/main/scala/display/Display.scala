@@ -108,8 +108,9 @@ class Display[D <: Displayable](
     * and (if `sync` is non-null) await the signal that the display has been
     * finished. This method must be called /off/ the GUI thread.
     */
-  def draw() = {
-    displayFrame.repaint(0, 0, frameWidth, frameHeight); frameWait
+  def draw(syncWait: Boolean = true) = {
+    displayFrame.repaint(0, 0, frameWidth, frameHeight)
+    if (syncWait) frameWait
   }
 
   /** Start the redrawing of the given sub-rectangle of the display from the
