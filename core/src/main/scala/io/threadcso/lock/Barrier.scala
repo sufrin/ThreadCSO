@@ -15,8 +15,9 @@ import io.threadcso.semaphore.BooleanSemaphore
   * }}}
   */
 
-class Barrier(n: Int, name: String = "") {
+class Barrier(n: Int, _name: String = null) {
   assert(n >= 1)
+  val name = if (_name==null) s"Barrier($n)" else _name
   private[this] val shared = n > 1
   private[this] var waiting = 0 // number of processes currently waiting
   private[this] val wait =

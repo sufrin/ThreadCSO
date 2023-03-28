@@ -22,8 +22,9 @@ import io.threadcso.semaphore.BooleanSemaphore
   *
   */
 
-class LogBarrier(n: Int, name: String = "") {
+class LogBarrier(n: Int, _name: String = null) {
   assert(n >= 1)
+  val name = if (_name==null) s"LogBarrier($n)" else _name
   /** thread signals parent that it's ready */
   val ready = Array.fill(n)(BooleanSemaphore(false))
   /** parent signals thread that it can proceed */
@@ -50,8 +51,9 @@ class LogBarrier(n: Int, name: String = "") {
   
 }
 
-class CombiningLogBarrier[T](n: Int, e: T, op: (T, T) => T, name: String = "") {
+class CombiningLogBarrier[T](n: Int, e: T, op: (T, T) => T, _name: String = null) {
   import io.threadcso.lock.primitive.DataChan
+  val name = if (_name==null) s"CombiningLogBarrier($n)" else _name
 
   assert(n >= 1)
   /** thread signals parent that it's ready */
@@ -82,12 +84,12 @@ class CombiningLogBarrier[T](n: Int, e: T, op: (T, T) => T, name: String = "") {
 
 
 object LogBarrier {
-  def apply(n: Int, name: String = ""): LogBarrier =
+  def apply(n: Int, name: String = null): LogBarrier =
       new LogBarrier(n, name)
 }
 
 object CombiningLogBarrier {
-  def apply[T](n: Int, e: T, op: (T, T) => T, name: String = ""): CombiningLogBarrier[T] =
+  def apply[T](n: Int, e: T, op: (T, T) => T, name: String = null): CombiningLogBarrier[T] =
       new CombiningLogBarrier(n, e, op, name)
 }
 

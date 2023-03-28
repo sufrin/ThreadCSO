@@ -124,26 +124,26 @@ package object threadcso {
   val Flag = io.threadcso.semaphore.Flag
 
   /** Factory for `Barrier`s */
-  def Barrier(n: Int, name: String = ""): Barrier = new lock.Barrier(n, name)
+  def Barrier(n: Int, name: String = null): Barrier = new lock.Barrier(n, name)
 
   /** Factory for `CombiningBarrier`s */
   def CombiningBarrier[T](
       n: Int,
       e: T,
       f: (T, T) => T,
-      name: String = ""
+      name: String = null
   ): CombiningBarrier[T] =
     new CombiningBarrier[T](n, e, f, name)
 
   /** Factory for `LogBarrier`s */
-  def LogBarrier(n: Int, name: String=""): LogBarrier = new LogBarrier(n, name)
+  def LogBarrier(n: Int, name: String=null): LogBarrier = new LogBarrier(n, name)
 
   /** Factory for `CombiningLogBarrier`s */
   def CombiningLogBarrier[T](
                            n: Int,
                            e: T,
                            f: (T, T) => T,
-                           name: String = ""
+                           name: String = null
                          ): CombiningLogBarrier[T] =
     new lock.CombiningLogBarrier[T](n, e, f, name)
 

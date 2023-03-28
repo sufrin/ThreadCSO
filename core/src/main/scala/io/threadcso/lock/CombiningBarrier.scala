@@ -15,8 +15,9 @@ import io.threadcso.semaphore.BooleanSemaphore
   * }}}
   */
 
-class CombiningBarrier[T](n: Int, e: T, op: (T, T) => T, name: String = "") {
+class CombiningBarrier[T](n: Int, e: T, op: (T, T) => T, _name: String = null) {
   assert(n > 1)
+  val name = if (_name==null) s"CombiningBarrier($n)" else _name
   private[this] var waiting = 0 // number of processes currently waiting
   private[this] val wait =
     BooleanSemaphore(available = false, name = s"$name.wait")
