@@ -146,7 +146,7 @@ abstract class AltTrial(implicit loc: SourceLocation) {
   * inherited by an enclosing serve.
   */
 object AltQuorum extends AltTrial() {
-  case class Arrive(id: Int, reply: !![List[Int]])
+  case class  Arrive(id: Int, reply: !![List[Int]])
 
   val sa =
     N2NBuf[Arrive](20, writers = 0, readers = 1, "sa") // ManyOne is essential
@@ -239,13 +239,13 @@ object AltQuorum extends AltTrial() {
             admitIfPossible
           }
         }
-          | sa =?=> { msg => swaiting.enqueue(msg); admitIfPossible }
-          | ta =?=> { msg => twaiting.enqueue(msg); admitIfPossible }
-          | pa =?=> { msg => pwaiting.enqueue(msg); admitIfPossible }
-          | quit =?=> { _ => stop }
+          | sa   =?=> { msg => swaiting.enqueue(msg); admitIfPossible }
+          | ta   =?=> { msg => twaiting.enqueue(msg); admitIfPossible }
+          | pa   =?=> { msg => pwaiting.enqueue(msg); admitIfPossible }
+          | (quit) =?=> { _ => stop }
       )
 
-      // Here if admitIfPossible throws an exception
+      // Here when the server stops
       println(
         s"Server stopped:\n REP $replies\n S $swaiting\n T " +
           s"$twaiting\n P $pwaiting\n $sa\n $ta\n $pa\n $leave\n " +
@@ -264,10 +264,13 @@ object AltQuorum extends AltTrial() {
     println((id, P(id))); sleep(seconds(1)); leave ! id
   })
   def l(id: Int) = fork(proc { leave ! id })
+
+  /**  This script stops after 10s */
   val script1 = proc("script1") {
-    s(1); s(2); t(3); p(4);
-    p(5); s(6); s(7); t(8);
-    p(9); t(10); s(11); s(12); sleep(seconds(20)); Quit()
+    for { i <- 1 to 12 } s(100+i); // a dozen students
+    t(20); t(21); t(22); t(23)
+    p(10); p(11); p(12)
+    sleep(10*Sec); Quit()
   }
 
   def MAIN(args: Seq[String]): Unit = {
