@@ -14,9 +14,12 @@ echo --- Making runner scripts
 #
 cat > runexample << ENDRUN
 #!/bin/bash
-export JAVA_OPTS="-Xmx256M -Xms32M --enable-preview"
+#
+# scala with the examples,manualtests and threadcso library on the classpath
+#
+export JAVA_OPTS="-Xmx1024M -Xms128M --enable-preview -Dio.threadcso.debugger.port=9999"
 export JAVA_HOME="$JAVA_HOME"
-scala -cp $EXAMPLESJAR:$LIBJAR $ARGS
+scala -cp $RUNTESTS $ARGS
 ENDRUN
 chmod +x runexample
 echo ./runexample ...
@@ -24,7 +27,10 @@ echo "   " runs "scala -cp $LIBJAR:$EXAMPLESJAR ..."
 
 cat > cso << ENDRUN
 #!/bin/bash
-export JAVA_OPTS="-Xmx256M -Xms32M --enable-preview"
+#
+# scala with threadcso library on the classpath
+#
+export JAVA_OPTS="-Xmx1024M -Xms128M --enable-preview"
 export JAVA_HOME="$JAVA_HOME"
 scala -cp $LIBJAR $ARGS
 ENDRUN
@@ -34,7 +40,10 @@ echo "   " runs "scala -cp $LIBJAR ..."
 
 cat > csoc << ENDRUN
 #!/bin/bash
-export JAVA_OPTS="-Xmx256M -Xms32M --enable-preview"
+#
+# scalac with threadcso library on the classpath
+#
+export JAVA_OPTS="-Xmx1024M -Xms128M --enable-preview"
 export JAVA_HOME="$JAVA_HOME"
 scalac -cp $LIBJAR $ARGS
 ENDRUN

@@ -18,12 +18,13 @@ JARS=$(find `pwd` -name "*.jar" -a \
 #
 rm    -rf $BUILD
 mkdir -p  $BUILD
-echo Unpacking jars
+echo Unpacking jars:
 for JAR in $JARS
 do
   echo $JAR
   (cd $BUILD; jar xf $JAR)
 done
+echo
 echo Making $LIBJAR
 jar cfM $LIBJAR -C $BUILD .
 rm -rf $BUILD
