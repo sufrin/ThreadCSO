@@ -139,20 +139,27 @@ class Display[D <: Displayable](
     } finally { if (synchronous) resume }
   }
 
-  /** Paint the given `display.Displayable` using the given `Graphics` context
+  /**
+    * Paint the given `display.Displayable` using the given `Graphics` context.
     * When `draw` has been called, this is eventually invoked for each
-    * `display.Displayable` owned by the display. This can be overridden, but by
-    * default it paints an oval with colour `color`.
+    * `display.Displayable` owned by the display. If the given `displayable`
+    * can paint itself on `g` then it does so, otherwise a default image
+    * is drawn.
     */
   protected def paintDisplayable(displayable: D, g: Graphics2D) = {
-    val W = toPixels(displayable.w)
-    var H = toPixels(displayable.h)
-    val x = toPixels(displayable.x)
-    val y = toPixels(displayable.y)
-    g.setColor(displayable.color)
-    g.fillOval(x, y, W, H)
-    if (displayable.selected) {
-      g.setColor(Color.BLACK); g.draw3DRect(x, y, W, H, true)
+    if (displayable.paintOn(g, toPixels)) {
+
+    } else {
+      val W = toPixels(displayable.w)
+      var H = toPixels(displayable.h)
+      val x = toPixels(displayable.x)
+      val y = toPixels(displayable.y)
+      g.setColor(displayable.color)
+      g.fillOval(x, y, W, H)
+      if (displayable.selected) {
+        g.setColor(Color.BLACK);
+        g.draw3DRect(x, y, W, H, true)
+      }
     }
   }
 
