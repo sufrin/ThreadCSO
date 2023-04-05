@@ -85,6 +85,12 @@ class KeyEventDetail[D](jdk: event.KeyEvent, pixelsPerUnitLength: Double)
   override def toString: String = jdk.paramString()
 }
 
+case class ComponentEventDetail[D](jdk: event.ComponentEvent, pixelsPerUnitLength: Double) {
+     lazy val size = jdk.getComponent.getSize
+     val w: Double = size.getWidth
+     val h: Double = size.getHeight
+  }
+
 /** An `Event[D]` captures the essence of a (GUI) event that has been captured
   * by a `Display[D]`.
   */
@@ -111,3 +117,8 @@ case class KeyReleased[D](detail: KeyEventDetail[D]) extends Event[D]
 case class KeyTyped[D](detail: KeyEventDetail[D]) extends Event[D]
 
 case class Wheel[D](detail: MouseWheelEventDetail[D]) extends Event[D]
+
+case class ComponentHidden[D](detail: ComponentEventDetail[D]) extends Event[D]
+case class ComponentShown[D](detail: ComponentEventDetail[D]) extends Event[D]
+case class ComponentMoved[D](detail: ComponentEventDetail[D]) extends Event[D]
+case class ComponentResized[D](detail: ComponentEventDetail[D]) extends Event[D]

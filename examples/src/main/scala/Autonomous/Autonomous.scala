@@ -3,6 +3,23 @@ import display._
 import io.threadcso._
 
 /**
+  *
+  *  This little, almost pointless, example was intended to let us explore the practicality of working
+  *  with autonomous interacting bodies that have different characteristics, when
+  *  their interactions are governed by physical as well as logical laws.
+  *
+  *  In contrast with the `Particles` example, which exemplifies barrier-mediated
+  *  concurrency in which all objects (including the display) are controlled by
+  *  workers that run in synchrony, this example associates each body with its own
+  *  "internal" controller.
+  *
+  *  Implementing gravitation-like forces can turn out to be rather
+  *  inefficient if on every "tick" of the display it is necessary to compute
+  *  all N*N inter-body forces. The cost can be halved by noting that the force of
+  *  "A" on "B" is the opposite of the force of "B" on "A". We don't do that here.
+  *
+  *
+  *
   *  Autonomous bodies
   */
 object Autonomous extends App {
@@ -21,7 +38,7 @@ object Autonomous extends App {
   type ForceVariable = Vector.Variable
 
   var deltaT: Double = 1.0
-  var wallBounce, ballBounce: Double = 1.0
+  var wallBounce, bodyBounce: Double = 1.0
   var width: Int = 1200
   var height: Int = 800
   var scale = -9
@@ -54,25 +71,34 @@ object Autonomous extends App {
     /** Whether the simulation is running or not */
   var running = false
 
-    /** Process that reacts to mouse and keyboard events on the display
+    /**
+      *   Process that reacts to all display events
       */
-  val mouseManager = proc("mouseManager") {
+  val interactionManager = proc("interactionManager") {
       repeat {
         val e = GUI.fromDisplay ? {
+
+          case ComponentResized(detail) =>
+            width  = Display.toPixels(detail.w)
+            height = Display.toPixels(detail.h)
+            GUI.display.setDimensions(width, height)
+
+
           case Pressed(mouse) => {
-            val lastHits = GUI.display.at(mouse.x, mouse.y, running)
+            val lastHits = GUI.display.at(mouse.x, mouse.y)
 
             if (lastHits.length == 1)
               for (body <- lastHits)
-                println(s"R=${body.R}, mass=${body.mass}")
+                GUI.report(f"${body.R}%s/${body.mass}%4g")
 
-            if (mouse.isShift) {
+            if (mouse.isShift && !mouse.isControl) {
               // We are selecting particles
               for (body <- lastHits) body.selected = !body.selected
               GUI.display.draw(syncWait = false)
             }
 
-              val factor = if (mouse.isControl) 0.5 else 2.0
+            if (mouse.isControl) {
+              val factor = if (mouse.isShift) 2.0 else 0.5
               for (body <- lastHits)
                 if (body.selected)
                   body.selected = false
@@ -81,6 +107,12 @@ object Autonomous extends App {
               // regenerate the display if necessary
               if (!running) GUI.display.draw(syncWait = false)
             }
+
+            if (mouse.isControl && mouse.isAlt && mouse.isMeta) {
+              for (body <- lastHits if lastHits.length==1)
+                body.velocity := Vector.Value.Zero
+            }
+          }
 
           // case Entered(mouse) => if (!running) display.draw()
 
@@ -161,8 +193,8 @@ object Autonomous extends App {
         wallBounce = value
       } withTitledBorder ("Wall")
 
-      val bBounce = spinner(ballBounce, -50.0, 50.0, 0.1) { value =>
-        ballBounce = value
+      val bBounce = spinner(bodyBounce, -50.0, 50.0, 0.1) { value =>
+        bodyBounce = value
       } withTitledBorder ("Ball")
 
       val time = spinner(deltaT, 0.0, 50.0, 0.25) { value =>
@@ -179,11 +211,16 @@ object Autonomous extends App {
         if (running) singleFrame.release()
       }
 
-      val reports = label("")
+      val overruns = label(" "*60)
+      val reports = label(" "*60)
 
       def reportOverrun(behind: Double): Unit = {
-        val text = reports.getText + f"$behind%1.1f "
-        reports.setText(if (text.length<50) text else f"** $behind%1.1f " )
+        val text = overruns.getText + f"$behind%1.1f "
+        overruns.setText(if (text.length < 50) text else f"** $behind%1.1f ")
+      }
+
+      def report(message: String): Unit = {
+        reports.setText(message)
       }
 
       def controls = row(
@@ -208,8 +245,9 @@ object Autonomous extends App {
         height = height,
         events = fromDisplay,
         keys = fromDisplay,
+        components = fromDisplay,
         North = controls,
-        South = reports withTitledBorder "Overruns"
+        South = row(reports withTitledBorder "Reports", hGlue, overruns withTitledBorder "Overruns")
       )
     }
 
@@ -252,6 +290,6 @@ object Autonomous extends App {
 
 
       // run the bodies, mousemanager, and display concurrently
-      (bodies || displayController || mouseManager)()
+      (bodies || displayController || interactionManager)()
     }
 }

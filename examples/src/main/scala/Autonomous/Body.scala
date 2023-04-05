@@ -54,7 +54,7 @@ class Body(
 
   /** Calculate the force attraction on this particle by that particle */
   def attractionTo(that: Body): Force = {
-    val bounce = if (this.touches(that)) ballBounce else 1.0
+    val bounce = if (this.touches(that)) bodyBounce else 1.0
     val magnitude =
       bounce * G * this.mass * that.mass / (this.position squareTo that.position)
     (this.position directionTo that.position) * magnitude
@@ -84,11 +84,8 @@ class Body(
     */
   def color: Color = {
     import math.{log, max, min}
-    val redness = min(0.8, log(max(density, 1.0)) / 10.0)
-    val greenness = 0.8 - redness
-    val blueness = 0.8 - redness
-    //new Color(redness.toFloat, greenness.toFloat, blueness.toFloat, 0.7f)
-    new Color(1.0f-redness.toFloat, 1.0f-redness.toFloat, 1.0f-redness.toFloat, 0.7f)
+    val greyness = 1.0f - min(0.8, log(max(density, 1.0)) / 15.0).toFloat
+    new Color(greyness, greyness, greyness, 0.5f)
   }
 
   override def paintOn(g: Graphics2D, toPixels: Double=>Int) = {
@@ -124,7 +121,7 @@ class Body(
           val localForce = new ForceVariable()
           // calculate forces between this and the others
           for (other <- others if other ne self) {
-            val force = (self attractionTo other) * (if (self touches other) ballBounce else 1.0)
+            val force = (self attractionTo other) * (if (self touches other) bodyBounce else 1.0)
             // mass exchange
             if ((ticks - lastMassExchange > 10) && (self touches other) && (self.mass<other.mass)) {
               lastMassExchange = ticks

@@ -39,9 +39,10 @@ class Display[D <: Displayable](
     height: Double = Display.height,
     val sync: Semaphore =
       BooleanSemaphore(available = false, name = "Display.sync"),
-    val events: !![Event[D]] = null,
-    val motions: !![Event[D]] = null,
-    val keys: !![Event[D]] = null,
+    val events:     !![Event[D]] = null,
+    val motions:    !![Event[D]] = null,
+    val keys:       !![Event[D]] = null,
+    val components: !![Event[D]] = null,
     val North: Widget[JComponent] = null,
     val South: Widget[JComponent] = null,
     val East: Widget[JComponent] = null,
@@ -50,19 +51,19 @@ class Display[D <: Displayable](
 
   import Display._
 
-  @inline private[this] def toPixels(n: Double): Int =
-    (n * pixelsPerUnitLength).toInt
-
-  @inline private[this] def toLength(n: Int): Double =
-    (n / pixelsPerUnitLength).toDouble
-
   // display frame  dimensions (pixels)
-  private val frameWidth = toPixels(width)
-  private val frameHeight = toPixels(height)
+  private var frameWidth = toPixels(width)
+  private var frameHeight = toPixels(height)
+
+  def setDimensions(width: Double, height: Double): Unit = {
+    frameWidth = toPixels(width)
+    frameHeight = toPixels(height)
+  }
 
   /** The frame within which `display.Displayable`s are painted */
   private[this] val displayFrame = new DisplayFrame()
   displayFrame.setPreferredSize(new Dimension(frameWidth, frameHeight))
+
   def setupGUI(): Unit = {
     this.getContentPane
       .add(Display.this.displayFrame.withEtchedBorder(), "Center")
@@ -164,6 +165,11 @@ class Display[D <: Displayable](
   }
 
   private[this] class DisplayFrame extends Widget[JComponent] {
+
+    locally {
+      setDoubleBuffered(true)
+    }
+
     override def paint(gr: Graphics) = {
       super.paint(gr)
       val g = gr.asInstanceOf[Graphics2D]
@@ -177,6 +183,15 @@ class Display[D <: Displayable](
     }
     if (motions != null) addMouseMotionListener(mouseListen)
     if (keys != null) addKeyListener(keyListen)
+    if (components != null) addComponentListener(componentListen)
+
+    private [this] object componentListen extends  ComponentListener
+    { def componentHidden (ev: ComponentEvent)  : Unit =  { components!ComponentHidden(detail(ev))  }
+      def componentMoved  (ev: ComponentEvent)  : Unit =  { components!ComponentMoved(detail(ev))   }
+      def componentResized(ev: ComponentEvent)  : Unit =  { components!ComponentResized(detail(ev)) }
+      def componentShown  (ev: ComponentEvent)  : Unit =  { components!ComponentShown(detail(ev))   }
+      def detail(jdk: ComponentEvent): ComponentEventDetail[D] = ComponentEventDetail[D](jdk, pixelsPerUnitLength)
+    }
 
     private[this] object mouseListen
         extends MouseListener
@@ -224,4 +239,9 @@ object Display {
   /** Pixels per unit length */
   var pixelsPerUnitLength = 1.0
 
+  @inline def toPixels(n: Double): Int =
+    (n * pixelsPerUnitLength).toInt
+
+  @inline def toLength(n: Int): Double =
+    (n / pixelsPerUnitLength).toDouble
 }
