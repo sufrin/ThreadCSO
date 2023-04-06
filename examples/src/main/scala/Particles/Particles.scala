@@ -1,9 +1,8 @@
-import java.awt.Color
-import javax.swing.JComponent
-
+import app.OPT._
 import display._
 import io.threadcso._
-import app.OPT._
+
+import java.awt.Color
 
 /** A demonstration of pseudo-gravitational particle calculations done by
   * several workers in lock-step and coordinated by barriers. The demonstration
@@ -188,7 +187,7 @@ object Particles extends App {
       * point)
       */
     def color: Color = {
-      import math.{min, max, log}
+      import math.{log, max, min}
       val redness = min(0.8, log(max(density, 1.0)) / 10.0)
       val greenness = 0.8 - redness
       val blueness = 0.8 - redness
@@ -267,7 +266,7 @@ object Particles extends App {
           if (mouse.isShift && !running) {
             // We are selecting particles
             for (particle <- lastHits) particle.selected = !particle.selected
-            display.draw()
+            display.draw(syncWait = false)
           } else { // remove selection (if selected) or change density
             val factor = if (mouse.isControl) 0.5 else 2.0
             for (particle <- lastHits)
@@ -276,7 +275,7 @@ object Particles extends App {
               else
                 particle.changeDensity(factor)
             // regenerate the display if necessary
-            if (!running) display.draw()
+            if (!running) display.draw(syncWait = false)
           }
         }
 
@@ -287,7 +286,7 @@ object Particles extends App {
           // shrink selected particles with 1 (all particles if control)
           // grow selected particles with 2 (all particles if control)
           if (!running) for (particle <- allParticles) {
-            import java.awt.event.KeyEvent.{VK_UP, VK_DOWN, VK_LEFT, VK_RIGHT}
+            import java.awt.event.KeyEvent.{VK_DOWN, VK_LEFT, VK_RIGHT, VK_UP}
             key.code match {
               case VK_LEFT =>
                 if (particle.selected)
@@ -302,15 +301,15 @@ object Particles extends App {
                 if (particle.selected)
                   particle.position.y = particle.position.y + 5
               case '1' =>
-                if (key.isControl || particle.selected)
+                if (particle.selected)
                   particle.setR(particle.R * 2.0 / 3.0)
               case '2' =>
-                if (key.isControl || particle.selected)
+                if (particle.selected)
                   particle.setR(particle.R * 3.0 / 2.0)
               case _ =>
             }
           }
-          display.draw()
+          display.draw(syncWait=false)
 
         case _ => {}
       }
@@ -427,8 +426,8 @@ object Particles extends App {
     N = 2 * P * Seg
     C =
       Vector.Value(width / (CF * deltaT), height / (CF * deltaT), 0.0).magnitude
-    Corner = Vector.Value(width, height)
-    barrier = Barrier(P + 1)
+    Corner  = Vector.Value(width, height)
+    barrier = new Barrier(P + 1)
 
     allParticles = Array.ofDim[Particle](N)
     localForces = Array.ofDim[Position](P, N)

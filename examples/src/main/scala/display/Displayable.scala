@@ -1,5 +1,5 @@
 package display
-import java.awt.Color
+import java.awt.{Color, Graphics2D}
 
 /** Properties of an object that can be displayed.
   */
@@ -32,4 +32,7 @@ trait Displayable {
 
   /** Has the displayable been selected (change appearance) */
   def selected: Boolean
+
+  /** Paint this displayable on `g` and return true; else return false and let the display paint the default */
+  def paintOn(g: Graphics2D, toPixels: Double=>Int): Boolean = false
 }

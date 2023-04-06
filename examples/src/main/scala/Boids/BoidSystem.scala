@@ -1,9 +1,11 @@
 import io.threadcso._
 import io.threadcso.lock.LogBarrier
 
-/** `boidSystem(N)` yields the concurrent composition of `N` boid controllers
-  * and an associated display with its controller
-  */
+/**
+ *
+ * `boidSystem(N)` yields the concurrent composition of `N` boid controllers and an associated display with its controller
+ *
+ */
 object BoidSystem {
 
   def apply(N: Int): PROC = {
@@ -13,7 +15,7 @@ object BoidSystem {
     val random = new scala.util.Random();
 
     // Barrier for synchronisation of N Boids and a display controller
-    val barrier = LogBarrier(N + 1)
+    val barrier = new LogBarrier(N + 1)
 
     // Each round contains two barrier synchronisations.
     // After the first synchronisation, but before the second,
@@ -55,3 +57,11 @@ object BoidSystem {
   }
 
 }
+
+
+
+
+
+
+
+

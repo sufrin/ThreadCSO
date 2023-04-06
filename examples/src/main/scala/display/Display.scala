@@ -39,9 +39,10 @@ class Display[D <: Displayable](
     height: Double = Display.height,
     val sync: Semaphore =
       BooleanSemaphore(available = false, name = "Display.sync"),
-    val events: !![Event[D]] = null,
-    val motions: !![Event[D]] = null,
-    val keys: !![Event[D]] = null,
+    val events:     !![Event[D]] = null,
+    val motions:    !![Event[D]] = null,
+    val keys:       !![Event[D]] = null,
+    val components: !![Event[D]] = null,
     val North: Widget[JComponent] = null,
     val South: Widget[JComponent] = null,
     val East: Widget[JComponent] = null,
@@ -50,19 +51,19 @@ class Display[D <: Displayable](
 
   import Display._
 
-  @inline private[this] def toPixels(n: Double): Int =
-    (n * pixelsPerUnitLength).toInt
-
-  @inline private[this] def toLength(n: Int): Double =
-    (n / pixelsPerUnitLength).toDouble
-
   // display frame  dimensions (pixels)
-  private val frameWidth = toPixels(width)
-  private val frameHeight = toPixels(height)
+  private var frameWidth = toPixels(width)
+  private var frameHeight = toPixels(height)
+
+  def setDimensions(width: Double, height: Double): Unit = {
+    frameWidth = toPixels(width)
+    frameHeight = toPixels(height)
+  }
 
   /** The frame within which `display.Displayable`s are painted */
   private[this] val displayFrame = new DisplayFrame()
   displayFrame.setPreferredSize(new Dimension(frameWidth, frameHeight))
+
   def setupGUI(): Unit = {
     this.getContentPane
       .add(Display.this.displayFrame.withEtchedBorder(), "Center")
@@ -108,8 +109,9 @@ class Display[D <: Displayable](
     * and (if `sync` is non-null) await the signal that the display has been
     * finished. This method must be called /off/ the GUI thread.
     */
-  def draw() = {
-    displayFrame.repaint(0, 0, frameWidth, frameHeight); frameWait
+  def draw(syncWait: Boolean = true) = {
+    displayFrame.repaint(0, 0, frameWidth, frameHeight)
+    if (syncWait) frameWait
   }
 
   /** Start the redrawing of the given sub-rectangle of the display from the
@@ -138,24 +140,36 @@ class Display[D <: Displayable](
     } finally { if (synchronous) resume }
   }
 
-  /** Paint the given `display.Displayable` using the given `Graphics` context
+  /**
+    * Paint the given `display.Displayable` using the given `Graphics` context.
     * When `draw` has been called, this is eventually invoked for each
-    * `display.Displayable` owned by the display. This can be overridden, but by
-    * default it paints an oval with colour `color`.
+    * `display.Displayable` owned by the display. If the given `displayable`
+    * can paint itself on `g` then it does so, otherwise a default image
+    * is drawn.
     */
   protected def paintDisplayable(displayable: D, g: Graphics2D) = {
-    val W = toPixels(displayable.w)
-    var H = toPixels(displayable.h)
-    val x = toPixels(displayable.x)
-    val y = toPixels(displayable.y)
-    g.setColor(displayable.color)
-    g.fillOval(x, y, W, H)
-    if (displayable.selected) {
-      g.setColor(Color.BLACK); g.draw3DRect(x, y, W, H, true)
+    if (displayable.paintOn(g, toPixels)) {
+
+    } else {
+      val W = toPixels(displayable.w)
+      var H = toPixels(displayable.h)
+      val x = toPixels(displayable.x)
+      val y = toPixels(displayable.y)
+      g.setColor(displayable.color)
+      g.fillOval(x, y, W, H)
+      if (displayable.selected) {
+        g.setColor(Color.BLACK);
+        g.draw3DRect(x, y, W, H, true)
+      }
     }
   }
 
   private[this] class DisplayFrame extends Widget[JComponent] {
+
+    locally {
+      setDoubleBuffered(true)
+    }
+
     override def paint(gr: Graphics) = {
       super.paint(gr)
       val g = gr.asInstanceOf[Graphics2D]
@@ -169,6 +183,15 @@ class Display[D <: Displayable](
     }
     if (motions != null) addMouseMotionListener(mouseListen)
     if (keys != null) addKeyListener(keyListen)
+    if (components != null) addComponentListener(componentListen)
+
+    private [this] object componentListen extends  ComponentListener
+    { def componentHidden (ev: ComponentEvent)  : Unit =  { components!ComponentHidden(detail(ev))  }
+      def componentMoved  (ev: ComponentEvent)  : Unit =  { components!ComponentMoved(detail(ev))   }
+      def componentResized(ev: ComponentEvent)  : Unit =  { components!ComponentResized(detail(ev)) }
+      def componentShown  (ev: ComponentEvent)  : Unit =  { components!ComponentShown(detail(ev))   }
+      def detail(jdk: ComponentEvent): ComponentEventDetail[D] = ComponentEventDetail[D](jdk, pixelsPerUnitLength)
+    }
 
     private[this] object mouseListen
         extends MouseListener
@@ -216,4 +239,9 @@ object Display {
   /** Pixels per unit length */
   var pixelsPerUnitLength = 1.0
 
+  @inline def toPixels(n: Double): Int =
+    (n * pixelsPerUnitLength).toInt
+
+  @inline def toLength(n: Int): Double =
+    (n / pixelsPerUnitLength).toDouble
 }

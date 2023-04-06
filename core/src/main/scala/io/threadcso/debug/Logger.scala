@@ -1,7 +1,7 @@
 package io.threadcso.debug
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
-import io.SourceLocation.SourceLocation
+import io.SourceLocation._
 import io.threadcso.basis.{Identity, Nanoseconds}
 import io.threadcso.{NanoTime, nanoTime}
 
