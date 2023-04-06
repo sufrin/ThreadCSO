@@ -309,7 +309,7 @@ object Particles extends App {
               case _ =>
             }
           }
-          display.draw(syncWait=false)
+          display.draw(syncWait = false)
 
         case _ => {}
       }
@@ -426,7 +426,7 @@ object Particles extends App {
     N = 2 * P * Seg
     C =
       Vector.Value(width / (CF * deltaT), height / (CF * deltaT), 0.0).magnitude
-    Corner  = Vector.Value(width, height)
+    Corner = Vector.Value(width, height)
     barrier = new Barrier(P + 1)
 
     allParticles = Array.ofDim[Particle](N)

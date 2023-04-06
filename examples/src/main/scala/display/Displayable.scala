@@ -33,6 +33,8 @@ trait Displayable {
   /** Has the displayable been selected (change appearance) */
   def selected: Boolean
 
-  /** Paint this displayable on `g` and return true; else return false and let the display paint the default */
-  def paintOn(g: Graphics2D, toPixels: Double=>Int): Boolean = false
+  /** Paint this displayable on `g` and return true; else return false and let
+    * the display paint the default
+    */
+  def paintOn(g: Graphics2D, toPixels: Double => Int): Boolean = false
 }

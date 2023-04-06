@@ -39,9 +39,9 @@ class Display[D <: Displayable](
     height: Double = Display.height,
     val sync: Semaphore =
       BooleanSemaphore(available = false, name = "Display.sync"),
-    val events:     !![Event[D]] = null,
-    val motions:    !![Event[D]] = null,
-    val keys:       !![Event[D]] = null,
+    val events: !![Event[D]] = null,
+    val motions: !![Event[D]] = null,
+    val keys: !![Event[D]] = null,
     val components: !![Event[D]] = null,
     val North: Widget[JComponent] = null,
     val South: Widget[JComponent] = null,
@@ -140,17 +140,13 @@ class Display[D <: Displayable](
     } finally { if (synchronous) resume }
   }
 
-  /**
-    * Paint the given `display.Displayable` using the given `Graphics` context.
+  /** Paint the given `display.Displayable` using the given `Graphics` context.
     * When `draw` has been called, this is eventually invoked for each
-    * `display.Displayable` owned by the display. If the given `displayable`
-    * can paint itself on `g` then it does so, otherwise a default image
-    * is drawn.
+    * `display.Displayable` owned by the display. If the given `displayable` can
+    * paint itself on `g` then it does so, otherwise a default image is drawn.
     */
   protected def paintDisplayable(displayable: D, g: Graphics2D) = {
-    if (displayable.paintOn(g, toPixels)) {
-
-    } else {
+    if (displayable.paintOn(g, toPixels)) {} else {
       val W = toPixels(displayable.w)
       var H = toPixels(displayable.h)
       val x = toPixels(displayable.x)
@@ -185,12 +181,21 @@ class Display[D <: Displayable](
     if (keys != null) addKeyListener(keyListen)
     if (components != null) addComponentListener(componentListen)
 
-    private [this] object componentListen extends  ComponentListener
-    { def componentHidden (ev: ComponentEvent)  : Unit =  { components!ComponentHidden(detail(ev))  }
-      def componentMoved  (ev: ComponentEvent)  : Unit =  { components!ComponentMoved(detail(ev))   }
-      def componentResized(ev: ComponentEvent)  : Unit =  { components!ComponentResized(detail(ev)) }
-      def componentShown  (ev: ComponentEvent)  : Unit =  { components!ComponentShown(detail(ev))   }
-      def detail(jdk: ComponentEvent): ComponentEventDetail[D] = ComponentEventDetail[D](jdk, pixelsPerUnitLength)
+    private[this] object componentListen extends ComponentListener {
+      def componentHidden(ev: ComponentEvent): Unit = {
+        components ! ComponentHidden(detail(ev))
+      }
+      def componentMoved(ev: ComponentEvent): Unit = {
+        components ! ComponentMoved(detail(ev))
+      }
+      def componentResized(ev: ComponentEvent): Unit = {
+        components ! ComponentResized(detail(ev))
+      }
+      def componentShown(ev: ComponentEvent): Unit = {
+        components ! ComponentShown(detail(ev))
+      }
+      def detail(jdk: ComponentEvent): ComponentEventDetail[D] =
+        ComponentEventDetail[D](jdk, pixelsPerUnitLength)
     }
 
     private[this] object mouseListen

@@ -5,10 +5,10 @@ import io.threadcso._
 import java.awt.{Color, Graphics2D}
 
 class Body(
-            var R: Double,
-            val position: Position,
-            val velocity: Velocity = new Velocity()
-          ) extends Displayable { self =>
+    var R: Double,
+    val position: Position,
+    val velocity: Velocity = new Velocity()
+) extends Displayable { self =>
   override def toString: String = s"Body($R, $position, $velocity)"
 
   private var density = 10.0
@@ -79,8 +79,7 @@ class Body(
   /** Display attribute */
   def h: Double = 2 * R
 
-  /**
-    *  Body's colour on the display: determined by its density
+  /** Body's colour on the display: determined by its density
     */
   def color: Color = {
     import math.{log, max, min}
@@ -88,17 +87,17 @@ class Body(
     new Color(greyness, greyness, greyness, 0.5f)
   }
 
-  override def paintOn(g: Graphics2D, toPixels: Double=>Int) = {
-      val W = toPixels(w)
-      var H = toPixels(h)
-      val X = toPixels(x)
-      val Y = toPixels(y)
-      g.setColor(color)
-      g.fillOval(X, Y, W, H)
-      g.setColor(Color.BLACK)
-      g.drawOval(X, Y, W, H)
-      if (selected) { g.draw3DRect(X, Y, W, H, true) }
-      true
+  override def paintOn(g: Graphics2D, toPixels: Double => Int) = {
+    val W = toPixels(w)
+    var H = toPixels(h)
+    val X = toPixels(x)
+    val Y = toPixels(y)
+    g.setColor(color)
+    g.fillOval(X, Y, W, H)
+    g.setColor(Color.BLACK)
+    g.drawOval(X, Y, W, H)
+    if (selected) { g.draw3DRect(X, Y, W, H, true) }
+    true
   }
 
   /** Is the body selected? */
@@ -107,9 +106,8 @@ class Body(
   /** Instructions from the environment */
   val instructions: Chan[Message] = OneOne[Message]
 
-  /**
-    * This body's controlling process: responding to
-    * instructions from the environment.
+  /** This body's controlling process: responding to instructions from the
+    * environment.
     */
   val controller: PROC = proc("Body") {
     val others = new collection.mutable.Queue[Body]
@@ -121,9 +119,13 @@ class Body(
           val localForce = new ForceVariable()
           // calculate forces between this and the others
           for (other <- others if other ne self) {
-            val force = (self attractionTo other) * (if (self touches other) bodyBounce else 1.0)
+            val force =
+              (self attractionTo other) * (if (self touches other) bodyBounce
+                                           else 1.0)
             // mass exchange
-            if ((ticks - lastMassExchange > 10) && (self touches other) && (self.mass<other.mass)) {
+            if (
+              (ticks - lastMassExchange > 10) && (self touches other) && (self.mass < other.mass)
+            ) {
               lastMassExchange = ticks
               val deltaMass = other.mass * 0.2
               density += (deltaMass / volume)
@@ -141,3 +143,4 @@ class Body(
     }
   }
 }
+

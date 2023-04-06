@@ -2,23 +2,21 @@ package io.threadcso.debug
 
 import java.io.{PrintWriter, StringWriter}
 
-/**
-  * Abstract syntax constructions of simple HTML/XML responses.
+/** Abstract syntax constructions of simple HTML/XML responses.
   *
-  * An abstract-syntax representation, with no
-  * DOM, virtual or otherwise, behind it.
+  * An abstract-syntax representation, with no DOM, virtual or otherwise, behind
+  * it.
   *
-  * "Why use a templating language when we already have one?"
-  *  (Fr Saul N BrainDrane: "the Pragmatic Philistine")
-  *
+  * "Why use a templating language when we already have one?" (Fr Saul N
+  * BrainDrane: "the Pragmatic Philistine")
   */
 object HTML {
 
-  type Attr       = (String, Any)
+  type Attr = (String, Any)
   type Attributes = Seq[Attr]
 
-  /**
-    * @return the html text of the attribute-mapping
+  /** @return
+    *   the html text of the attribute-mapping
     *
     * Attributes are translated to text as follows:
     * {{{
@@ -28,25 +26,25 @@ object HTML {
     *   name -> (false, flag)  ===>  ""
     *   name -> value          ===>  s"$name='${value}"
     * }}}
-    *
     */
   def toAttributeString(attributes: Attributes): String = {
-    val result  = new StringBuilder()
-    val flags   = new StringBuilder()
-      for  { (name, value) <- attributes } {
-        value match {
-          case (false, _)     =>
-          case (true,  value) => flags.append (s" $value")
-          case true  => flags.append(s" $name)")
-          case other => result.append(s" $name='$value'")
-        }
+    val result = new StringBuilder()
+    val flags = new StringBuilder()
+    for { (name, value) <- attributes } {
+      value match {
+        case (false, _)    =>
+        case (true, value) => flags.append(s" $value")
+        case true          => flags.append(s" $name)")
+        case other         => result.append(s" $name='$value'")
       }
+    }
     result.append(flags.toString)
     result.toString
   }
 
   trait Tree {
-    def toOutput(writer: PrintWriter, indent: Int = 0): Unit = writer.print(this.toString)
+    def toOutput(writer: PrintWriter, indent: Int = 0): Unit =
+      writer.print(this.toString)
 
     override def toString: String = {
       val result = new StringWriter()
@@ -59,38 +57,43 @@ object HTML {
     }
   }
 
-  /**
-    *   Literal text that will be nested within an `Element`, with special characters translated to
-    *   xml/htm entities if `quoteSpecials` is true
+  /** Literal text that will be nested within an `Element`, with special
+    * characters translated to xml/htm entities if `quoteSpecials` is true
     */
-  case class Literal(val text: String, quoteSpecials: Boolean = true) extends Tree {
+  case class Literal(val text: String, quoteSpecials: Boolean = true)
+      extends Tree {
     override def toString: String = text
 
     override def toOutput(writer: PrintWriter, depth: Int): Unit = {
       writer.println()
       writer.print("  " * depth)
-        val special: Char=>Boolean = { ch => ch == '<' || ch=='>' || ch=='&' }
-        if (quoteSpecials && text.exists(special)) {
-          // No point in complicating this: the characters get buffered anyway
-          for { c <- text } c match {
-            case '<' => writer.print("&lt;")
-            case '>' => writer.print("&gt;")
-            case '&' => writer.print("&amp;")
-            case _  => writer.print(c)
-          }
-        }
-        else
-          writer.print(text)
+      val special: Char => Boolean = { ch =>
+        ch == '<' || ch == '>' || ch == '&'
       }
+      if (quoteSpecials && text.exists(special)) {
+        // No point in complicating this: the characters get buffered anyway
+        for { c <- text } c match {
+          case '<' => writer.print("&lt;")
+          case '>' => writer.print("&gt;")
+          case '&' => writer.print("&amp;")
+          case _   => writer.print(c)
+        }
+      } else
+        writer.print(text)
+    }
   }
 
-  /** An inline element of the given `kind` whose body and attributes are as given.
-    * If the text is empty then the element self-closes.
+  /** An inline element of the given `kind` whose body and attributes are as
+    * given. If the text is empty then the element self-closes.
     */
-  case class InlineElement(val kind: String, val attributes: Attributes)(val text: String) extends Tree {
+  case class InlineElement(val kind: String, val attributes: Attributes)(
+      val text: String
+  ) extends Tree {
 
     lazy val props: String =
-      attributes.map { case (name: String, value: String) => s" $name='$value'" }.mkString("", "", "")
+      attributes
+        .map { case (name: String, value: String) => s" $name='$value'" }
+        .mkString("", "", "")
 
     override def toOutput(writer: PrintWriter, depth: Int): Unit = {
       val right = if (text.isEmpty) "/>" else ">"
@@ -102,145 +105,208 @@ object HTML {
     }
   }
 
-  /**
-    * A composite element node of the given `kind`, with the given `attributes`, whose
-    * body is indented on output; unless `withIndent` is `false`
+  /** A composite element node of the given `kind`, with the given `attributes`,
+    * whose body is indented on output; unless `withIndent` is `false`
     */
-  case class Element(val kind: String, val attributes: Attributes, val body: Seq[Tree], val withIndent: Boolean = true) extends Tree {
+  case class Element(
+      val kind: String,
+      val attributes: Attributes,
+      val body: Seq[Tree],
+      val withIndent: Boolean = true
+  ) extends Tree {
     override def toOutput(writer: PrintWriter, depth: Int): Unit = {
       val right = if (body.isEmpty) "/>" else ">"
-      val open  = s"<$kind${toAttributeString(attributes)}$right"
+      val open = s"<$kind${toAttributeString(attributes)}$right"
       val close = if (body.isEmpty) "" else s"</$kind>"
 
       writer.println()
-      writer.print("  "* depth)
+      writer.print("  " * depth)
       writer.print(open)
       body match {
-          case Nil   => ()
-          case trees =>
-            for { tree <- trees } {
-              tree.toOutput(writer, if (withIndent) depth+1 else 0)
-            }
-            writer.println()
-            writer.print("  " * depth)
-            writer.print(close)
+        case Nil => ()
+        case trees =>
+          for { tree <- trees } {
+            tree.toOutput(writer, if (withIndent) depth + 1 else 0)
+          }
+          writer.println()
+          writer.print("  " * depth)
+          writer.print(close)
       }
-     }
     }
+  }
 
-    /** Placeholder for a bunch of trees */
-    case class Collection(attributes: Attributes, trees: Seq[Tree]) extends Tree
+  /** Placeholder for a bunch of trees */
+  case class Collection(attributes: Attributes, trees: Seq[Tree]) extends Tree
 
-    def Meta(attributes: Attr*): Element = Element("meta", attributes, Nil)
+  def Meta(attributes: Attr*): Element = Element("meta", attributes, Nil)
 
-    def Par(attributes: Attr*)(body: Tree*) = Element("p", attributes, body)
+  def Par(attributes: Attr*)(body: Tree*) = Element("p", attributes, body)
 
-    /**  Generate one or more `Par` nodes from marked-up text`.
-      *
-      *  The text(s) of the `Par`(s) that are delivered are separated, in `text`,
-      *  by one or more blank lines: they may contain html markup -- whether
-      *  written literally or generated by interpolation.
-      *
-      *  Example
-      *  {{{
-      *    Paragraphs() ("""
-      *    The long and <i>lonely</i> road.
-      *
-      *    That ${Em("leads")} to your door.
-      *    """)
-      *  }}}
-      *
-      *  If there is more than one `Par` then the collection
-      *  is delivered within a `Div` with the given `attributes`.
-      */
-    def Paragraphs(attributes: Attr*)(text: String*): Element        = ParagraphLayout(quoteSpecials=false, attributes)(text)
-    def LiteralParagraphs(attributes: Attr*)(text: String*): Element = ParagraphLayout(quoteSpecials=true, attributes)(text)
+  /** Generate one or more `Par` nodes from marked-up text`.
+    *
+    * The text(s) of the `Par`(s) that are delivered are separated, in `text`,
+    * by one or more blank lines: they may contain html markup -- whether
+    * written literally or generated by interpolation.
+    *
+    * Example
+    * {{{
+    *    Paragraphs() ("""
+    *    The long and <i>lonely</i> road.
+    *
+    *    That ${Em("leads")} to your door.
+    *    """)
+    * }}}
+    *
+    * If there is more than one `Par` then the collection is delivered within a
+    * `Div` with the given `attributes`.
+    */
+  def Paragraphs(attributes: Attr*)(text: String*): Element =
+    ParagraphLayout(quoteSpecials = false, attributes)(text)
+  def LiteralParagraphs(attributes: Attr*)(text: String*): Element =
+    ParagraphLayout(quoteSpecials = true, attributes)(text)
 
-  private def ParagraphLayout(quoteSpecials: Boolean, attributes: Attributes)(texts: Seq[String]): Element = {
+  private def ParagraphLayout(quoteSpecials: Boolean, attributes: Attributes)(
+      texts: Seq[String]
+  ): Element = {
 
     def paras(text: String): List[Element] = {
-      val chunks = text.split("\n\n+").map { s => s.replace('\n', ' ') }.filter(_.nonEmpty).toList
-      chunks  map { text => Element("p", attributes, List(Literal(text, quoteSpecials))) }
+      val chunks = text
+        .split("\n\n+")
+        .map { s => s.replace('\n', ' ') }
+        .filter(_.nonEmpty)
+        .toList
+      chunks map { text =>
+        Element("p", attributes, List(Literal(text, quoteSpecials)))
+      }
     }
 
     val elements = texts.flatMap(paras)
 
     elements match {
-      case Nil            => Element("div", List("class"-> "emptydiv"), Nil )
-      case List(element)  => element
-      case _              => Element("div", attributes, elements)
-      }
+      case Nil           => Element("div", List("class" -> "emptydiv"), Nil)
+      case List(element) => element
+      case _             => Element("div", attributes, elements)
+    }
   }
 
-    def I(text: String): Tree = InlineElement("i", Nil)(text)
-    def B(text: String): Tree = InlineElement("b", Nil)(text)
-    def Em(text: String): Tree = InlineElement("em", Nil)(text)
+  def I(text: String): Tree = InlineElement("i", Nil)(text)
+  def B(text: String): Tree = InlineElement("b", Nil)(text)
+  def Em(text: String): Tree = InlineElement("em", Nil)(text)
 
-    def Title(attributes: Attr*)(title: String) = Element("title", attributes, List(Literal(title)))
+  def Title(attributes: Attr*)(title: String) =
+    Element("title", attributes, List(Literal(title)))
 
-    def Div(attributes: Attr*)(body: Tree*) = Element("div", attributes, body)
+  def Div(attributes: Attr*)(body: Tree*) = Element("div", attributes, body)
 
-    def Label(attributes: Attr*)(label: String) = Element("label", attributes, List(Literal(label)))
+  def Label(attributes: Attr*)(label: String) =
+    Element("label", attributes, List(Literal(label)))
 
-    def H(n: Int, attributes: Attr*)(body: Tree*)  = Element(s"h$n", attributes, body)
-    def H2(text: String) = H(1)(Literal(text))
-    def H3(text: String) = H(1)(Literal(text))
-    def H4(text: String) = H(1)(Literal(text))
-    def H5(text: String) = H(1)(Literal(text))
+  def H(n: Int, attributes: Attr*)(body: Tree*) =
+    Element(s"h$n", attributes, body)
+  def H2(text: String) = H(1)(Literal(text))
+  def H3(text: String) = H(1)(Literal(text))
+  def H4(text: String) = H(1)(Literal(text))
+  def H5(text: String) = H(1)(Literal(text))
 
-    def Pre(attributes: Attr*)(body: Tree*)   = Element("pre", attributes, body)
-    def Code(attributes: Attr*)(code: String) = Element("code", attributes, List(Literal(code, quoteSpecials = true)), withIndent=false)
+  def Pre(attributes: Attr*)(body: Tree*) = Element("pre", attributes, body)
+  def Code(attributes: Attr*)(code: String) = Element(
+    "code",
+    attributes,
+    List(Literal(code, quoteSpecials = true)),
+    withIndent = false
+  )
 
-    private object ID {
-      var count: Int = 0
-      def apply(kind: String, variable: String, value: String=""): String =
-        s"ID:$kind.$variable${if (value=="") "" else s"=$value"}.${count+=1; count}"
-    }
+  private object ID {
+    var count: Int = 0
+    def apply(kind: String, variable: String, value: String = ""): String =
+      s"ID:$kind.$variable${if (value == "") "" else s"=$value"}.${count += 1; count }"
+  }
 
-    def Checkbox(variable: String, value: String, label: String = "", checked: Boolean = false): Element = {
-      val lab = if (label == "") s"${value(0).toUpper}${value.substring(1)}" else label
-      val id = ID("checkbox", variable, value)
-      Div("id" -> ID("checkboxdiv", variable, value))(
-        Input("type" -> "checkbox", "name" -> variable, "value" -> value, "id" -> id, "checked" -> (checked, "checked")),
-        Label("for" -> id)(label)
+  def Checkbox(
+      variable: String,
+      value: String,
+      label: String = "",
+      checked: Boolean = false
+  ): Element = {
+    val lab =
+      if (label == "") s"${value(0).toUpper}${value.substring(1)}" else label
+    val id = ID("checkbox", variable, value)
+    Div("id" -> ID("checkboxdiv", variable, value))(
+      Input(
+        "type" -> "checkbox",
+        "name" -> variable,
+        "value" -> value,
+        "id" -> id,
+        "checked" -> (checked, "checked")
+      ),
+      Label("for" -> id)(label)
+    )
+  }
+
+  def Radio(
+      variable: String,
+      value: String,
+      label: String = "",
+      checked: Boolean = false
+  ): Element = {
+    val lab =
+      if (label == "") s"${value(0).toUpper}${value.substring(1)}" else label
+    val id = ID("radiobutton", variable, value)
+
+    Div("id" -> ID("radiodiv", variable, value))(
+      Input(
+        "type" -> "radio",
+        "name" -> variable,
+        "value" -> value,
+        "id" -> id,
+        "checked=checked" -> checked
+      ),
+      Label("for" -> id)(label)
+    )
+  }
+
+  def TextInput(
+      variable: String,
+      value: String,
+      label: String = "",
+      selected: Boolean = false,
+      passive: Boolean = true
+  ): Element = {
+    val lab =
+      if (variable == "") s"${variable(0).toUpper}${variable.substring(1)}"
+      else label
+    val id = ID("textinputdiv", variable)
+    val style = "box-sizing: content-box; border: 2px solid #ccc; margin: 5px;"
+    Div("id" -> ID("textinput", variable))(
+      Label("for" -> id)(label),
+      Input(
+        "style" -> style,
+        "type" -> "text",
+        "name" -> variable,
+        "value" -> (if (selected) value else ""),
+        "id" -> id,
+        "size" -> (value.length + 4),
+        "onkeydown" -> (if (passive) "return (event.keyCode!=13);"
+                        else "return (event.keyCode==13);")
       )
-    }
+    )
+  }
 
-    def Radio(variable: String, value: String, label: String = "", checked: Boolean = false): Element = {
-      val lab = if (label == "") s"${value(0).toUpper}${value.substring(1)}" else label
-      val id = ID("radiobutton", variable, value)
+  def Input(attributes: Attr*): Element = Element("input", attributes, Nil)
+  def Submit(attributes: Attr*)(label: String): Element = Element(
+    "input",
+    attributes ++ List("type" -> "submit", "value" -> label),
+    Nil
+  )
 
-      Div("id" -> ID("radiodiv", variable, value))(
-        Input("type" -> "radio", "name" -> variable, "value" -> value, "id" -> id, "checked=checked" -> checked),
-        Label("for" -> id)(label)
-      )
-    }
+  def Html(attributes: Attr*)(body: Tree*): Element =
+    Element("html", attributes, body)
+  def Form(attributes: Attr*)(body: Tree*): Element =
+    Element("form", attributes, body)
+  def Head(attributes: Attr*)(body: Tree*): Element =
+    Element("head", attributes, body)
 
-    def TextInput(variable: String, value: String, label: String = "", selected: Boolean = false, passive: Boolean=true): Element = {
-      val lab = if (variable == "") s"${variable(0).toUpper}${variable.substring(1)}" else label
-      val id = ID("textinputdiv", variable)
-      val style = "box-sizing: content-box; border: 2px solid #ccc; margin: 5px;"
-      Div("id" -> ID("textinput", variable))(
-        Label("for" -> id)(label),
-        Input("style"  -> style,
-              "type"   -> "text",
-              "name"   -> variable,
-              "value"  -> (if (selected) value else ""),
-              "id"     -> id,
-              "size"   -> (value.length+4),
-              "onkeydown" -> (if (passive) "return (event.keyCode!=13);" else  "return (event.keyCode==13);")
-             ),
-      )
-    }
-
-  def Input(attributes: Attr*): Element                 = Element("input", attributes, Nil)
-  def Submit(attributes: Attr*)(label: String): Element = Element("input", attributes++List("type"->"submit", "value"->label), Nil)
-
-  def Html(attributes: Attr*)(body: Tree*): Element = Element("html", attributes, body)
-    def Form(attributes: Attr*)(body: Tree*): Element = Element("form", attributes, body)
-    def Head(attributes: Attr*)(body: Tree*): Element = Element("head", attributes, body)
-
-    def Body(attributes: Attr*)(body: Seq[Tree]): Element = Element("body", attributes, body)
+  def Body(attributes: Attr*)(body: Seq[Tree]): Element =
+    Element("body", attributes, body)
 
 }
-

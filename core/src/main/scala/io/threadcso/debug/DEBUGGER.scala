@@ -65,11 +65,8 @@ class DEBUGGER(debugPort: Int = 0) {
     }.start()
   }
 
-
-
-  /**
-    *  A generalized glob pattern, implemented as a regular expression:
-    *  {{{
+  /** A generalized glob pattern, implemented as a regular expression:
+    * {{{
     *  A glob is a sequence of elements
     *  An element is one of the special elements
     *     *     -- matching any sequence of characters
@@ -88,8 +85,8 @@ class DEBUGGER(debugPort: Int = 0) {
     * or any unpaired '}', which matches literally.
     * }}}
     *
-    * The notation is "forgiving": any unclosed
-    * braced sequences are automatically closed.
+    * The notation is "forgiving": any unclosed braced sequences are
+    * automatically closed.
     *
     * Examples:
     * {{{
@@ -98,32 +95,31 @@ class DEBUGGER(debugPort: Int = 0) {
     *   \{sequence\,of\,globs\}
     * }}}
     *
-    *  TODO: check well-formedness of the pattern
-    *
+    * TODO: check well-formedness of the pattern
     */
-  case class GLOB(val pattern: String, suffix: String="") {
-    override val toString: String = if (pattern endsWith suffix) pattern else s"$pattern$suffix"
+  case class GLOB(val pattern: String, suffix: String = "") {
+    override val toString: String =
+      if (pattern endsWith suffix) pattern else s"$pattern$suffix"
     val regex = wildCard(toString)
     def apply(string: String): Boolean = regex matches string
-    def isEmpty:  Boolean = pattern.isEmpty
+    def isEmpty: Boolean = pattern.isEmpty
     def nonEmpty: Boolean = pattern.nonEmpty
 
-    /**
-      * Transforma `glob`-style pattern into a rgeular expression.
-      * Alternatives are listed between `{}` and separated by ','; and
-      * these three characters can appear in patterns, provided they
-      * are "escaped"" by `'\'`; which can itself be escaped.
+    /** Transforma `glob`-style pattern into a rgeular expression. Alternatives
+      * are listed between `{}` and separated by ','; and these three characters
+      * can appear in patterns, provided they are "escaped"" by `'\'`; which can
+      * itself be escaped.
       */
     def wildCard(glob: String): Regex = {
       var s = new StringBuilder()
-      var nest    = 0
-      var escape  = false
+      var nest = 0
+      var escape = false
       var charseq = false
-      for {c <- glob} c match {
+      for { c <- glob } c match {
         case '\\' if !escape => escape = true
-        case '*'  if !escape => s.append(".*")
-        case '?'  if !escape => s.append(".")
-        case ','  if !escape =>
+        case '*' if !escape  => s.append(".*")
+        case '?' if !escape  => s.append(".")
+        case ',' if !escape =>
           if (nest > 0) s.append("|") else s.append(c)
         case '{' if !escape =>
           nest += 1
@@ -161,48 +157,45 @@ class DEBUGGER(debugPort: Int = 0) {
   }
 
   private var NOTPROC = GLOB("") // Empty means exclude nothing
-  private var PROC    = GLOB("") // Empty means include everything
+  private var PROC = GLOB("") // Empty means include everything
 
   private def includeProc(procName: String): Boolean =
-    (PROC.isEmpty || PROC(procName)) && !( NOTPROC.nonEmpty && NOTPROC(procName))
+    (PROC.isEmpty || PROC(procName)) && !(NOTPROC.nonEmpty && NOTPROC(procName))
 
   /** Frames to be suppressed in stack backtrace match this pattern */
-  private var NOTFRAME = GLOB (
-     pattern = io.threadcso.basis.getPropElse("io.threadcso.debug.elided") {
-       io.threadcso.basis.getPropElse("io.threadcso.debug.suppress") {
-         """{java.,scala.reflect,scala.tools.nsc,*jdk.internal}"""
-       }
-     },
-     suffix = "*")
-
+  private var NOTFRAME = GLOB(
+    pattern = io.threadcso.basis.getPropElse("io.threadcso.debug.elided") {
+      io.threadcso.basis.getPropElse("io.threadcso.debug.suppress") {
+        """{java.,scala.reflect,scala.tools.nsc,*jdk.internal}"""
+      }
+    },
+    suffix = "*"
+  )
 
   ////////////////////////////////
 
   private def showStackTrace(toDepth: Int, thread: Thread, out: PrintWriter) = {
     val trace = thread.getStackTrace
-    var elided  = 0 // number elided by match
-    var native  = 0 // number elided as native 
-    var depth   = 0 // current depth measured from top
-    var shown   = 0 // number shown
-    val frames  = trace.length // depth of the trace
-    @inline def frameDepth: Int = frames-depth
+    var elided = 0 // number elided by match
+    var native = 0 // number elided as native
+    var depth = 0 // current depth measured from top
+    var shown = 0 // number shown
+    val frames = trace.length // depth of the trace
+    @inline def frameDepth: Int = frames - depth
 
-    for (
-      frame <- trace
-    ) {
+    for (frame <- trace) {
       if (frame.isNativeMethod) native += 1
       if (NOTFRAME(frame.toString))
         elided += 1
-      else
-        if (shown < toDepth) {
-          shown += 1
-          out.println(f"${frameDepth}%6d ${unmangle(frame.toString)}")
-        }
+      else if (shown < toDepth) {
+        shown += 1
+        out.println(f"${frameDepth}%6d ${unmangle(frame.toString)}")
+      }
       depth += 1
     }
     out.print(s" Stack frames: $frames")
-    if (native!=0) out.print(s", $native native")
-    if (elided!=0) out.print(s", $elided matched ($NOTFRAME)")
+    if (native != 0) out.print(s", $native native")
+    if (elided != 0) out.print(s", $elided matched ($NOTFRAME)")
     out.println("\n")
   }
 
@@ -238,19 +231,25 @@ class DEBUGGER(debugPort: Int = 0) {
   /** Write a textual representation of the current state of the CSO program
     * (its threads and channel and monitored variables) to `out`.
     */
-  def showCSOState(toDepth: Int, features: List[String], out: PrintWriter): Unit = {
+  def showCSOState(
+      toDepth: Int,
+      features: List[String],
+      out: PrintWriter
+  ): Unit = {
     import io.threadcso.basis._
     import io.threadcso.debug.REGISTRY.Debuggable
 
     import java.lang.Thread.State.TIMED_WAITING
     import java.util.concurrent.locks.LockSupport
 
-    //  The mapping from waiting threads to the objects they are waiting in
-    //  This is a relic of the time when we used jdk semaphores/locks, and needed to register debuggables
-    //  components in order for stack backtraces to be intelligible.
-    //  These days we use our own interface to the scheduler, and a descheduled process records
-    //  the (often debuggable) component on whose behalf it has been blocked.
-    val waiting    = io.threadcso.debug.REGISTRY.waiting
+    /** The mapping from waiting threads to the objects they are waiting in This
+      * is a relic of the time when we used jdk semaphores/locks, and needed to
+      * register debuggables components in order for stack backtraces to be
+      * intelligible. These days we use our own interface to the scheduler, and
+      * a descheduled process records the (often debuggable) component on whose
+      * behalf it has been blocked.
+      */
+    val waiting = io.threadcso.debug.REGISTRY.waiting
     val registered = io.threadcso.debug.REGISTRY.registered
     def printThread(toDepth: Int)(thread: Thread): Unit = {
       if (includeProc(thread.getName)) {
@@ -261,8 +260,7 @@ class DEBUGGER(debugPort: Int = 0) {
               out.print(s"${V}THREAD ${thread.identity} AWAITING: ")
               try {
                 thing.showState(out)
-              }
-              catch {
+              } catch {
                 case t: Throwable =>
                   out.println(
                     "Exception while showing the state of a registed component"
@@ -327,7 +325,8 @@ class DEBUGGER(debugPort: Int = 0) {
          t.getThreadState match
          { case NEW => {}
            case TERMINATED => {}
-           case _ => out.println(s"${t.getThreadName} waiting for ${t.getLockName} owned by ${t.getLockOwnerId}")
+           case _ => out.println(s"${t.getThreadName} waiting for " + 
+                     "${t.getLockName} owned by ${t.getLockOwnerId}")
          }
       }
      */
@@ -389,12 +388,11 @@ class DEBUGGER(debugPort: Int = 0) {
     reply.close()
   }
 
-  /**
-    *
-    * Generate an html response on the given output stream
-    *
+  /** Generate an html response on the given output stream
     */
-  private def htmlResponse(outputStream: OutputStream)(title: String)(body: HTML.Tree*): Unit = {
+  private def htmlResponse(
+      outputStream: OutputStream
+  )(title: String)(body: HTML.Tree*): Unit = {
     import HTML._
     val reply = new PrintWriter(outputStream, true)
     reply.println("HTTP/1.0 200")
@@ -406,14 +404,14 @@ class DEBUGGER(debugPort: Int = 0) {
     // But this simplifies generating
 
     val theHtml: Tree =
-        Html() (
-          Head()(
-            Title()(title),
-            Meta("charset"     -> "utf8"),
-            Meta("description" -> "CSO Debugger output")
-          ),
-          Body() (body)
-        )
+      Html()(
+        Head()(
+          Title()(title),
+          Meta("charset" -> "utf8"),
+          Meta("description" -> "CSO Debugger output")
+        ),
+        Body()(body)
+      )
     val content = theHtml.toString
 
     reply.println("Content-length: " + content.length())
@@ -424,20 +422,22 @@ class DEBUGGER(debugPort: Int = 0) {
     reply.close()
   }
 
-
-  private def htmlEncodedState(toDepth: Int, features: List[String]): HTML.Tree = {
+  private def htmlEncodedState(
+      toDepth: Int,
+      features: List[String]
+  ): HTML.Tree = {
     import HTML._
     val stringBuf = new StringWriter()
     val response = new PrintWriter(stringBuf)
     showCSOState(toDepth, features, response)
     response.close()
-    Div() (
-      Par(){ B(s"CSO State ($port) ${new java.util.Date}") },
-        Form("method"->"get")(
-          Input("type"->"hidden", "name" -> "dashboard", "value"->"true"),
-          Par()(Submit()("Back to the dashboard")),
-        ),
-        Pre() {
+    Div()(
+      Par() { B(s"CSO State ($port) ${new java.util.Date}") },
+      Form("method" -> "get")(
+        Input("type" -> "hidden", "name" -> "dashboard", "value" -> "true"),
+        Par()(Submit()("Back to the dashboard"))
+      ),
+      Pre() {
         Code() {
           stringBuf.toString
         }
@@ -445,8 +445,12 @@ class DEBUGGER(debugPort: Int = 0) {
     )
   }
 
-  /** Obsolete: pure text feature response  */
-  private def featureResponse(toDepth: Int, features: List[String], outputStream: OutputStream): Unit = {
+  /** Obsolete: pure text feature response */
+  private def featureResponse(
+      toDepth: Int,
+      features: List[String],
+      outputStream: OutputStream
+  ): Unit = {
     //
     // The default response
     //
@@ -456,7 +460,6 @@ class DEBUGGER(debugPort: Int = 0) {
     reply.println("HTTP/1.0 200")
     reply.println("Content-type: text/plain; charset=UTF-8")
     reply.println("Server-name: CSO debugger")
-
 
     ///////////////////////////////////////////////
 
@@ -468,7 +471,6 @@ class DEBUGGER(debugPort: Int = 0) {
     reply.println("Content-length: " + content.length())
     reply.println("")
 
-
     reply.println(content)
     reply.flush()
     reply.close()
@@ -476,33 +478,54 @@ class DEBUGGER(debugPort: Int = 0) {
 
   def dashBoardResponse(outputStream: OutputStream): Unit = {
     import HTML._
-    val heading = s"CSO Debugger Dashboard for localhost:$port ${new java.util.Date}"
+    val heading =
+      s"CSO Debugger Dashboard for localhost:$port ${new java.util.Date}"
     htmlResponse(outputStream)(heading)(
       Par()(B(heading)),
-      Form("method"->"get") (
-        Paragraphs() ("Select features to be shown"),
-        Checkbox("features", "threads", "Stack backtraces of running CSO processes", true),
-        Div("style" -> "margin: 20px; line-height: 1.2") (
-          TextInput("proc",    PROC.pattern,     "Include processes matching:", selected=true),
-          TextInput("notproc", NOTPROC.pattern,  "but not processes matching:", selected=true),
+      Form("method" -> "get")(
+        Paragraphs()("Select features to be shown"),
+        Checkbox(
+          "features",
+          "threads",
+          "Stack backtraces of running CSO processes",
+          true
+        ),
+        Div("style" -> "margin: 20px; line-height: 1.2")(
+          TextInput(
+            "proc",
+            PROC.pattern,
+            "Include processes matching:",
+            selected = true
+          ),
+          TextInput(
+            "notproc",
+            NOTPROC.pattern,
+            "but not processes matching:",
+            selected = true
+          ),
           Radio("stackdepth", "1", "Only the top frame", true),
           Radio("stackdepth", "5", "Only the top 5 frames", false),
           Radio("stackdepth", "20", "Only the top 20 frames", false),
           Radio("stackdepth", "10000000", "All frames", false),
-          TextInput("elide", NOTFRAME.pattern, "Omit frames matching:", selected=true),
+          TextInput(
+            "elide",
+            NOTFRAME.pattern,
+            "Omit frames matching:",
+            selected = true
+          )
         ),
         Checkbox("features", "monitored", "Monitored Expressions", true),
         Checkbox("features", "reg", "Registered Objects", checked = true),
-        Par()(Submit()("Show the selected features")),
+        Par()(Submit()("Show the selected features"))
       ),
       helpText
     )
   }
 
   def helpText: HTML.Tree = {
-      import HTML._
-      val help =
-        s"""
+    import HTML._
+    val help =
+      s"""
           |
           |${B("Stack backtraces")} enables showing a backtrace of each of the running CSO processes
           |whose names match the inclusion criteria specified above. If both (glob) patterns are empty
@@ -522,7 +545,7 @@ class DEBUGGER(debugPort: Int = 0) {
           |evaluated.
           |
           |""".stripMargin
-      Paragraphs()(help)
+    Paragraphs()(help)
   }
 
   // Sledgehammer to show request and header
@@ -534,7 +557,7 @@ class DEBUGGER(debugPort: Int = 0) {
       val requested = in.readLine()
       val REFERRER = "Referer: " // [sic]
 
-      var req: List[String]   = requested.split(' ').toList
+      var req: List[String] = requested.split(' ').toList
       var ref: Option[String] = None
 
       /** Gather the request and header lines */
@@ -545,11 +568,11 @@ class DEBUGGER(debugPort: Int = 0) {
       var reading = true
       while (reading) {
         line = in.readLine()
-        if (line==null) {
-           reading = false
-        }
-        else {
-          if (line startsWith REFERRER) ref = Some(line.substring(REFERRER.length))
+        if (line == null) {
+          reading = false
+        } else {
+          if (line startsWith REFERRER)
+            ref = Some(line.substring(REFERRER.length))
           header.append(line)
           header.append("\n")
           reading = !line.equals("")
@@ -567,37 +590,42 @@ class DEBUGGER(debugPort: Int = 0) {
       //
       req match {
         case List("GET", "/favicon.ico", _) =>
-             noContentResponse(sock.getOutputStream)
+          noContentResponse(sock.getOutputStream)
         case List("GET", "/", _) =>
-             dashBoardResponse(sock.getOutputStream)
+          dashBoardResponse(sock.getOutputStream)
         case List("GET", s"/?$path", _) =>
-             val fields = path.trim.split('&').toList
-             var features: List[String] = List()
-             var stackDepth = 1
-             var dashBoard = false
-             for { field <- fields } field match {
-               case s"features=$f"   => features = f :: features
-               case s"stackdepth=$digits"  =>
-                 if (digits.matches("[0-9]+")) stackDepth = digits.toInt
-               case s"elide=$globpattern" =>
-                    NOTFRAME = GLOB(pattern=java.net.URLDecoder.decode(globpattern, "utf8"), suffix="*")
-               case s"notproc=$globpattern" =>
-                    NOTPROC = GLOB(java.net.URLDecoder.decode(globpattern, "utf8"))
-               case s"proc=$globpattern" =>
-                    PROC = GLOB(java.net.URLDecoder.decode(globpattern, "utf8"))
-               case s"dashboard=$anything" =>
-                    dashBoard = true
-               case _ => {}
-             }
-             if (debuggingResponse) println(features)
-             // featureResponse (stackDepth, features, sock.getOutputStream)
+          val fields = path.trim.split('&').toList
+          var features: List[String] = List()
+          var stackDepth = 1
+          var dashBoard = false
+          for { field <- fields } field match {
+            case s"features=$f" => features = f :: features
+            case s"stackdepth=$digits" =>
+              if (digits.matches("[0-9]+")) stackDepth = digits.toInt
+            case s"elide=$globpattern" =>
+              NOTFRAME = GLOB(
+                pattern = java.net.URLDecoder.decode(globpattern, "utf8"),
+                suffix = "*"
+              )
+            case s"notproc=$globpattern" =>
+              NOTPROC = GLOB(java.net.URLDecoder.decode(globpattern, "utf8"))
+            case s"proc=$globpattern" =>
+              PROC = GLOB(java.net.URLDecoder.decode(globpattern, "utf8"))
+            case s"dashboard=$anything" =>
+              dashBoard = true
+            case _ => {}
+          }
+          if (debuggingResponse) println(features)
+          // featureResponse (stackDepth, features, sock.getOutputStream)
           if (dashBoard)
-             dashBoardResponse(sock.getOutputStream)
+            dashBoardResponse(sock.getOutputStream)
           else
-             htmlResponse(sock.getOutputStream)(s"CSO Debugger${new java.util.Date}")(htmlEncodedState(stackDepth, features))
+            htmlResponse(sock.getOutputStream)(
+              s"CSO Debugger${new java.util.Date}"
+            )(htmlEncodedState(stackDepth, features))
         case other =>
-             println(req)
-             noContentResponse(sock.getOutputStream)
+          println(req)
+          noContentResponse(sock.getOutputStream)
       }
       //
       //

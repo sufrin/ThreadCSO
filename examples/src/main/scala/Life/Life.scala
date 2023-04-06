@@ -5,11 +5,10 @@ import io.threadcso._
   * Some acceptable variations are noted in my comments. Other variations may
   * well be acceptable, and I leave this judgment to the demonstrators. BS
   * (January 2016)
-  *
   */
-class Life (val N: Int = 256, val W : Int = 64, val frameDwell: Long = 10L) {
-   // size of the grid
-   // number of strips
+class Life(val N: Int = 256, val W: Int = 64, val frameDwell: Long = 10L) {
+  // size of the grid
+  // number of strips
 
   val grid = Array.ofDim[Boolean](N, N)
 
@@ -22,8 +21,7 @@ class Life (val N: Int = 256, val W : Int = 64, val frameDwell: Long = 10L) {
   /** 1 if cell(i, j) is alive, else 0 */
   @inline private def ##(i: Int, j: Int) = if (grid(i)(j)) 1 else 0
 
-  
-  var height = N / W   // height of one strip
+  var height = N / W // height of one strip
 
   // Barrier: constructed at startup
   var barrier = lock.LogBarrier(W)
@@ -40,7 +38,6 @@ class Life (val N: Int = 256, val W : Int = 64, val frameDwell: Long = 10L) {
     val start = me * height
     val end = (me + 1) * height
 
-    
     //  Worker's private copy of the next generation of its region of the grid
     val nextGen = Array.ofDim[Boolean](height, N)
 
@@ -140,8 +137,7 @@ class Life (val N: Int = 256, val W : Int = 64, val frameDwell: Long = 10L) {
         "............**......................" :: Nil
     ) _
 
-
-  def setup(args: Seq[String]) : Unit = {
+  def setup(args: Seq[String]): Unit = {
     // Place live cells
     if (args.length > 0) {
       for (arg <- args)
@@ -176,12 +172,12 @@ class Life (val N: Int = 256, val W : Int = 64, val frameDwell: Long = 10L) {
         else makeRandom()
     } else makeRandom()
   }
-  
+
   def animate(): Unit = {
-      println(s"Life -n$N -w$W -f$frameDwell (height=$height)")
-      val display = new LifeDisplay(N, grid) // set up displaydisplay.draw
-      run(||(for (i <- 0 until W) yield Worker(i, display)))
-    }
+    println(s"Life -n$N -w$W -f$frameDwell (height=$height)")
+    val display = new LifeDisplay(N, grid) // set up displaydisplay.draw
+    run(||(for (i <- 0 until W) yield Worker(i, display)))
+  }
 }
 
 object Life {
@@ -189,13 +185,13 @@ object Life {
     var N = 256
     var W = 256 / 8
     var D = 10L // frame dwell (ms)
-    
+
     println("Life: -h for help")
     println(s"$debugger")
-    
+
     if (args.length > 0) {
       for (arg <- args.filter(_.matches("-.*")).toList)
-        if      (arg.matches("-w[0-9]+")) W = arg.substring(2).toInt
+        if (arg.matches("-w[0-9]+")) W = arg.substring(2).toInt
         else if (arg.matches("-f[0-9]+")) D = arg.substring(2).toLong
         else if (arg.matches("-n[0-9]+")) N = arg.substring(2).toInt
         else if (arg.matches("-.*")) {
@@ -203,10 +199,10 @@ object Life {
             s"life -w<workers:$W> | -f<framedwell in ms:$D> | -n<number of cells: $N>| [a-l] | bl | gg | r"
           )
           exit()
-       }
+        }
     }
 
-    println(s"Life -n$N -w$W -f$D (height=${N/W})")
+    println(s"Life -n$N -w$W -f$D (height=${N / W})")
 
     val life = new Life(N, W, D)
     life.setup(args.filter(_.matches("[A-Za-z0-9]+")).toList)

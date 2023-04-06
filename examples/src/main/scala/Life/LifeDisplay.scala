@@ -1,10 +1,7 @@
 import java.awt._
 import java.awt.event._
 
-/**
-  *
-  * Specialized AWT Frame to display a grid
-  *
+/** Specialized AWT Frame to display a grid
   */
 class LifeDisplay(N: Int, a: Array[Array[Boolean]]) extends Frame {
   // Define some constants

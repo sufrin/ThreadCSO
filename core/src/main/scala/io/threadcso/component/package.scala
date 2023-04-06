@@ -16,8 +16,6 @@ import io.threadcso.alternation.ChannelExports
   * {{{
   * @version 03.20120824
   * @author Bernard Sufrin, Oxford
-  *   $Revision: 247 $
-  *   $Date: 2017-10-20 15:00:00 +0100 (Fri, 20 Oct 2017) $
   * }}}
   */
 package object component {
