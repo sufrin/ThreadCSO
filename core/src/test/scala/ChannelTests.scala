@@ -22,11 +22,11 @@ abstract class ChannelTest(implicit loc: SourceLocation) {
 class Chan0 extends ChannelTest {
   private val x = Random.nextInt(Int.MaxValue)
   private val N = 1000
-  private def upStream(chan: OneOne[Int]) = proc {
+  private def sender(chan: OneOne[Int]) = proc {
     chan ! x
     chan.closeOut()
   }
-  private def downStream(chan: OneOne[Int]) = proc {
+  private def receiver(chan: OneOne[Int]) = proc {
     assert(x == chan ? ())
     chan.closeIn()
   }
@@ -36,7 +36,7 @@ class Chan0 extends ChannelTest {
     for (i <- 0 until N if okay) {
       val chan = new OneOne[Int]("chan_" + i.toString)
       try {
-        run(upStream(chan) || downStream(chan))
+        run(sender(chan) || receiver(chan))
       } catch {
         case e: AssertionError => okay = false
         case e: Throwable      => { okay = false; println(e) }
@@ -54,13 +54,13 @@ class Chan1 extends ChannelTest {
   private val reps = 100
 
   // send the contents of arr over the channel chan
-  private def upStream(chan: OneOne[Int], arr: Array[Int]) = proc("up") {
+  private def sender(chan: OneOne[Int], arr: Array[Int]) = proc("up") {
     for (x <- arr) { chan ! x }
     chan.closeOut()
   }
 
   // receive the contents of channel chan and check the order with arr
-  private def downStream(chan: OneOne[Int], arr: Array[Int]) = proc("down") {
+  private def receiver(chan: OneOne[Int], arr: Array[Int]) = proc("down") {
     for (i <- 0 until arr.length) { assert(arr(i) == chan ? ()) }
     chan.closeIn()
   }
@@ -72,7 +72,7 @@ class Chan1 extends ChannelTest {
       val chan = new OneOne[Int]("chan")
 
       try {
-        run(upStream(chan, arr) || downStream(chan, arr.clone))
+        run(sender(chan, arr) || receiver(chan, arr.clone))
       } catch {
         case e: AssertionError => okay = false
         case e: Throwable      => { okay = false; println(e) }
@@ -111,7 +111,7 @@ class Chan2 extends ChannelTest {
       val chan = new OneOne[Int]("chan")
 
       try {
-        run(upStream(chan) || downStream(chan))
+        run(sender(chan) || receiver(chan))
       } catch {
         case e: AssertionError => okay = false
         case e: Throwable      => { okay = false; println(e) }

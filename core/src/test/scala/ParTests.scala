@@ -6,8 +6,8 @@ import scala.util.Random
 abstract class AbstractParTest(implicit loc: SourceLocation) {
 
   def withCurrentPool(expr: PROC) =
-      expr.withExecutor(io.threadcso.process.CSOThreads.poolKIND)
- 
+    expr.withExecutor(io.threadcso.process.CSOThreads.poolKIND)
+
   def job(args: Array[String]): Array[String]
 
   def apply(args: Array[String]): Array[String] = {
@@ -16,24 +16,23 @@ abstract class AbstractParTest(implicit loc: SourceLocation) {
     result
   }
 
-  java.lang.Runtime.getRuntime.addShutdownHook(shutDown)
-
   println(s"Runnable $loc")
   println(debugger)
 }
 
 object PARTEST extends AbstractParTest {
 
-  /**
-   *   Make a copy of args in parallel, an element at a time
-   */
+  /** Make a copy of args in parallel, an element at a time
+    */
   def job(args: Array[String]): Array[String] = {
     var result = new Array[String](args.length)
 
     // One proc for each of the args
     val copiers =
-        for (i <- 0 until args.length) yield proc (s"proc-$i")   { result(i) = args(i) }
-    // The parallel composition 
+      for (i <- 0 until args.length) yield proc(s"proc-$i") {
+        result(i) = args(i)
+      }
+    // The parallel composition
     val copy = ||(copiers)
     copy()
     result
@@ -42,27 +41,26 @@ object PARTEST extends AbstractParTest {
 
 object FAILTEST extends AbstractParTest {
 
-  /**
-   *   Fail to make a copy of args in parallel, an element at a time, because of interference
-   */
+  /** Fail to make a copy of args in parallel, an element at a time, because of
+    * interference
+    */
   def job(args: Array[String]): Array[String] = {
     var result = new Array[String](args.length)
 
     // One proc for each of the args
     val copiers =
-        for (i <- 0 until args.length) yield proc (s"proc-$i")
-        {  
-           result(i) = args(i)
-        }
+      for (i <- 0 until args.length) yield proc(s"proc-$i") {
+        result(i) = args(i)
+      }
 
     // Interfere with the copy at a random location
-    val interfere = proc ("interfere") {
-        sleep(Random.nextInt(1000))
-        val n = Random.nextInt(args.length)
-        result(n) = "INTERFERENCE"
-        println(s"Interference at $n")
+    val interfere = proc("interfere") {
+      sleep(Random.nextInt(1000))
+      val n = Random.nextInt(args.length)
+      result(n) = "INTERFERENCE"
+      println(s"Interference at $n")
     }
-    
+
     // The parallel composition of the copiers
     val copy = ||(copiers)
     // Copy, but with a couple of concurrent interferences
@@ -74,8 +72,8 @@ object FAILTEST extends AbstractParTest {
 class ParTests extends AnyFlatSpec {
 
   locally {
-     scala.util.Properties.setProp("io.threadcso.pool", "20")
-     scala.util.Properties.setProp("io.threadcso.pool.REPORT", "true")
+    scala.util.Properties.setProp("io.threadcso.pool", "20")
+    scala.util.Properties.setProp("io.threadcso.pool.REPORT", "true")
   }
 
   private val N = 1500
@@ -88,15 +86,13 @@ class ParTests extends AnyFlatSpec {
     (1 to n).map(_ => alpha(Random.nextInt(alpha.length))).mkString
   }
 
-  def same(a: Array[String], b: Array[String]): Boolean =
-  { var at=0
-    if (a.length==b.length)
-    {
-       while (at<a.length && a(at)==b(at)) at+=1
-       at==a.length
-    }
-    else
-       false       
+  def same(a: Array[String], b: Array[String]): Boolean = {
+    var at = 0
+    if (a.length == b.length) {
+      while (at < a.length && a(at) == b(at)) at += 1
+      at == a.length
+    } else
+      false
   }
 
   it should "run a virtual thread" in {
@@ -107,27 +103,27 @@ class ParTests extends AnyFlatSpec {
   it should s"copy properly with $N vthreads" in {
     val args = Array.fill(N)(randStr(10))
     val s = PARTEST(args)
-    assert (s === args)
+    assert(s === args)
   }
 
   it should s"copy properly with $N ADAPTIVE-pooled kthreads" in {
     val args = Array.fill(N)(randStr(10))
     scala.util.Properties.setProp("io.threadcso.pool.KIND", "ADAPTIVE")
     val s = PARTEST(args)
-    assert (s === args)
+    assert(s === args)
   }
-  
+
   it should s"copy properly with $N UNPOOLED-pooled kthreads" in {
     val args = Array.fill(N)(randStr(10))
     scala.util.Properties.setProp("io.threadcso.pool.KIND", "UNPOOLED")
     val s = PARTEST(args)
-    assert (s === args)
+    assert(s === args)
   }
 
   it should s"not copy properly with 5 vthreads || interference" in {
     val args = Array.fill(5)(randStr(10))
     val s = FAILTEST(args)
-    assert (!(s == args))
+    assert(!(s == args))
   }
 
 }
