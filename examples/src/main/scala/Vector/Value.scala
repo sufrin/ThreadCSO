@@ -11,7 +11,7 @@ class Value(
     protected[Vector] var _y: Double = 0.0,
     protected[Vector] var _z: Double = 0.0
 ) {
-  override def toString = s"(${_x}, ${_y}, ${_z})"
+  override def toString = f"(${_x}%3.2f, ${_y}%3.2f, ${_z}%3.2f)"
 
   /** Scale by `k` */
   def *(k: Double): Value = Value(_x * k, _y * k, _z * k)

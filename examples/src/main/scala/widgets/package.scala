@@ -35,8 +35,12 @@ package object widgets {
   trait Widget[+T] extends JComponent {
     val self = this.asInstanceOf[T]
 
+    /** Set the tooltip */
+    def withTip(tip: String): T = { setToolTipText(tip); self}
+
     /** Set the X alignment (for use in Col layouts), and return this */
     def withAlignmentX(f: Double): T = { setAlignmentX(f.floatValue); self }
+
 
     /** Set the X alignment (for use in Col layouts), and return self */
     def alignX(f: Double): T = { setAlignmentX(f.floatValue); self }

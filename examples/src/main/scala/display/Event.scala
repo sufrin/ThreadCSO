@@ -49,6 +49,7 @@ class MouseEventDetail[D](jdk: event.MouseEvent, pixelsPerUnitLength: Double)
   val isControl = jdk.isControlDown
   val isMeta = jdk.isMetaDown
   val isShift = jdk.isShiftDown
+  val modifiers = jdk.getModifiersEx
   override def toString: String = s"""${jdk.paramString()}@($x,$y)"""
 
 }
