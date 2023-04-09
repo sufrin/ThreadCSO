@@ -5,15 +5,14 @@ import io.threadcso._
 import java.awt.{Color, Graphics2D}
 
 
-
-class Cube(
+class Immobile(
             var _R: Double,
             val position: Position,
             val velocity: Velocity = new Velocity()
           ) extends Body { self =>
-  override def toString: String = f"Cube($R%3.2f@$density%3.2f=$mass%3.2g, $position%s, $velocity%s)"
+  override def toString: String = f"Immobile($R%3.2f@$density%3.2f=$mass%3.2g, $position%s, $velocity%s)"
 
-  val massive = true
+  val fixed = true
 
   private var _density = 16.0
   def density: Double = _density
@@ -34,36 +33,16 @@ class Cube(
 
   private[this] var volume = vol
 
+  var force: Force = Vector.Value.Zero
+
   /** Calculate the position and velocity after time deltaT given the total
     * force on the particle
     */
   def nextState(totalForce: Force): Unit = {
-    if (massive) {} else {
-      position += velocity * deltaT
-      // Bounce off the edges and lose some momentum if necessary
-      if (position.x < R + 5 && velocity.x < 0) {
-        velocity.scaleX(-wallBounce);
-        position.x = R + 5
-      }
-      if (position.x + R + 5 > width && velocity.x > 0) {
-        velocity.scaleX(-wallBounce);
-        position.x = width - R - 5
-      }
-      if (position.y < R + 5 && velocity.y < 0) {
-        velocity.scaleY(-wallBounce);
-        position.y = R + 5
-      }
-      if (position.y + R + 5 > height && velocity.y > 0) {
-        velocity.scaleY(-wallBounce);
-        position.y = height - R - 5
-      }
-      // limit speed
-      val nextV = velocity + (totalForce * deltaT) / mass
-      velocity := (if (velocity.magnitude < C) nextV else velocity.direction * C)
-    }
+    force = totalForce
   }
 
-  /** Calculate the force attraction on this particle by that particle */
+  /** Calculate the attraction of this body to that body */
   def attractionTo(that: Body): Force = {
     val bounce = if (this.touches(that)) bodyBounce else 1.0
     val magnitude =
@@ -96,14 +75,13 @@ class Cube(
       val X = toPixels(x)
       val Y = toPixels(y)
       g.setColor(color)
-      g.fillRect(X, Y, W, H)
+      g.fillOval(X, Y, W, H)
       if (selected) {
         g.setColor(Color.BLACK)
         g.drawRect(X, Y, W, H)
-      } else {
-        g.setColor(if (massive) Color.GREEN else Color.RED)
-        g.drawRect(X, Y, W, H)
       }
+      g.setColor(Color.GREEN)
+      g.drawOval(X, Y, W, H)
       true
   }
 
@@ -117,33 +95,26 @@ class Cube(
     * This body's controlling process: responding to
     * instructions from the environment.
     */
-  val controller: PROC = proc("Cube") {
+  val controller: PROC = proc("Immobile") {
     // bodies of relevance tp this body
     val others = new collection.mutable.Queue[Body]
-    var lastMassExchange, ticks = 0
+    var ticks = 0
     repeat (true) {
       instructions ? {
+        case DeltaD(delta: Double) =>
+          density = density + delta
+        case DeltaR(delta: Double) =>
+          R = R + delta
+        case DeltaV(factor: Double) =>
+          // We have no velocity to change
         case Tick =>
           ticks += 1
-          if (massive) {} else {
-            val localForce = new ForceVariable()
-            // calculate forces between this and the others
-            for (other <- others if other ne self) {
-              val force = (self attractionTo other)
-              // mass exchange
-              if (massExchange) {
-                if ((ticks - lastMassExchange > 10) && (self touches other) && (self.mass < other.mass)) {
-                  lastMassExchange = ticks
-                  val deltaMass = other.mass * 0.33
-                  density += (deltaMass / volume)
-                  other.density -= (deltaMass / other.vol)
-                }
-              }
-              localForce += force
-            }
-            self.nextState(localForce)
-          }
-
+          val localForce = new ForceVariable()
+          // calculate forces on this from the others
+          for (other <- others if other ne self)
+              localForce += self attractionTo other
+          // In case we want to show the force on us
+          self.nextState(localForce)
 
         case AddBody(body) =>
           others += body

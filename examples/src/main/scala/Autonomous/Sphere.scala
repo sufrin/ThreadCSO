@@ -9,7 +9,7 @@ class Sphere(
             val position: Position,
             val velocity: Velocity = new Velocity()
           ) extends Body { self =>
-  override def toString: String = f"Sphere($R%3.2f@$density%3.2f=$mass%3.2g, $position%s, $velocity%s)"
+  override def toString: String = f"Sphere($R%3.2f@$density%3.2f=$mass%3.2g, $position%s, $velocity%s -> $force%s)"
 
   private var _density = 512.0
   def density: Double = _density
@@ -30,10 +30,13 @@ class Sphere(
 
   private[this] var volume = vol
 
+  var force: Force = Vector.Value.Zero
+
   /** Calculate the position and velocity after time deltaT given the total
     * force on the particle
     */
   def nextState(totalForce: Force): Unit = {
+    force = totalForce
     position += velocity * deltaT
     // Bounce off the edges and lose some momentum if necessary
     if (position.x < R + 5 && velocity.x < 0) {
@@ -60,7 +63,6 @@ class Sphere(
   /** Calculate the force attraction on this particle by that particle */
   def attractionTo(that: Body): Force = {
     val bounce = if (this.touches(that)) bodyBounce else 1.0
-    if (bounce!=1.0) GUI.report(f"Bounce $bounce%3.2g")
     val magnitude =
       bounce * G * this.mass * that.mass / (this.position squareTo that.position)
     (this.position directionTo that.position) * magnitude
@@ -116,6 +118,12 @@ class Sphere(
     var lastMassExchange, ticks = 0
     repeat (true) {
       instructions ? {
+        case DeltaD(delta: Double) =>
+          density = density + delta
+        case DeltaR(delta: Double) =>
+          R = R + delta
+        case DeltaV(factor: Double) =>
+          velocity := velocity*factor
         case Tick =>
           ticks += 1
           val localForce = new ForceVariable()
@@ -123,12 +131,12 @@ class Sphere(
           for (other <- others if other ne self) {
             val force = (self attractionTo other)
             // mass exchange
-            if (massExchange) {
+            if (GUI.massExchange) {
               if ((ticks - lastMassExchange > 10) && (self touches other) && (self.mass < other.mass)) {
                 lastMassExchange = ticks
                 val deltaMass = other.mass * 0.2
                 density += (deltaMass / volume)
-                other.density -= (deltaMass / other.vol)
+                other.instructions!DeltaD(-deltaMass / other.vol)
               }
             }
             localForce += force

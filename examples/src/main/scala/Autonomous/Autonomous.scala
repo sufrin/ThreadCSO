@@ -9,7 +9,7 @@ import io.threadcso._
   *  their interactions are governed by physical as well as logical laws.
   *
   *  The framework is flexible, but the present example has only a couple of kinds of
-  *  body, namely "Cubes" which have mass but don't move, and "Spheres" which have mass and move.
+  *  body, namely "Immobiles" which have mass but don't move, and "Spheres" which have mass and move.
   *
   *  In contrast with the `Particles` example, which exemplifies barrier-mediated
   *  concurrency in which all objects (including the display) are controlled by
@@ -55,7 +55,7 @@ object Autonomous extends App {
   type ForceVariable = Vector.Variable
 
   var deltaT: Double = 1.0
-  var bodyBounce: Double = 0.1
+  var bodyBounce: Double = -0.9
   var wallBounce: Double = 0.9
   var width: Int = 1200
   var height: Int = 800
@@ -69,9 +69,12 @@ object Autonomous extends App {
   var C: Double = 30.0
 
   trait       Message
-  case object Tick extends Message
-  case class  AddBody(body: Body) extends Message
-  case class  RemoveBody(body: Body) extends Message
+  case object Tick                    extends Message
+  case class  AddBody(body: Body)     extends Message
+  case class  RemoveBody(body: Body)  extends Message
+  case class  DeltaR(delta: Double)      extends Message
+  case class  DeltaD(delta: Double)      extends Message
+  case class  DeltaV(delta: Double)      extends Message
 
     /** Whether the simulation is running or not */
   var running = false
@@ -80,21 +83,21 @@ object Autonomous extends App {
       *   Process that reacts to all display events
       */
   val interactionManager = proc("interactionManager") {
-      var lastX, lastY: Double = -1.0
+      var mouseX, mouseY, lastX, lastY: Double = -1.0
       var down = false
 
       repeat {
-        val e = GUI.fromDisplay ? {
+        val e = GUI.fromDisplay ? ()
+        e match {
 
           case ComponentResized(detail) =>
             width  = Display.toPixels(detail.w)
             height = Display.toPixels(detail.h)
             GUI.display.setDimensions(width, height)
 
-          case Dragged(mouse) =>
+          case Dragged(mouse) if !running =>
                val dx = mouse.x - lastX
                val dy = mouse.y - lastY
-               GUI.report(s"($dx,$dy) ")
                forSelectedBodies {
                   body =>
                     body.position.x = body.position.x + dx
@@ -104,95 +107,75 @@ object Autonomous extends App {
                lastY = mouse.y
                GUI.refresh()
 
-          case Released(mouse) =>
+          case Moved(mouse) if !running =>
+               mouseX = mouse.x
+               mouseY = mouse.y
+
+          case Released(mouse) if !running =>
                down = false
 
-          case Pressed(mouse) =>
-            val shifted = mouse.isControl || mouse.isAlt || mouse.isMeta || mouse.isShift
+          case Pressed(mouse) if !running =>
             lastX = mouse.x
             lastY = mouse.y
             down  = true
-
             val lastHits = GUI.display.at(lastX, lastY, false)
 
-            // add to the selection
-            if (!running && (mouse.isControl || mouse.isMeta || mouse.isShift))
+            // add to / remove from the selection
+            if (mouse.isControl || mouse.isMeta)
                for (body <- lastHits) {
-                 body.selected = true
+                 body.selected = !body.selected
                  GUI.report(s"$body")
                }
 
-            // start the selection
-            if (!running && !(mouse.isControl || mouse.isMeta || mouse.isShift)) {
+            // clear or start the selection
+            if (!(mouse.isControl || mouse.isMeta)) {
               if (lastHits.isEmpty) {
                 for { body <- allBodies } body.selected = false
               } else
               for (body <- lastHits)  {
-                body.selected = !body.selected
+                body.selected = true
                 GUI.report(s"$body")
               }
-            }
-
-            // mouse hits when not running: make new bodies and select them
-            if (!running && mouse.isShift) {
-                val (x, y) = (mouse.x, mouse.y)
-                val newBody =
-                  if (GUI.sphere.isSelected)
-                    new Sphere(10, new Position(x, y), new Velocity(-1, +1, 0))
-                  else
-                    new Cube(10, new Position(x, y), new Velocity(-1, +1, 0))
-                run(||(for {body <- allBodies} yield proc {
-                  body.instructions ! AddBody(newBody)
-                }))
-                for {body <- allBodies} newBody.instructions ! AddBody(body)
-                GUI.report(s"new $newBody")
-                allBodies += newBody
-                newBody.selected = true
-                newBody.controller.fork
             }
             GUI.refresh()
 
           // change the radius or the density or speed of selected bodies
-          case Wheel(wheel) =>
-            for (body <- allBodies if body.selected) {
-              if (GUI.radius.isSelected) body.R = body.R + wheel.rotation
+          case Wheel(wheel) if !running =>
+            forSelectedBodies {
+             body =>
+               if (GUI.radius.isSelected) body.instructions!DeltaR(wheel.rotation) // body.R = body.R + wheel.rotation
 
-              if (GUI.density.isSelected) {
-                 val factor = 10 * wheel.rotation
-                 body.density = body.density + factor
-              }
-              if (GUI.speed.isSelected) {
+               if (GUI.density.isSelected) {
+                 body.instructions!DeltaD(100*wheel.rotation) // body.density = body.density + factor
+               }
+               if (GUI.speed.isSelected) {
                 val factor = if (wheel.isControl) 0.0 else if (wheel.rotation > 0) 1.5 else 0.6
-                body.velocity := body.velocity * factor
-              }
-              GUI.report(s"$body")
+                body.instructions!DeltaV(factor)
+               }
+               GUI.report(s"$body")
             }
             GUI.refresh()
 
-          // doing things to the selection
           case KeyPressed(key) =>
-            // nudge selected particles with arrows
-            // shrink selected particles with 1
-            // grow selected particles with 2
-            // deselect all
             var changed = true
+            val CONTROL = key.isControl || key.isMeta
             import java.awt.event.KeyEvent._
             key.code match {
-              case VK_SLASH   => forSelectedBodies { body => GUI.report(s"$body") }
-              case VK_LEFT    => forSelectedBodies { body => body.position.x = body.position.x - 5 }
-              case VK_UP      => forSelectedBodies { body => body.position.y = body.position.y - 5 }
-              case VK_RIGHT   => forSelectedBodies { body => body.position.x = body.position.x + 5 }
-              case VK_DOWN    => forSelectedBodies { body => body.position.y = body.position.y + 5 }
-              case '1'        => forSelectedBodies { body => body.R = (body.R * 5.0 / 6.0) }
-              case '2'        => forSelectedBodies { body => body.R = (body.R * 6.0 / 5.0) }
-              case VK_ESCAPE  =>
+              case VK_S | VK_A if !running && !CONTROL =>
+                   launchBody(new Sphere(20, new Position(mouseX, mouseY), new Velocity(0, 0, 0)))
+              case VK_Z | VK_X if !running =>
+                   launchBody(new Immobile(20, new Position(mouseX, mouseY), new Velocity(0, 0, 0)))
+              case VK_SPACE  =>
                    GUI.setRunning(!running)
                    changed = false
-              case VK_A if key.isControl || key.isMeta =>
+              case VK_A if CONTROL && !running  =>
                     forAllBodies { body => body.selected = true }
-              case VK_DELETE | VK_BACK_SPACE =>
-                    val deletedBodies = new collection.mutable.Stack[Body]()
-                    forSelectedBodies { body => deletedBodies.push(body) }
+              case VK_ESCAPE if !running =>
+                    forSelectedBodies(body => body.instructions!DeltaV(0.0))
+              case VK_DELETE | VK_BACK_SPACE if !running  =>
+                    // delete the selected bodies
+                    val deletedBodies = new collection.mutable.Queue[Body]()
+                    forSelectedBodies { body => deletedBodies.enqueue(body) }
                     for { body <- deletedBodies } deleteBody(body)
               case _ =>
             }
@@ -202,6 +185,19 @@ object Autonomous extends App {
             {}
         }
       }
+    }
+
+    def launchBody(body: Body): Unit =  {
+        // tell the other bodies about this body
+        run(||(for {that <- allBodies} yield proc {
+          that.instructions ! AddBody(body)
+        }))
+        // tell this body about all the others
+        for {that <- allBodies} body.instructions ! AddBody(that)
+        GUI.report(s"new $body")
+        allBodies += body
+        body.selected = true
+        body.controller.fork
     }
 
     /** Evaluate `body`, taking at least `t` nanoseconds. Sleep if evaluation
@@ -226,9 +222,11 @@ object Autonomous extends App {
       val fromDisplay = N2NBuf[Event[Body]](0, writers = 0, readers = 0)
 
       /** Permission to draw a single frame */
-      val singleFrame = BooleanSemaphore(running)
+      val singleFrame = io.threadcso.lock.primitive.UnitChan() // BooleanSemaphore(running)
 
       var repelling = 1.0
+
+      var massExchange: Boolean = true
 
       val gravity = row(
         label("6.79E"),
@@ -240,6 +238,10 @@ object Autonomous extends App {
       val repel = col(checkBox("  ", false) { state =>
         repelling = if (state) -1.0 else 1.0; G = math.abs(G) * repelling
       }) withTitledBorder ("Repel") withTip ("Negate gravitational constant (forces are repulsive)")
+
+      val mx = col(checkBox("  ", massExchange) { state =>
+        massExchange = state
+      }) withTitledBorder ("MX") withTip ("Mass exchange on collisions")
 
       val wBounce = spinner(wallBounce, -5.0, 5.0, 0.1) { value =>
         wallBounce = value
@@ -265,22 +267,18 @@ object Autonomous extends App {
       // a change in state to true signals the display controller
       val run = checkBox("Running", running) { state =>
         running = state
-        if (running) singleFrame.release()
+        if (running) singleFrame!()
       } withTip ("ESC also starts and stops")
 
       def setRunning(on: Boolean): Unit = {
         running = on
         run.setSelected(on)
-        if (running) singleFrame.release()
+        if (running) singleFrame!()
       }
       
       def refresh(): Unit = {
         display.draw(syncWait = false)
       }
-
-      val sphere = radioButton("Sphere", true) { state => }
-      val cube   = radioButton("Cube", false) { state => }
-      val kind   = buttonGroup (sphere, cube)
 
       val radius  = radioButton("Radius", true) { state => }
       val density = radioButton("Density", false) { state => }
@@ -305,7 +303,6 @@ object Autonomous extends App {
         run,
         hGlue,
         // label(s"${allBodies.length}"),
-        col(sphere, cube),
         col(radius,density, speed),
         hGlue,
         fps,
@@ -314,6 +311,7 @@ object Autonomous extends App {
         bBounce,
         gravity,
         repel,
+        mx,
         time,
         lightspeed,
         hGlue
@@ -339,7 +337,7 @@ object Autonomous extends App {
 
       // Seed the world
       if (allBodies.isEmpty) {
-        allBodies += new Sphere(90, new Position(width * 0.5, height * 0.33), new Velocity(-1, +1, 0))
+        //allBodies += new Sphere(90, new Position(width * 0.5, height * 0.33), new Velocity(-1, +1, 0))
       }
 
 
@@ -362,7 +360,10 @@ object Autonomous extends App {
               body.instructions ! Tick
             }))
           }
-          if (!running) GUI.singleFrame.acquire()
+          if (!running) {
+
+            GUI.singleFrame?()
+          }
         }
 
       }

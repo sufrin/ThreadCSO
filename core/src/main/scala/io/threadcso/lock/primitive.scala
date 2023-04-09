@@ -47,7 +47,7 @@ object primitive {
         a DataChan[Unit], but implemented more efficiently.
     */
     class UnitChan(name: String = null) extends Chan [Unit] {
-      private val sema = BooleanSemaphore(false)
+      private val sema = BooleanSemaphore(false, name)
       @inline def read(): Unit   = sema.acquire()
       @inline def write(t: Unit) = sema.release()     
     }
