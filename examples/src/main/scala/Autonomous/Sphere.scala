@@ -5,11 +5,13 @@ import io.threadcso._
 import java.awt.{Color, Graphics2D}
 
 class Sphere(
-            var _R: Double,
-            val position: Position,
-            val velocity: Velocity = new Velocity()
+            var _R:        Double,
+            val position:  Position,
+            val velocity:  Velocity = new Velocity(),
+            val allBodies: collection.mutable.Queue[Body] = Autonomous.allBodies
           ) extends Body { self =>
-  override def toString: String = f"Sphere($R%3.2f@$density%3.2f=$mass%3.2g, $position%s, $velocity%s -> $force%s)"
+
+  override def toString: String = f"Sphere($R%3.2f@$density%3.2f=$mass%3.2g, $position%s, $velocity%s)"
 
   private var _density = 512.0
   def density: Double = _density
@@ -20,9 +22,9 @@ class Sphere(
   def R: Double = _R
 
   def R_=(radius: Double): Unit = {
-    val v = vol
-    _R = radius max 1.0
-    volume = vol
+    val v   = vol
+    _R      = radius max 1.0
+    volume  = vol
     density = density * (v / volume)
   }
 
@@ -128,7 +130,7 @@ class Sphere(
           ticks += 1
           val localForce = new ForceVariable()
           // calculate forces between this and the others
-          for (other <- others if other ne self) {
+          for (other <- allBodies if other ne self) {
             val force = (self attractionTo other)
             // mass exchange
             if (GUI.massExchange) {

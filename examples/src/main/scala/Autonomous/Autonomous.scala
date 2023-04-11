@@ -9,7 +9,8 @@ import io.threadcso._
   *  their interactions are governed by physical as well as logical laws.
   *
   *  The framework is flexible, but the present example has only a couple of kinds of
-  *  body, namely "Immobiles" which have mass but don't move, and "Spheres" which have mass and move.
+  *  body, namely "Immobiles" which have mass but can't move, and "Spheres" which
+  *  have mass and can move.
   *
   *  In contrast with the `Particles` example, which exemplifies barrier-mediated
   *  concurrency in which all objects (including the display) are controlled by
@@ -18,17 +19,17 @@ import io.threadcso._
   *
   *  Implementing gravitation-like forces can turn out to be rather
   *  inefficient if on every "tick" of the display it is necessary to compute
-  *  all N*N inter-body forces. The cost can be halved by noting that the force of
-  *  "A" on "B" is the opposite of the force of "B" on "A". We don't do that here.
+  *  all N*N inter-body forces. The cost can be reduced by noting that the force of
+  *  "A" on "B" is the opposite of the force of "B" on "A". The detail is left as an
+  *  exercise.
   *
   *
-  *
-  *  Autonomous bodies
   */
 object Autonomous extends App {
 
   ////
   val Command = "Autonomous"
+
   val allBodies = new collection.mutable.Queue[Body]
 
   def deleteBody(other: Body): Unit = {
@@ -54,14 +55,14 @@ object Autonomous extends App {
   type Force = Vector.Value
   type ForceVariable = Vector.Variable
 
-  var deltaT: Double = 1.0
-  var bodyBounce: Double = -0.9
-  var wallBounce: Double = 0.9
-  var width: Int = 1200
-  var height: Int = 800
-  var scale = -7
-  var G = scaledG() // Gravitational constant, dimensions are m^3/k/s^2
-  def scaledG() = 6.79 * math.pow(10.0, scale)
+  var deltaT:     Double  = 1.0
+  var bodyBounce: Double  = -0.9
+  var wallBounce: Double  = 0.9
+  var width:      Int     = 1200
+  var height:     Int     = 800
+  var scale:      Int     = -7
+  def scaleG:     Double  = 6.79 * math.pow(10.0, scale)
+  var G:          Double  = scaleG // Gravitational constant, dimensions are m^3/k/s^2
 
   var FPS: Int = 50 // Frames/second
   /** Maximum speed */
@@ -72,9 +73,9 @@ object Autonomous extends App {
   case object Tick                    extends Message
   case class  AddBody(body: Body)     extends Message
   case class  RemoveBody(body: Body)  extends Message
-  case class  DeltaR(delta: Double)      extends Message
-  case class  DeltaD(delta: Double)      extends Message
-  case class  DeltaV(delta: Double)      extends Message
+  case class  DeltaR(delta: Double)   extends Message
+  case class  DeltaD(delta: Double)   extends Message
+  case class  DeltaV(delta: Double)   extends Message
 
     /** Whether the simulation is running or not */
   var running = false
@@ -187,13 +188,10 @@ object Autonomous extends App {
       }
     }
 
+    /**
+      *   Launch the body
+      */
     def launchBody(body: Body): Unit =  {
-        // tell the other bodies about this body
-        run(||(for {that <- allBodies} yield proc {
-          that.instructions ! AddBody(body)
-        }))
-        // tell this body about all the others
-        for {that <- allBodies} body.instructions ! AddBody(that)
         GUI.report(s"new $body")
         allBodies += body
         body.selected = true
@@ -231,7 +229,7 @@ object Autonomous extends App {
       val gravity = row(
         label("6.79E"),
         spinner(scale, -24, 2, 1) { value =>
-          scale = value; G = scaledG() * repelling
+          scale = value; G = scaleG * repelling
         }.alignLeft
       ) withTitledBorder ("Gravity") withTip ("Exponent of gravitational constant")
 
@@ -333,7 +331,7 @@ object Autonomous extends App {
 
     def Main(): Unit = {
       println(debugger)
-      G = scaledG()
+      G = scaleG
 
       // Seed the world
       if (allBodies.isEmpty) {

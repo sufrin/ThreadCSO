@@ -6,10 +6,11 @@ import java.awt.{Color, Graphics2D}
 
 
 class Immobile(
-            var _R: Double,
-            val position: Position,
-            val velocity: Velocity = new Velocity()
-          ) extends Body { self =>
+                var _R: Double,
+                val position: Position,
+                val velocity: Velocity = new Velocity(),
+                val allBodies: collection.mutable.Queue[Body] = Autonomous.allBodies
+              ) extends Body { self =>
   override def toString: String = f"Immobile($R%3.2f@$density%3.2f=$mass%3.2g, $position%s, $velocity%s)"
 
   val fixed = true
