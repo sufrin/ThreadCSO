@@ -1,5 +1,5 @@
-import Autonomous._
-import display._
+import Message._
+import Types._
 import io.threadcso._
 
 import java.awt.{Color, Graphics2D}
@@ -8,7 +8,7 @@ class Sphere(
             var _R:        Double,
             val position:  Position,
             val velocity:  Velocity = new Velocity(),
-            val allBodies: collection.mutable.Queue[Body] = Autonomous.allBodies
+            val context:   UserInterface,
           ) extends Body { self =>
 
   override def toString: String = f"Sphere($R%3.2f@$density%3.2f=$mass%3.2g, $position%s, $velocity%s)"
@@ -39,35 +39,27 @@ class Sphere(
     */
   def nextState(totalForce: Force): Unit = {
     force = totalForce
-    position += velocity * deltaT
+    position += velocity * context.deltaT
     // Bounce off the edges and lose some momentum if necessary
     if (position.x < R + 5 && velocity.x < 0) {
-      velocity.scaleX(-wallBounce);
+      velocity.scaleX(-context.wallBounce);
       position.x = R + 5
     }
-    if (position.x + R + 5 > width && velocity.x > 0) {
-      velocity.scaleX(-wallBounce);
-      position.x = width - R - 5
+    if (position.x + R + 5 > context.width && velocity.x > 0) {
+      velocity.scaleX(-context.wallBounce);
+      position.x = context.width - R - 5
     }
     if (position.y < R + 5 && velocity.y < 0) {
-      velocity.scaleY(-wallBounce);
+      velocity.scaleY(-context.wallBounce);
       position.y = R + 5
     }
-    if (position.y + R + 5 > height && velocity.y > 0) {
-      velocity.scaleY(-wallBounce);
-      position.y = height - R - 5
+    if (position.y + R + 5 > context.height && velocity.y > 0) {
+      velocity.scaleY(-context.wallBounce);
+      position.y = context.height - R - 5
     }
     // limit speed
-    val nextV = velocity + (totalForce * deltaT) / mass
-    velocity := (if (velocity.magnitude<C) nextV else velocity.direction*C)
-  }
-
-  /** Calculate the force attraction on this particle by that particle */
-  def attractionTo(that: Body): Force = {
-    val bounce = if (this.touches(that)) bodyBounce else 1.0
-    val magnitude =
-      bounce * G * this.mass * that.mass / (this.position squareTo that.position)
-    (this.position directionTo that.position) * magnitude
+    val nextV = velocity + (totalForce * context.deltaT) / mass
+    velocity := (if (velocity.magnitude<context.C) nextV else velocity.direction*context.C)
   }
 
   /** When the particles touch */
@@ -125,15 +117,16 @@ class Sphere(
         case DeltaR(delta: Double) =>
           R = R + delta
         case DeltaV(factor: Double) =>
-          velocity := velocity*factor
+          velocity := velocity * factor
+
         case Tick =>
           ticks += 1
           val localForce = new ForceVariable()
           // calculate forces between this and the others
-          for (other <- allBodies if other ne self) {
+          for (other <- context.allBodies if other ne self) {
             val force = (self attractionTo other)
             // mass exchange
-            if (GUI.massExchange) {
+            if (context.massExchange) {
               if ((ticks - lastMassExchange > 10) && (self touches other) && (self.mass < other.mass)) {
                 lastMassExchange = ticks
                 val deltaMass = other.mass * 0.2
@@ -143,7 +136,7 @@ class Sphere(
             }
             localForce += force
           }
-          self.nextState(localForce)
+          self.nextState(localForce * Autonomous.GUI.G)
           ()
 
         case AddBody(body) =>

@@ -1,45 +1,33 @@
+
+import Message._
+import Particles.{ForceVariable, Position}
+import Types._
 import app.OPT._
 import display._
 import io.threadcso._
-import Types._
-import Message._
 
 /**
-  *
-  *  This little, almost pointless, example was intended to let us explore the practicality of working
-  *  with autonomous interacting bodies that have different characteristics, when
-  *  their interactions are governed by physical as well as logical laws.
-  *
-  *  The framework is flexible, but the present example has only a couple of kinds of
-  *  body, namely "Immobiles" which have mass but can't move, and "Spheres" which
-  *  have mass and can move.
-  *
-  *  In contrast with the `Particles` example, which exemplifies barrier-mediated
-  *  concurrency in which all objects (including the display) are controlled by
-  *  workers that run in synchrony, this example associates each body with its own
-  *  "internal" controller.
   *
   *  Implementing gravitation-like forces can turn out to be rather
   *  inefficient if on every "tick" of the display it is necessary to compute
   *  all N*N inter-body forces. The cost can be reduced by noting that the force of
-  *  "A" on "B" is the opposite of the force of "B" on "A". The detail is left as an
-  *  exercise.
-  *
+  *  "A" on "B" is the opposite of the force of "B" on "A". This is an example
+  *  of how such a reduction is implemented. The details are explained
+  *  in the lecture notes for particle computations.
   *
   */
-object Autonomous extends App {
+object Gravitation extends App {
 
-
-
-  val Command = "Autonomous"
+  val Command = "Gravitation"
 
   val allBodies = new collection.mutable.Queue[Body]
 
-  def deleteBody(other: Body): Unit = {
-      other.instructions.closeOut()
-      run(||(for { body <- allBodies if body != other } yield proc { body.instructions!RemoveBody(other) }))
-      allBodies -= other
-  }
+  /** Number of NumberOfWorkers */
+  var NumberOfWorkers:    Int = 4
+  /** Half the Quota for each worker to control */
+  var Quota: Int = 1
+  /** The total number of particles */
+  @inline def Particles:  Int = 2 * Quota * NumberOfWorkers
 
   @inline def forSelectedBodies(effect: Body => Unit): Unit = {
       for { body <- allBodies if body.selected } effect(body)
@@ -50,10 +38,11 @@ object Autonomous extends App {
   }
 
   val Options = List(
-
+    OPT("w", NumberOfWorkers, "«w: int» number of workers"),
+    OPT("q", Quota, "«q: int» each worker controls 2*q bodies"),
   )
 
-
+  
   object GUI extends UserInterface(allBodies)
 
   @inline private def running: Boolean = GUI.running
@@ -83,13 +72,6 @@ object Autonomous extends App {
                lastX = mouse.x
                lastY = mouse.y
                GUI.refresh()
-
-          case Moved(mouse) if !running =>
-               mouseX = mouse.x
-               mouseY = mouse.y
-
-          case Released(mouse) if !running =>
-               down = false
 
           case Pressed(mouse) if !running =>
             lastX = mouse.x
@@ -138,23 +120,14 @@ object Autonomous extends App {
             val CONTROL = key.isControl || key.isMeta
             import java.awt.event.KeyEvent._
             key.code match {
-              case VK_S | VK_A if !running && !CONTROL =>
-                   launchBody(new Sphere(20, new Position(mouseX, mouseY), new Velocity(0, 0, 0), GUI))
-              case VK_Z | VK_X if !running =>
-                   launchBody(new Immobile(20, new Position(mouseX, mouseY), new Velocity(0, 0, 0), GUI))
-              case VK_SPACE  =>
+             case VK_SPACE  =>
                    GUI.setRunning(!running)
-                   if (running) GUI.report("")
+                   if (running) GUI.report(s"$NumberOfWorkers workers; $Particles particles")
                    changed = false
               case VK_A if CONTROL && !running  =>
                     forAllBodies { body => body.selected = true }
               case VK_ESCAPE if !running =>
                     forSelectedBodies(body => body.instructions!DeltaV(0.0))
-              case VK_DELETE | VK_BACK_SPACE if !running  =>
-                    // delete the selected bodies
-                    val deletedBodies = new collection.mutable.Queue[Body]()
-                    forSelectedBodies { body => deletedBodies.enqueue(body) }
-                    for { body <- deletedBodies } deleteBody(body)
               case _ =>
             }
             if (changed) GUI.refresh()
@@ -165,20 +138,11 @@ object Autonomous extends App {
       }
     }
 
-    /**
-      *   Launch the body
-      */
-    def launchBody(body: Body): Unit =  {
-        GUI.report(s"new $body")
-        allBodies += body
-        body.selected = true
-        body.controller.fork
-    }
-
-    /** Evaluate `body`, taking at least `t` nanoseconds. Sleep if evaluation
-      * terminates early, and report the overrun as a multiple of `t` otherwise.
-      */
-    def takeTime(t: Nanoseconds)(body: => Unit): Unit = {
+  /**
+    * Evaluate `body`, taking at least `t` nanoseconds. Sleep if evaluation
+    * terminates early, and report the overrun as a multiple of `t` otherwise.
+    */
+  def takeTime(t: Nanoseconds)(body: => Unit): Unit = {
       val deadline = nanoTime + t
       body
       val ahead = deadline - nanoTime
@@ -186,43 +150,89 @@ object Autonomous extends App {
         GUI.reportOverrun(-ahead.toDouble / t.toDouble)
       else
         sleep(ahead)
-    }
+  }
 
 
-
-    def Main(): Unit = {
+  def Main(): Unit = {
       println(debugger)
-
-      // Seed the world
+      println(s"$NumberOfWorkers workers, controlling $Particles particles ($Quota/worker)")
+      // Seed the particles
       if (allBodies.isEmpty) {
-        //allBodies += new Sphere(90, new Position(width * 0.5, height * 0.33), new Velocity(-1, +1, 0))
+        allBodies += new Sphere(60, new Position(GUI.width * 0.5, GUI.height * 0.66), new Velocity(0, 0, 0), GUI)
+        allBodies += new Sphere(90, new Position(GUI.width * 0.5, GUI.height * 0.33), new Velocity(0, 0, 0), GUI)
+        while (allBodies.length<Particles)
+          allBodies += new Sphere(10 + (allBodies.length min (GUI.width/Particles)),
+                                  new Position(math.random()*GUI.width, math.random()*GUI.height),
+                                  new Velocity(0, 0, 0), GUI)
       }
 
+    val barrier:   LogBarrier = LogBarrier(NumberOfWorkers+1)
+    /** Identity of the Display Process */
+    val displayID: Int        = NumberOfWorkers
 
-      val displayController: PROC = proc("DisplayController") {
-        // set up the bodies
-        for {body <- allBodies} {
-          for {other <- allBodies if other ne body} {
-            body.instructions ! AddBody(other)
+    val localForces: Array[Array[ForceVariable]] =
+        Array.ofDim[Position](NumberOfWorkers, Particles)
+
+    def worker(identity: Int, ownedParticles: Seq[Int]): PROC =
+      proc(s"worker($identity)") {
+        // initialize
+        val localForce = localForces(identity)
+        for (pid <- 0 until Particles) localForce(pid) = new ForceVariable()
+        println(s"$identity owns $ownedParticles")
+        barrier.sync(identity)
+
+        // work
+        while (true) { // update local state
+          for (pid <- 0 until Particles) localForce(pid).setZero()
+          // calculate forces between managed particles
+          for (pid <- ownedParticles)
+              for (other <- pid + 1 until Particles) {
+            val p = allBodies(pid)
+            val q = allBodies(other)
+
+            val force =
+              (p attractionTo q) * GUI.G * (if (p touches q) GUI.bodyBounce else 1.0)
+
+            localForce(pid)   += force
+            localForce(other) -= force
           }
+          barrier.sync(identity)
+
+          // update global state of all my particles
+          for (pid <- ownedParticles) {
+            val force = new ForceVariable()
+            for (w <- 0 until NumberOfWorkers) force += localForces(w)(pid)
+            allBodies(pid).nextState(force)
+          }
+          barrier.sync(identity)
         }
+      }
 
+    val displayController: PROC = proc("DisplayController") {
+        // start the body controllers to respond to keystrokes
         for {body <- allBodies} body.controller.fork
-
+        //
+        barrier.sync(displayID)
         repeat {
           takeTime(seconds(1.0 / GUI.FPS)) {
-            // draw the display
+            // draw the entire display
             GUI.display.draw()
-            // advance each body's clock: concurrently
-            run(||(for { body <- allBodies } yield proc { body.instructions ! Tick }))
+            // sync myself
+            barrier.sync(displayID)
+            barrier.sync(displayID)
           }
           if (!running) { GUI.singleFrame?() }
         }
       }
 
+    /** The particles owned by worker with the given `identity`. */
+    def ownedBy(identity: Int): Seq[Int] =
+      ((identity * Quota) until ((identity + 1) * Quota)) ++
+      (((2 * NumberOfWorkers - identity - 1) * Quota) until ((2 * NumberOfWorkers - identity) * Quota))
 
+    val allWorkers = ||(for { identity <- 0 until NumberOfWorkers  } yield worker(identity, ownedBy(identity)))
 
-      // run the bodies, mousemanager, and display concurrently
-      (displayController || interactionManager)()
-    }
+    // run the bodies, mousemanager, and display concurrently
+    (displayController || interactionManager || allWorkers)()
+  }
 }

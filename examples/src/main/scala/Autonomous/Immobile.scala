@@ -1,5 +1,5 @@
-import Autonomous._
-import display._
+import Message._
+import Types._
 import io.threadcso._
 
 import java.awt.{Color, Graphics2D}
@@ -9,7 +9,7 @@ class Immobile(
                 var _R: Double,
                 val position: Position,
                 val velocity: Velocity = new Velocity(),
-                val allBodies: collection.mutable.Queue[Body] = Autonomous.allBodies
+                val context:  UserInterface
               ) extends Body { self =>
   override def toString: String = f"Immobile($R%3.2f@$density%3.2f=$mass%3.2g, $position%s, $velocity%s)"
 
@@ -41,14 +41,6 @@ class Immobile(
     */
   def nextState(totalForce: Force): Unit = {
     force = totalForce
-  }
-
-  /** Calculate the attraction of this body to that body */
-  def attractionTo(that: Body): Force = {
-    val bounce = if (this.touches(that)) bodyBounce else 1.0
-    val magnitude =
-      bounce * G * this.mass * that.mass / (this.position squareTo that.position)
-    (this.position directionTo that.position) * magnitude
   }
 
   /** When the particles touch */
@@ -112,10 +104,10 @@ class Immobile(
           ticks += 1
           val localForce = new ForceVariable()
           // calculate forces on this from the others
-          for (other <- others if other ne self)
+          for (other <- context.allBodies if other ne self)
               localForce += self attractionTo other
           // In case we want to show the force on us
-          self.nextState(localForce)
+          self.nextState(localForce * Autonomous.GUI.G)
 
         case AddBody(body) =>
           others += body

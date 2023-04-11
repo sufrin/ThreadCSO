@@ -1,4 +1,5 @@
-import Autonomous._
+import Message._
+import Types._
 import display.Displayable
 import io.threadcso.{!!, PROC}
 
@@ -6,8 +7,9 @@ import java.awt.Color
 
 trait Body extends Displayable {
   def R:        Double
+
   val position: Position
-  val velocity: Position
+  val velocity: Velocity
   def force:    Force      // last calculated force
 
   def touches(that: Body): Boolean
@@ -29,10 +31,24 @@ trait Body extends Displayable {
     new Color(greyness, greyness, 0.5f, 0.3f)
   }
 
-  /** the controlling PROC of this body */
-  val controller:   PROC
-  /** the channel on which to instruct this body */
-  val instructions: !![Message]
+  /** Calculate the force attraction on this particle by that particle: multiple of G */
+  def attractionTo(that: Body): Force = {
+    val magnitude =
+      this.mass * that.mass / (this.position squareTo that.position)
+    (this.position directionTo that.position) * magnitude
+  }
 
+  /** Move to the next state */
+  def nextState(force: Force): Unit
+
+  /**
+    *   The controlling PROC of this body
+    */
+  val controller:   PROC
+
+  /**
+    *   The port on which to instruct this body
+    */
+  val instructions: !![Message]
 
 }

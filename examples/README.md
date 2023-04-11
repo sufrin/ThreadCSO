@@ -232,7 +232,7 @@ different parameters during the same display cycle.
 
 A demonstration of pseudo-gravitational particle calculations done
 by several workers in lock-step, coordinated by barriers, with
-(many) parameters of the simulation settable from the GUI.  A
+(many) parameters of the simulation settable from the UserInterface.  A
 description of the technique used for particle computations is given
 in the Particle Computations section of the lecture notes on
 [Synchronous Data Parallel Programming](https://github.com/sufrin/ThreadCSO/blob/main/Lectures/03-dataparallel.pdf).
