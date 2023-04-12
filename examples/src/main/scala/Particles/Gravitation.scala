@@ -1,16 +1,16 @@
 
 import Message._
-import Particles.{ForceVariable, Position}
 import Types._
 import app.OPT._
 import display._
 import io.threadcso._
+import io.threadcso.coerce.UnitProc
 
 /**
   *
   *  Implementing gravitation-like forces can turn out to be rather
   *  inefficient if on every "tick" of the display it is necessary to compute
-  *  all N*N inter-body forces. The cost can be reduced by noting that the force of
+  *  all N*N inter-body forces. The cost and time can be reduced by noting that the force of
   *  "A" on "B" is the opposite of the force of "B" on "A". This is an example
   *  of how such a reduction is implemented. The details are explained
   *  in the lecture notes for particle computations.
@@ -147,7 +147,7 @@ object Gravitation extends App {
       body
       val ahead = deadline - nanoTime
       if (ahead <= 0)
-        GUI.reportOverrun(-ahead.toDouble / t.toDouble)
+        GUI.reportOverrun(-ahead.toDouble)
       else
         sleep(ahead)
   }
@@ -175,10 +175,11 @@ object Gravitation extends App {
 
     def worker(identity: Int, ownedParticles: Seq[Int]): PROC =
       proc(s"worker($identity)") {
+        var ticks, lastMX = 0
         // initialize
         val localForce = localForces(identity)
         for (pid <- 0 until Particles) localForce(pid) = new ForceVariable()
-        println(s"$identity owns $ownedParticles")
+        // println(s"$identity owns $ownedParticles")
         barrier.sync(identity)
 
         // work
@@ -192,6 +193,13 @@ object Gravitation extends App {
 
             val force =
               (p attractionTo q) * GUI.G * (if (p touches q) GUI.bodyBounce else 1.0)
+                ticks += 1
+                if ((ticks - lastMX > 10) && GUI.massExchange && (p touches q) && (p.mass < q.mass)) {
+                  lastMX = ticks
+                  val deltaMass = q.mass * 0.2
+                  GUI.report(s"MX: $deltaMass")
+                  run(p.instructions!DeltaD(deltaMass / p.vol) || q.instructions!DeltaD(-deltaMass / q.vol))
+                }
 
             localForce(pid)   += force
             localForce(other) -= force

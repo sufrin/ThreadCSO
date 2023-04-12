@@ -1,12 +1,12 @@
+import Message._
+import Types._
 import app.OPT._
 import display._
 import io.threadcso._
-import Types._
-import Message._
 
 /**
   *
-  *  This little, almost pointless, example was intended to let us explore the practicality of working
+  *  This little, almost pointless, example was intended to explore the practicality of working
   *  with autonomous interacting bodies that have different characteristics, when
   *  their interactions are governed by physical as well as logical laws.
   *
@@ -14,24 +14,15 @@ import Message._
   *  body, namely "Immobiles" which have mass but can't move, and "Spheres" which
   *  have mass and can move.
   *
-  *  In contrast with the `Particles` example, which exemplifies barrier-mediated
+  *  In contrast with the `Gravitation` example, which exemplifies barrier-mediated
   *  concurrency in which all objects (including the display) are controlled by
   *  workers that run in synchrony, this example associates each body with its own
-  *  "internal" controller.
-  *
-  *  Implementing gravitation-like forces can turn out to be rather
-  *  inefficient if on every "tick" of the display it is necessary to compute
-  *  all N*N inter-body forces. The cost can be reduced by noting that the force of
-  *  "A" on "B" is the opposite of the force of "B" on "A". The detail is left as an
-  *  exercise.
-  *
+  *  "internal" controller that computes its new state on receiving `Tick` messages.
   *
   */
 object Autonomous extends App {
 
-
-
-  val Command = "Autonomous"
+  val Command = "Particles"
 
   val allBodies = new collection.mutable.Queue[Body]
 
@@ -49,8 +40,12 @@ object Autonomous extends App {
     for { body <- allBodies } effect(body)
   }
 
-  val Options = List(
+  var NumberOfSpheres: Int = 0
+  var NumberOfImmobiles: Int = 0
 
+  val Options = List(
+    OPT("s", NumberOfSpheres,   "«int» number of mobile spheres"),
+    OPT("i", NumberOfImmobiles, "«int» number of immobiles"),
   )
 
 
@@ -144,7 +139,7 @@ object Autonomous extends App {
                    launchBody(new Immobile(20, new Position(mouseX, mouseY), new Velocity(0, 0, 0), GUI))
               case VK_SPACE  =>
                    GUI.setRunning(!running)
-                   if (running) GUI.report("")
+                   if (running) GUI.report(s"${allBodies.length} bodies")
                    changed = false
               case VK_A if CONTROL && !running  =>
                     forAllBodies { body => body.selected = true }
@@ -183,7 +178,7 @@ object Autonomous extends App {
       body
       val ahead = deadline - nanoTime
       if (ahead <= 0)
-        GUI.reportOverrun(-ahead.toDouble / t.toDouble)
+        GUI.reportOverrun(-ahead.toDouble)
       else
         sleep(ahead)
     }
@@ -195,17 +190,20 @@ object Autonomous extends App {
 
       // Seed the world
       if (allBodies.isEmpty) {
-        //allBodies += new Sphere(90, new Position(width * 0.5, height * 0.33), new Velocity(-1, +1, 0))
+        val NumberOfBodies = NumberOfImmobiles + NumberOfImmobiles
+        for { i<-0 until NumberOfSpheres }
+          allBodies += new Sphere(10 + (2*allBodies.length min (GUI.width / NumberOfBodies)),
+            new Position(math.random() * GUI.width, math.random() * GUI.height),
+            new Velocity(0, 0, 0), GUI)
+
+        for { i<-0 until NumberOfImmobiles }
+          allBodies += new Immobile(10 + (2*allBodies.length min (GUI.width / NumberOfBodies)),
+            new Position(math.random() * GUI.width, math.random() * GUI.height),
+            new Velocity(0, 0, 0), GUI)
       }
 
 
       val displayController: PROC = proc("DisplayController") {
-        // set up the bodies
-        for {body <- allBodies} {
-          for {other <- allBodies if other ne body} {
-            body.instructions ! AddBody(other)
-          }
-        }
 
         for {body <- allBodies} body.controller.fork
 

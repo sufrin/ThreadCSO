@@ -148,7 +148,7 @@ being adjacent, as are the left and right edges.
 #### Your task 
 
 Your task is to implement the Game of Life. Your program should use
-$p$ processes to update the cells on each generation. You will
+`p` processes to update the cells on each generation. You will
 probably want to allocate some region of the grid to each process.
 
 There are two essentially different ways to structure the program:
@@ -223,109 +223,171 @@ controller, and the keyboard.
 
 Birds and the display synchronise on a barrier (twice per displayed frame), and the
 keyboard communicates by a channel with the interaction controller that can
-set the bird parameters.  There is no synchronisation involved here,
+set the flock characteristics.  There is no synchronisation involved here,
 though a purist might complain that different birds might thereby read
-different parameters during the same display cycle.  
+different parameters during the same display cycle.
 
-### Particles
+Usage (from sbt) is:
 
+`runMain Boids` [*args*]
+
+Each *arg* specifies wither the flock size (as a number), the window dimensions (*width*`x`*height*),
+or one of the flock characteristics.
+
+If no *args* are given then the flock characteristics and window size are taken to be
+
+   250 1000x700 R=40 S+ A+ drag=0.900 co=0.00200 se=8.00 al=0.0500 f=0.750 r=0150 V=10.0 v=5.00
+
+Flock characteristics are as follows:
+
+          drag=0.9      drag coefficient
+          co=0.001      Cohesiveness
+          se=8.0        Min separation
+          al=0.05       Tendency to align with visible neighbours
+          f=0.7500      Field of vision (as a fraction of π)
+          r=150.0       Range of vision
+          V=10.0        Max velocity
+          v=5.0         Min velocity  
+
+They are changed from the keyboard by typing (individually or together) commands of the form
+
+*characteristic*`=`*value*
+
+For example:
+
+          f=0.25 r=50.0
+
+reduces the field and range of vision of the birds.
+
+Additional parameters pertain to the details of the simulation. Apart from `R` they
+appear to have little effect.
+
+          S+            synchronising (+) or not (-)
+          A+            antialiasing (+) or not (-)
+          R=40          frame rate (ms/frame)
+
+### Gravitation
 
 A demonstration of pseudo-gravitational particle calculations done
-by several workers in lock-step, coordinated by barriers, with
-(many) parameters of the simulation settable from the UserInterface.  A
+by several workers in lock-step, coordinated by barriers. A
 description of the technique used for particle computations is given
 in the Particle Computations section of the lecture notes on
 [Synchronous Data Parallel Programming](https://github.com/sufrin/ThreadCSO/blob/main/Lectures/03-dataparallel.pdf).
 
   
-  1. The particles move in a closed container with energy absorbent
-  walls. 
-
-  1. There is an upper bound on the speed to which they can accelerate
-
-  1. Clicking on a particle increases its density by an order of
-  magnitude (and changes its hue "redward". The mass of a particle
-  is calculated in the usual way from its radius, *viz*:
-  density×(4/3)πR&#x00B3;
+  * The number of particles is the product of the number of
+  worker processes and twice the "quota" of particles for each
+  worker.
   
-  1. Control-clicking on a particle  decreases its density by an order of magnitude.
+  * The particles move in a closed container with energy absorbent
+  walls.
+
+  * Denser particles are darker.
+
+  * The simulation can be stopped or started from the GUI
+  by pressing the space bar or clicking on the "Running" checkbox.
+
+  *  When the simulation is stopped, individual particles can be selected
+  by mouse clicking on them. A mouse click away from any particle clears
+  the selection; otherwise each mouse click adds to the selection. Clicking
+  on a particle with the Ctrl/Cmd shift pressed deselects the particle
+  if it was selected, and selects it if it wasn't selected. Ctrl-A (and
+  Cmd-A) selects all particles. 
+
+  The density, radius or velocity of selected particles can be changed by
+  rotating the mousewheel in the appropriate direction, with the
+  appropriate radiobutton (Radius/Density/Speed) selected. 
+
+
+Several parameters are dynamically settable from the GUI.  
+
+  1. `C` is the upper bound on the speed to which particles can accelerate
+
+  1. `Wall` is the coefficient of restitution of walls.
+
+  1. `Bounce` is the "bounciness" of particles. Initially set to a
+  factor that almost reverses the force on particles that are
+  touching/overlapping.
   
-  1. One or more particles can be selected (or deselected) by Shift-clicking.
-
-  1. When the simulation is not running, selected particles can be
-     nudged, by using the direction keys on the keyboard. Their radius
-     can be decreased by pressing `1`, or  increased by pressing `2`.
-     Radii of *all* particles is decreased (increased) by pressing
-     control-`1` (control-`2`).
-
-
-  1. Coefficients of restitution of walls and particles can be set
-     interactively or as the application begins.
-
-  1. δt is the simulated elapsed time between computed frames
+  1. δt is the simulated elapsed time between computed frames.
 
   1. FPS is the (target) number of frames to be shown per elapsed
-  second of real time This is really here to test the efficiency
+  second of real time. This is really here to test the efficiency
   of our scala code, and under some circumstances it may not be
-  reached; but this doesn't damage the simulation.
+  reached; but this doesn't damage the simulation. Feedback is given
+  in the "Overrun" field of the user interface: the number given
+  is the average  of the last 100 overrun times (in μs) since FPS
+  changed.
 
-  1. The number of particles is the product of P (the number of
-  worker processes), and 2×S (the number of particles managed per
-  worker process). 
- 
+  
 Usage (from sbt) is
 
-`package examples; runMain Particles` [*args*], where each *arg* is one of
+`runMain Particles` [*args*], where each *arg* is one of
 
-   S «S: int» (default 1) each worker manages 2xS particles
-
-   P «P: int» (default 4) number of worker processes
-
-   t «∂t: double» (default 3.0) time quantum for simulation
-
-   s «scale: int» (default -11) order of magnitude of 'gravitational' constant: G = 6.79E<scale>
-
-   W «Wall: double» (default 0.9) When it hits a wall a particle's momentum *= -Wall.
-
-   B «Ball: double» (default 1.0) force multiplier for touching particles [negative => repulsion]
-
-   FPS «FPS: int» (600) frames to be shown per second (target value)
-
-   w=«int» (800) width of the arena (units)
-
-   h=«int» (700) height of the arena (units)
-
-   C «CF: double» (16.0) particle speed is limited to `|`(width/CF∂t, height/CF∂t)`|`.
-
-   -d enable the debugger (false)
-
-   `--` the remaining parameters are taken to be particle specifications of the form `<radius>@<x>,<y>`.
-
-A total of 2×P×S particles participates in the simulation. The
-initial positions of the non-specified particles are chosen randomly.
-Their initial radii are intended to give a decent range that depends
+        q num -- each worker manages 2xnum particles
+        w num -- number of workers is num
+   
+The initial position and radii of most particles is chosen randomly.
+Initial radii are intended to give a decent range that depends
 on the numbers of particles and the width of the display.
 
 
-Default example
+Example:
 
-        runMain Particles                          # 4 workers 8 particles
+  * 4 workers 8 particles
 
-This is the one to play with first. Try making one of the particles very dense; then try setting
-`Repel`, and/or setting the wall's momentum multiplier to a fraction > 1.
+        runMain Gravitation                          
+
+This is the one to play with first. Try making one of the particles
+very dense; then try setting `Repel`, and/or setting the wall's
+momentum multiplier to a fraction > 1.
 
 Other examples:
 
-  * Two very large particles managed by a single worker
+  * 2 particles managed by a single worker
 
-        runMain Particles P 1 -- 250@150,150 40@200,200
+        runMain Gravitation w 1 q 1
 
-  * Larger numbers of particles
+  * 512 particles 
   
-        runMain Particles s -9 P 40                # 80 particles, G = 6.79E-9
-        runMain Particles S 4  P 40  w=1800 h=1000 # 320 particles, G = 6.79E-11 
+        runMain Gravitation w 32 q 8
 
 Things can get a bit hectic when gravitation is high and there are lots of
-particles; but you can moderate behaviour from the control panel of the
-viewer. 
+particles; but you can moderate behaviour from the GUI.
 
+When the `MX` (mass exchange) feature is set and a heavy particle
+and a lighter particle intersect for 5 ticks or more, about 20% of
+the heavier particle's mass is transferred to the lighter particle.
+
+### Autonomous
+
+A like `Gravitation`, save that each body is
+simulated by its own process that (by default) computes its next
+visible state when it receives `Tick` messages from the controller.
+There are (presently) two distinct kinds of body, namely sphere and immobile;
+but the programme framework is set up to support more than just
+these kinds.
+
+The `Gravitation` interface is supplemented as follows:
+
+
+  1. Selected particles are deleted in response to `Delete` or `Backspace`.
+
+  2. Immobile particles are added at the cursor in response to `z`, and mobile
+  particles are added in response to `a`.
+
+
+Example:
+
+  * No preset immobiles or spheres
+
+        runMain Autonomous
+
+
+  * 20 immobiles, 128 spheres
+
+        runMain Autonomous i 20 s 128
+
+The initial position of each body is chosen randomly.
+Initial radii are intended to give a decent range that depends
+on the numbers of particles and the width of the display.

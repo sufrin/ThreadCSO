@@ -31,11 +31,18 @@ trait Body extends Displayable {
     new Color(greyness, greyness, 0.5f, 0.3f)
   }
 
-  /** Calculate the force attraction on this particle by that particle: multiple of G */
+  /**
+    * Calculate the force on this particle by that particle: multiple of G
+    * For simplicity (!) ultra-close bodies are deemed to have an attraction
+    * of magnitude zero.
+    */
   def attractionTo(that: Body): Force = {
-    val magnitude =
-      this.mass * that.mass / (this.position squareTo that.position)
-    (this.position directionTo that.position) * magnitude
+    val dist = this.position squareTo that.position
+    val magnitude = this.mass * that.mass / dist
+    if (magnitude==Double.PositiveInfinity)
+      Vector.Value.Zero
+    else
+      (this.position directionTo that.position) * magnitude
   }
 
   /** Move to the next state */

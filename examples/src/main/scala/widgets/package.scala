@@ -23,6 +23,10 @@ import javax.swing.border.Border
   * been our watchword. Moreover, we have -- through haste not conviction --
   * taken a somewhat cavalier approach to the subtleties of the Scala type
   * system.
+  *
+  * In the few situations where we *know empirically* that a method of the standard Swing
+  * toolkit may block, and thereby cause  a deadlock, we override the method by one
+  * that uses `SwingUtilities.invokeLater`.
   */
 
 package object widgets {
@@ -358,7 +362,12 @@ package object widgets {
     */
   abstract class JTextField(text: String, cols: Int)
       extends javax.swing.JTextField(text, cols)
-      with ActionWidget[JTextField] {}
+      with ActionWidget[JTextField] {
+    override def setText(text: String): Unit = {
+      // Avoid getting stuck behind a lock
+      SwingUtilities.invokeLater { () => super.setText(text) }
+    }
+  }
 
   /** A label (with an optional Icon) */
   class JLabel(name: String, icon: Icon*)

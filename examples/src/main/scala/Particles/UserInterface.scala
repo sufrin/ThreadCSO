@@ -1,7 +1,19 @@
 import display._
 import io.threadcso._
 
-class UserInterface(val allBodies: collection.mutable.Queue[Body]) {
+/**
+  *
+  * A window frame that includes a `Display` used to display a collection of `Displayable`
+  * `Body`s as well as a few controls that determine the (mostly physical) characteristics
+  * of the bodies.
+  *
+  * `allBodies` is the (mutable) collection of bodies that is to be displayed on each frame.
+  * The collection may change between frames.
+  *
+  * `title` is the title to be placed on the window.
+  *
+  */
+class UserInterface(val allBodies: collection.mutable.Queue[Body], val title: String="") {
 
   var deltaT: Double = 1.0
   var bodyBounce: Double = -0.9
@@ -31,7 +43,7 @@ class UserInterface(val allBodies: collection.mutable.Queue[Body]) {
 
   var repelling = 1.0
 
-  var massExchange: Boolean = true
+  var massExchange: Boolean = false
 
   val gravity = row(
     label("6.79E"),
@@ -61,7 +73,8 @@ class UserInterface(val allBodies: collection.mutable.Queue[Body]) {
   } withTitledBorder ("∂T") withTip ("Simulated time increment")
 
   val fps = spinner(FPS, 0, 600, 20) { value =>
-    FPS = value + 1
+    FPS     = value + 1
+    overRun = 0.0
   } withTitledBorder ("FPS") withTip ("Target number of frames per (real) second")
 
   val lightspeed = spinner(C, 10.0, 200.0, 5) { value =>
@@ -85,18 +98,26 @@ class UserInterface(val allBodies: collection.mutable.Queue[Body]) {
     display.draw(syncWait = false)
   }
 
-  val radius = radioButton("Radius", true) { state => }
+  val radius  = radioButton("Radius", true) { state => }
   val density = radioButton("Density", false) { state => }
-  val speed = radioButton("Speed", false) { state => }
+  val speed   = radioButton("Speed", false) { state => }
   val feature = buttonGroup(radius, density, speed)
 
 
-  val overruns = label(" " * 60)
-  val reports = label(" " * 60)
+  val overruns = textField("", 10){_=>}.withTitledBorder("Average overrun μs").withTip("Average frame overrun time since the last FPS adjustment")
+  val reports = textField("", 60){_=>}.withTitledBorder("Reports")
+
+  /** Accumulated overrun in nanoseconds since the last FPS change */
+  var overRun:   Double = 0.0
+  var overCount: Int    = 0
 
   def reportOverrun(behind: Double): Unit = {
-    val text = overruns.getText + f"$behind%1.1f "
-    overruns.setText(if (text.length < 50) text else f"** $behind%1.1f ")
+    overRun += behind
+    overCount = (overCount + 1) % 100
+    if (overCount==1) {
+      overruns.setText(f"${overRun/100E6}%3.2f")
+      overRun = 0.0
+    }
   }
 
   def report(message: String): Unit = {
@@ -123,7 +144,7 @@ class UserInterface(val allBodies: collection.mutable.Queue[Body]) {
 
   val display = new Display[Body](
     allBodies,
-    "Bodies",
+    title,
     width = width,
     height = height,
     events = fromDisplay,
@@ -131,6 +152,7 @@ class UserInterface(val allBodies: collection.mutable.Queue[Body]) {
     components = fromDisplay,
     motions = fromDisplay,
     North = controls,
-    South = row(reports withTitledBorder "Reports", hGlue, overruns withTitledBorder "Overruns")
+    South = row(reports, hGlue, overruns)
   )
+
 }

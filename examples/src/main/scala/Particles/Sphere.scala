@@ -111,7 +111,7 @@ class Sphere(
     val others = new collection.mutable.Queue[Body]
     var lastMassExchange, ticks = 0
     repeat (true) {
-      instructions ? {
+      instructions ?? {
         case DeltaD(delta: Double) =>
           density = density + delta
         case DeltaR(delta: Double) =>
