@@ -13,7 +13,7 @@ import io.threadcso._
   * `title` is the title to be placed on the window.
   *
   */
-class UserInterface(val allBodies: collection.mutable.Queue[Body], val title: String="") {
+class ParticleDashboard[Body<:Displayable](val allBodies: collection.mutable.Queue[Body], val title: String="") {
 
   var deltaT: Double = 1.0
   var bodyBounce: Double = -0.9

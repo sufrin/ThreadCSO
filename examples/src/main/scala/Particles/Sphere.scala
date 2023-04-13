@@ -5,10 +5,10 @@ import io.threadcso._
 import java.awt.{Color, Graphics2D}
 
 class Sphere(
-            var _R:        Double,
-            val position:  Position,
-            val velocity:  Velocity = new Velocity(),
-            val context:   UserInterface,
+              var _R:        Double,
+              val position:  Position,
+              val velocity:  Velocity = new Velocity(),
+              val context:   ParticleDashboard[Body],
           ) extends Body { self =>
 
   override def toString: String = f"Sphere($R%3.2f@$density%3.2f=$mass%3.2g, $position%s, $velocity%s)"
