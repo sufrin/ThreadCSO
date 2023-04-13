@@ -72,15 +72,9 @@ class UserInterface(val allBodies: collection.mutable.Queue[Body], val title: St
     deltaT = value
   } withTitledBorder ("∂T") withTip ("Simulated time increment")
 
-  val fps = spinner(FPS, 0, 600, 20) { value =>
-    FPS     = value + 1
-    overRun = 0.0
-  } withTitledBorder ("FPS") withTip ("Target number of frames per (real) second")
-
   val lightspeed = spinner(C, 10.0, 200.0, 5) { value =>
     C = value
   } withTitledBorder ("C") withTip ("Maximum simulated velocity")
-
 
   // a change in state to true signals the display controller
   val run = checkBox("Running", running) { state =>
@@ -98,14 +92,20 @@ class UserInterface(val allBodies: collection.mutable.Queue[Body], val title: St
     display.draw(syncWait = false)
   }
 
-  val radius  = radioButton("Radius", true) { state => }
-  val density = radioButton("Density", false) { state => }
-  val speed   = radioButton("Speed", false) { state => }
-  val feature = buttonGroup(radius, density, speed)
-
-
+  val radius   = radioButton("Radius", true) { state => }
+  val density  = radioButton("Density", false) { state => }
+  val speed    = radioButton("Speed", false) { state => }
+  val feature  = buttonGroup(radius, density, speed)
   val overruns = textField("", 10){_=>}.withTitledBorder("Average overrun μs").withTip("Average frame overrun time since the last FPS adjustment")
-  val reports = textField("", 60){_=>}.withTitledBorder("Reports")
+  val reports  = textField("", 60){_=>}.withTitledBorder("Reports")
+
+  val fps = spinner(FPS, 0, 600, 10) {
+    value =>
+        FPS       = value + 1
+        overRun   = 0.0
+        overCount = 0
+        overruns.setText("None")
+  } withTitledBorder ("FPS") withTip ("Target number of frames per (real) second")
 
   /** Accumulated overrun in nanoseconds since the last FPS change */
   var overRun:   Double = 0.0

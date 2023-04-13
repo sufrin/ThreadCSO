@@ -192,14 +192,16 @@ object Autonomous extends App {
       if (allBodies.isEmpty) {
         val NumberOfBodies = NumberOfImmobiles + NumberOfImmobiles
         for { i<-0 until NumberOfSpheres }
-          allBodies += new Sphere(10 + (2*allBodies.length min (GUI.width / NumberOfBodies)),
-            new Position(math.random() * GUI.width, math.random() * GUI.height),
-            new Velocity(0, 0, 0), GUI)
+          allBodies +=
+            new Sphere(20+math.random()*30,
+                       new Position(math.random() * GUI.width, math.random() * GUI.height),
+                       new Velocity(0, 0, 0), GUI)
 
         for { i<-0 until NumberOfImmobiles }
-          allBodies += new Immobile(10 + (2*allBodies.length min (GUI.width / NumberOfBodies)),
-            new Position(math.random() * GUI.width, math.random() * GUI.height),
-            new Velocity(0, 0, 0), GUI)
+          allBodies +=
+            new Immobile(20+math.random()*30,
+                         new Position(math.random() * GUI.width, math.random() * GUI.height),
+                         new Velocity(0, 0, 0), GUI)
       }
 
 
@@ -211,8 +213,8 @@ object Autonomous extends App {
           takeTime(seconds(1.0 / GUI.FPS)) {
             // draw the display
             GUI.display.draw()
-            // advance each body's clock: concurrently
-            run(||(for { body <- allBodies } yield proc { body.instructions ! Tick }))
+            // advance each body's clock concurrently
+            run(||(for { body <- allBodies } yield π { body.instructions ! Tick }))
           }
           if (!running) { GUI.singleFrame?() }
         }

@@ -13,6 +13,7 @@ import scala.collection.mutable.TreeMap
   * are for scala sources of the present package. The first run in every sequence is the
   * "warm-up" run (where JIT compilation of hotspots will tkae place).
   *
+  * {{{
   * 1931 % ./runexample Digest -t 5 -r 15 -d 15 `findscala`
   * -r 15 -d 15: (109 files, 3773 words / 11536 digested) Digested, Merged: 00.111,525, 00.130,322 241848237
   * -r 15 -d 15: (109 files, 3773 words / 11416 digested) Digested, Merged: 00.054,520, 00.059,504 114025067
@@ -43,6 +44,7 @@ import scala.collection.mutable.TreeMap
   * -r 10 -d 10: (109 files, 3773 words / 10360 digested) Digested, Merged: 00.021,772, 00.027,687 49459945
   * -r 10 -d 10: (109 files, 3773 words / 10446 digested) Digested, Merged: 00.015,168, 00.027,952 43120717
   * -r 10 -d 10: (109 files, 3773 words / 10754 digested) Digested, Merged: 00.016,485, 00.021,835 38321822
+  * }}}
   */
 
 object Digest extends App {

@@ -32,9 +32,11 @@ trait Body extends Displayable {
   }
 
   /**
-    * Calculate the force on this particle by that particle: multiple of G
-    * For simplicity (!) ultra-close bodies are deemed to have an attraction
-    * of magnitude zero.
+    * Calculate the "gravitational" force exerted on this body by that body as a multiple of G.
+    *
+    * Ultra-close bodies are deemed to have an attraction of magnitude zero.
+    *
+    * For a rationale see the Shell Theorem: https://en.wikipedia.org/wiki/Shell_theorem
     */
   def attractionTo(that: Body): Force = {
     val dist = this.position squareTo that.position

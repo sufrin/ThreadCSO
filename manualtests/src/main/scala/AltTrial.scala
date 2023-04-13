@@ -1,4 +1,3 @@
-import io.SourceLocation._
 import io.threadcso._
 
 /** <p> A mixin to deal with common argument-parsing matters that arise in
@@ -8,7 +7,7 @@ import io.threadcso._
   * a test. See the tests themselves for detail.
   * {{{
   * -d    (debugger)
-  * -b=0  (buffer radius -- 0 means use a OneOne)
+  * -b=0  (buffer size -- 0 means use a OneOne)
   * -a=0  (count of arguments to synthesise)
   * -mn=4 (alternation branching factor)
   * -wp=0 (microSleep for writing)
@@ -91,7 +90,7 @@ abstract class AltTrial(implicit loc: SourceLocation) {
         println(s"""Arguments must match one (or more) of:
             -Kpoolkind (set the default executor)
             -d (debugger)
-            -b=$bufferSize (buffer radius)
+            -b=$bufferSize (buffer size)
             -a=$nargs (count of arguments to synthesise)
             -mn=$mn (alternation branching factor)
             -wp=$wp (microSleep for writing)
@@ -285,7 +284,8 @@ object AltQuorum extends AltTrial() {
   * `orelse` logic. Expected output: one line per argument then SENT, then ELSE,
   * then DONE.</p>
   */
-object Alt0 extends AltTrial() {
+object Alt0 extends AltTrial()
+ {
   val a = OneOne[String]("a")
   def MAIN(args: Seq[String]): Unit = {
     (π { for (arg <- args) { a ! arg }; println("SENT"); a.closeOut() }
@@ -479,24 +479,34 @@ object Alt1A extends AltTrial {
 /** <p> Same as Alt1 except that the channel `c` is replaced by a collection of
   * `mn` channel, and the single outport event in the serve loop replaced by a
   * corresponding collection.
+  *
   * {{{
-  * (  π ("a") { repeat { println(s"a ! \${a?()}"); microSleep(wr, wa)  } }
-  * || π ("b") { repeat { println(s"b ! \${b?()}"); microSleep(wr, wb)  } }
+  * (  π ("a") {
+  *      repeat { println(s"a ! \${a?()}"); microSleep(wr, wa)  }
+  *    }
+  * || π ("b") {
+  *      repeat { println(s"b ! \${b?()}"); microSleep(wr, wb)  }
+  *    }
   * || π ("writer")
   * { for (c <- chans)
   * { for (arg<-args) { c!s"\${c.name}.\$arg"; sleep(wp*microSec) } ;  c.closeOut()  }}
   * || π ("server")
   * { var arg  = a.nothing
-  * var full = false
-  * serve ( (full && b.outPort) =!=> { full = false; arg }
-  * | (full && a.outPort) =!=> { full = false; arg }
-  * | |(for (c <- chans) yield (!full && c.inPort) =?=> { v => arg = v; full = true })
-  * | after(ws * microSec) ==> { Console.print("*") }
-  * )
-  * a.closeOut()
-  * b.closeOut()
+  *   var full = false
+  *   serve ( (full && b.outPort) =!=>
+  *           { full = false; arg }
+  *         | (full && a.outPort) =!=>
+  *           { full = false; arg }
+  *         | |(for (c <- chans) yield (!full && c.inPort) =?=>
+  *                 { v => arg = v; full = true })
+  *         | after(ws * microSec) ==>
+  *                 { Console.print("*") }
+  *         )
+  *   a.closeOut()
+  *   b.closeOut()
   * }
   * )
+  *
   * }}}
   */
 object AltM extends AltTrial {
