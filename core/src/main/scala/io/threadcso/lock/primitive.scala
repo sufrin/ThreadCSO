@@ -47,7 +47,8 @@ object primitive {
         a DataChan[Unit], but implemented more efficiently.
     */
     class UnitChan(name: String = null) extends Chan [Unit] {
-      private val sema = BooleanSemaphore(false, name)
+      override def toString: String = s"UnitChan($name)"
+      private val sema = BooleanSemaphore(false, name, parent=this)
       @inline def read(): Unit   = sema.acquire()
       @inline def write(t: Unit) = sema.release()     
     }
@@ -58,38 +59,60 @@ object primitive {
     }
 
 
-    /**
-        An initially-EMPTY primitive.Chan[T] implemented as a monitor.
-
-        TODO: reimplement more efficiently using semaphores.
-    */    
-    class DataChan[T](name: String = null) extends Chan [T] {
-      val monitor         = new Monitor(name)
+  /**
+    *  An initially-EMPTY `primitive.Chan[T]` implemented as a monitor.
+    */
+  class DataChanMonitor[T](name: String = null) extends Chan[T] {
+      val monitor = new Monitor(name)
       val isEmpty, isFull = monitor.newCondition
 
       // DTI: empty => buffer==null
-      var buffer: T       = _
-      var empty:  Boolean = true     
-    
+      var buffer: T = _
+      var empty: Boolean = true
+
       def read(): T = monitor.withLock {
-          while (empty) isFull.await(!empty)
-          val res = buffer
-          empty = true
-          buffer = null.asInstanceOf[T]
-          isEmpty.signal()
-          res
+        while (empty) isFull.await(!empty)
+        val res = buffer
+        empty = true
+        buffer = null.asInstanceOf[T]
+        isEmpty.signal()
+        res
       }
-    
+
       def write(datum: T) = monitor.withLock {
-          while (!empty) isEmpty.await(empty)
-          empty  = false
-          buffer = datum
-          isFull.signal()
+        while (!empty) isEmpty.await(empty)
+        empty = false
+        buffer = datum
+        isFull.signal()
       }
-      
     }
 
-    object DataChan {
+  /**
+    * An initially-EMPTY `primitive.Chan[T]` implemented with semaphores.
+    */
+  class DataChan[T](name: String = null) extends Chan[T] {
+    override def toString: String = s"DataChan($name)"
+    val isFull  = new BooleanSemaphore(false, s"$name.isFull", false, this)
+    val isEmpty = new BooleanSemaphore(true, s"$name.isEmpty", false, this)
+
+    var buffer: T = _
+
+    def read(): T = {
+      isFull.acquire()
+      val res = buffer
+      buffer = null.asInstanceOf[T]
+      isEmpty.release()
+      res
+    }
+
+    def write(datum: T) = {
+      isEmpty.acquire()
+      buffer = datum
+      isFull.release()
+    }
+  }
+
+  object DataChan {
       @inline def apply[T](name: String = null): DataChan[T] =
         new DataChan[T](name)
     }

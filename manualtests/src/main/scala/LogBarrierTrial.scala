@@ -33,7 +33,7 @@ import io.threadcso.lock.LogBarrier
 object LogBarrierTrial 
 {
   import io.threadcso.debug.Logger
-  val log = Logger("LogBarrier", 200)
+  val log = Logger("LogBarrierTrial", 200)
   def main(args: Array[String]): Unit = {
     var N = 5
     var stallC, stallU = -1
@@ -50,7 +50,7 @@ object LogBarrierTrial
       else {
         println(
           """Usage: -d start debugger   | 
-             <int> -- radius of problem | 
+             <int> -- size of problem |
              -s -- use a single barrier | 
              -u=<n> -- forget update sync at round <n> | 
              -c=<n> forget compute sync at round <n>"""
@@ -103,7 +103,7 @@ object LogBarrierTrial
   *
   * The program runs N agents, each of whom decrements an internal
   * counter (initialized to its identity) until the consensus is
-  * that the sum of the counters is <=0. Agent 0 prints the
+  * that the sum of the counters is nonpositive. Agent 0 prints the
   * consensus sum at each round.
   *
   * A stall can be provoked by agent N/2 on the round given by `-s=theRound`,
@@ -157,7 +157,7 @@ object CombiningLogBarrierTrial
           sleep(seconds(0.5*scala.util.Random.nextDouble()))
           var tot = 0
           if (round==stall && me==N/2) {
-              println(s"$me stalling")
+              println(s"($me stalling)")
           }
           else
             tot = cb.sync(me)(local)

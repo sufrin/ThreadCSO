@@ -56,10 +56,13 @@ class CombiningLogBarrier[T](n: Int, e: T, op: (T, T) => T, _name: String = null
   val name = if (_name==null) s"CombiningLogBarrier($n)" else _name
 
   assert(n >= 1)
+  private var r, g = -1
+
   /** thread signals parent that it's ready */
-  val ready = Array.fill(n)(DataChan[T](s"$name.ready"))
+  val ready = Array.fill(n)({ r+=1; DataChan[T](s"$name.ready($r)") })
+
   /** parent signals thread that it can proceed */
-  val go    = Array.fill(n)(DataChan[T](s"$name.go"))
+  val go    = Array.fill(n)({ g+=1; DataChan[T](s"$name.go($r)")})
   
   @inline private def left(id: Int): Int  = 1+2*id
   @inline private def right(id: Int): Int = 2+2*id
