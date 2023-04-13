@@ -11,7 +11,7 @@ of **threadcso** itself, can be found in the accompanying [lecture
 notes](https://github.com/sufrin/ThreadCSO/Lectures).*
 
 
-Bernard Sufrin, Oxford. 2011, 2017, 2023
+Bernard Sufrin, Oxford. 2007, 2011, 2017, 2023
 
 ## Solutions to Practicals
 
@@ -106,10 +106,8 @@ results.
 ### Life (Conway's Game of Life)
 
 The aim of this practical is to implement the Game of Life, a cellular
-automaton invented by John Conway in 1970. The Wikipedia entry on Life
-
-        http://en.wikipedia.org/wiki/Conway's_Game_of_Life
-
+automaton invented by John Conway in 1970. The 
+[Wikipedia entry on Life](http://en.wikipedia.org/wiki/Conway's_Game_of_Life)
 describes it as follows:
 
 “The universe of the Game of Life is an infinite two-dimensional
@@ -141,43 +139,26 @@ generations.”
 
 You might want to read the rest of the Wikipedia article.
 
-We will consider a variant with a finite $N$ by $N$ grid, treated as a
+We will consider a variant with a finite rectangular grid, treated as a
 toroid, i.e. where the top and bottom edges of the grid are treated as
 being adjacent, as are the left and right edges.
 
 #### Your task 
 
 Your task is to implement the Game of Life. Your program should use
-`p` processes to update the cells on each generation. You will
+more than one process to update the cells on each generation. You will
 probably want to allocate some region of the grid to each process.
 
 There are two essentially different ways to structure the program:
 
    1. as a shared-variable synchronous data parallel program
 
-   2. as a pure message-passing program with cells represented by individual processes
+   2. as a pure message-passing program with cells 
+   represented by individual processes
 
 In both cases the processes need to be synchronised in some way,
 so that the rules of the game are followed, so you need to think
 carefully about how to avoid race conditions. 
-
-There is a file `Display.scala` (on the course website), which defines a
-`Display` class that can be used to build displays that show the state
-of a grid. A display is created by
-
-        val display = new Display(N, a)
-
-where is an integer, representing the size of the grid, and is the grid,
-represented by an by array of , e.g. initialised by
-
-        val a = Array.ofDim[Boolean](N,N)
-
-The display is made consistent with by executing
-
-        display.draw
-
-This shows solid black squares at positions where $a$ is true, and grey
-squares where it is false.
 
 Test your implementation by considering some interesting seeds (see the
 Wikipedia page to get some ideas).
@@ -191,19 +172,47 @@ example, you could model the interactions between foxes and rabbits.
 Don't make the rules too complicated, though! You could include some
 randomness in the game.
 
-#### Advice (2023)
+#### Solutions
+Two solutions appear here:
 
-Experience suggests suggests that when using kernel threads,
-allocating a process to each square in the grid means that only a
-small grid can be dealt with before the operating system or the jvm
-begins to run out of thread resources. Using virtual threads (as
-provided by recent versions of threadcso) would be a better bet for
-a serious attempt (and we will present one due to Jones and Goldsmith
-(Programming in **occam2**) in due course). Other message-passing
-solutions will have workers working on larger rectangular regions
+1. The implementation **Life**  is a shared-variable 
+synchronous data-parallel program using barrier synchronization.
+
+2. The implementation **Lyfe** is a pure 
+message-passing program, with each cell represented by an
+individual process. 
+
+Usageof the programs (from SBT) is:
+
+`runMain Life -n«count»`     Uses «count» columns and rows in a square, 
+and starts off with a random collection of cells alive.  
+    
+`runMain Lyfe «cols»X«rows» «width»x«height»` Uses «cols» columns 
+and «rows» rows in a rectangle of dimension «width»x«height» pixels.
+
+It starts off with a random collection of cells alive. When run interactively
+from the terminal, the simulation can be stopped and started, and
+cells can be "painted" alive when it is stopped. For details run
+the program with `-h.` 
+
+Other message-passing solutions could have workers working on larger rectangular regions
 of the grid, and exchanging the edges of their regions with neighbour
 workers on every generation.
 
+#### Background
+An early version of the **Lyfe** implementation
+was hampered by the (mandatory) use of kernel threads, and could
+manage only a relatively small grid. Before the
+advent of *virtual threads* we had written:
+"Experience suggests suggests that when using kernel threads,
+allocating a process to each square in the grid means that only a
+small grid can be dealt with before the operating system or the jvm
+begins to run out of thread resources or gets swamped by 
+context-switching overhead."
+and that: 
+"Using virtual threads would be a better bet for
+a serious attempt (and we will present one due to Jones and Goldsmith
+(Programming in **occam2**) in due course)."
 
 ## Additional Examples
 

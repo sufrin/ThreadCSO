@@ -43,7 +43,7 @@ object Gravitation extends App {
   )
 
   
-  object GUI extends UserInterface(allBodies)
+  object GUI extends ParticleDashboard(allBodies)
 
   @inline private def running: Boolean = GUI.running
     /**

@@ -9,7 +9,7 @@ class Immobile(
                 var _R: Double,
                 val position: Position,
                 val velocity: Velocity = new Velocity(),
-                val context:  UserInterface
+                val context:  ParticleDashboard[Body]
               ) extends Body { self =>
   override def toString: String = f"Immobile($R%3.2f@$density%3.2f=$mass%3.2g, $position%s, $velocity%s)"
 
