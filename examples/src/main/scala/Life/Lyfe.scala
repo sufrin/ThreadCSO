@@ -244,9 +244,6 @@ object Lyfe extends App {
 
       totalCells = rows * cols
       RADIUS     = R
-      println(s"Effectively: $cols x $rows")
-      allCells = new Cellular[Cell](cols, rows)
-      GUI      = new LyfeDashboard(allCells, title="Lyfe", width=width, height=height)
 
       /**
         *
@@ -307,6 +304,7 @@ object Lyfe extends App {
         }
 
       // set up the cells
+      allCells = new Cellular[Cell](cols, rows)
       locally {
         for {r <- 0 until rows}
           for {c <- 0 until cols}
@@ -334,6 +332,7 @@ object Lyfe extends App {
             }
       }
 
+      GUI = new LyfeDashboard(allCells, title = "Lyfe", width = width, height = height)
 
       // run the bodies, mousemanager, and display concurrently
       (displayController || interactionManager)()

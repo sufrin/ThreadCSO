@@ -53,9 +53,9 @@ class LyfeDashboard[Body<:Displayable](val allBodies: Iterable[Body], val title:
   var overCount: Int = 0
 
   val overruns = textField("", 10) { _ => }.withTitledBorder("Average overrun μs").withTip("Average frame overrun time since the last FPS adjustment")
-  val reports = textField("", 60) { _ => }.withTitledBorder("Reports")
+  val reports  = textField("", 60) { _ => }.withTitledBorder("Reports")
 
-  var FPS: Int    = 25// Frames/second
+  var FPS: Int    = 50 // Frames/second
 
   val fps = {
     def B(value: Int) = widgets.radioButton(f"$value%03d", FPS == value) {
@@ -84,20 +84,20 @@ class LyfeDashboard[Body<:Displayable](val allBodies: Iterable[Body], val title:
   }
 
   def controls = row(
-    run.withEtchedBorder (), fps, hGlue
+    run.withEtchedBorder (), hGlue, fps
   ).withEtchedBorder()
 
   val display = new Display[Body](
     allBodies,
     title,
-    width = width,
+    width  = width,
     height = height,
     events = fromDisplay,
-    keys = fromDisplay,
+    keys   = fromDisplay,
     components = null, // No response to resizings
-    motions = fromDisplay,
-    North = controls,
-    South = row(reports, hGlue, overruns)
+    motions    = fromDisplay,
+    North      = controls,
+    South      = row(reports, hGlue, overruns)
   )
 
 }
