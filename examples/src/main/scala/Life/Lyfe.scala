@@ -6,7 +6,9 @@ import app.OPT._
 import display._
 import io.threadcso._
 
+
 import scala.reflect.ClassTag
+
 
 /**
   *
@@ -17,6 +19,7 @@ object Lyfe extends App {
 
   val Command = "Lyfe"
   type Cell = LyfeCell
+
 
   var allCells: Cellular[Cell] = null
 
@@ -315,8 +318,8 @@ object Lyfe extends App {
 
       val displayController: PROC = proc("DisplayController") {
 
-          // start the cell controllers
-          forAllCells(cell=>cell.controller.fork)
+            // start the cell controllers
+            forAllCells(cell=>cell.controller.fork)
 
             repeat {
                 takeTime(seconds(1.0 / GUI.FPS)) {

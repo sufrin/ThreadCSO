@@ -17,6 +17,7 @@ import io.threadcso._
   * `title` is the title to be placed on the window.
   *
   */
+
 class LyfeDashboard[Body<:Displayable](val allBodies: Iterable[Body], val title: String="", var width: Int = 1200, var height: Int = 800) {
 
   /** Whether the simulation is running or not */

@@ -41,13 +41,13 @@ class LyfeCell(  val x: Double,
     * This process simultaneously broadcasts this cell's state to its neighbours
     * and reads its individual neighbours' states.
     *
-    * If *reading* were done sequentially then there would be no need to
-    * capture the individual neighbours' states and counting could be
+    * Because *reading* is done sequentially there is no need to
+    * capture the individual neighbours' states so counting is
     * done directly.
     */
   val exchangeStates: PROC = {
-    val broadcast = ||(for { nbr <- toNbr}             yield π { nbr ! (lifeTime>0)})
-    val update =    proc { count = 0; for { i <- 0 until neighbours } fromNbr(i)?{ case true => count+=1; case false => } } // ||(for { i <- 0 until neighbours } yield π { neighbourState(i) = fromNbr(i)?() })
+    val broadcast = ||(for { nbr <- toNbr} yield π { nbr ! (lifeTime>0)})
+    val update    = proc { count = 0; for { i <- 0 until neighbours } fromNbr(i)?{ case true => count+=1; case false => } }
     (broadcast || update)
   }
 
@@ -70,7 +70,6 @@ class LyfeCell(  val x: Double,
         count == 3 || (b6 && count == 6)
     }
   }
-
 
   override def paintOn(g: Graphics2D, toPixels: Double=>Int): Boolean = {
     import Color._
@@ -104,6 +103,7 @@ class LyfeCell(  val x: Double,
           exchangeStates()
           val next = nextState
           if (next) lifeTime += 1 else lifeTime=0
+
       }
     }
   }
