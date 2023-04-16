@@ -25,7 +25,7 @@ trait Body extends Displayable {
   val minDensity = 0.1
   val quant = (maxDensity - minDensity)
 
-  def color: Color = {
+  override def color: Color = {
     import math.{abs, log, max, min}
     val greyness = (1.0f - (0.3+density/quant).toFloat) min 1.0f max 0.0f
     new Color(greyness, greyness, 0.5f, 0.3f)

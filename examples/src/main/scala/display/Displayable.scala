@@ -18,7 +18,7 @@ trait Displayable {
   def h: Double
 
   /** Reference colour: need not be meaningful in all applications */
-  def color: Color
+  def color: Color = Color.RED
 
   /** Does the displayable contain the given point (in model coordinates) By
     * default the displayable is identified with its bounding box, but a more
