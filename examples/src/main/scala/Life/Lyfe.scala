@@ -54,6 +54,15 @@ object Lyfe extends App {
     }
   }
 
+  object Cellular {
+    def apply[T](cols: Int, rows: Int)(init: (Int,Int)=>T)(implicit tag: ClassTag[T]): Cellular[T] =
+      { val a = new Cellular[T](cols, rows)
+        for { c<-0 until cols; r<-0 until rows }
+            a(c, r) = init(c, r)
+        a
+      }
+  }
+
   var _cols  = 50
   var _rows  = 40
   var width  = 1000
@@ -299,11 +308,8 @@ object Lyfe extends App {
         }
 
       // set up the cells
-      allCells = new Cellular[Cell](cols, rows)
-      locally {
-        for {r <- 0 until rows}
-          for {c <- 0 until cols}
-            allCells(c, r) = new LyfeCell(c * R, r * R, R, R, linkIn(c)(r), linkOut(c)(r))
+      allCells = Cellular[Cell](cols, rows) {
+        case (c, r) =>  new LyfeCell(c * R, r * R, R, R, linkIn(c)(r), linkOut(c)(r))
       }
 
       // Sends a `Sync` to each cell, concurrently

@@ -206,7 +206,7 @@ object Life {
        }
     }
 
-    println(s"Life -n$N -w$W -f$D (height=${N/W})")
+    println(s"Life -n$N -w$W -f$D (rows/worker=${N/W})")
 
     val life = new Life(N, W, D)
     life.setup(args.filter(_.matches("[A-Za-z0-9]+")).toList)
