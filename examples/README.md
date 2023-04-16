@@ -153,11 +153,11 @@ There are two essentially different ways to structure the program:
 
    1. as a shared-variable synchronous data parallel program
 
-   2. as a pure message-passing program with cells 
+   2. as a pure message-passing program with cells 
    represented by individual processes
 
 In both cases the processes need to be synchronised in some way,
-so that the rules of the game are followed, so you need to think
+so that the rules of the game are followed. You need to think
 carefully about how to avoid race conditions. 
 
 Test your implementation by considering some interesting seeds (see the
@@ -182,20 +182,26 @@ synchronous data-parallel program using barrier synchronization.
 message-passing program, with each cell represented by an
 individual process. 
 
-Usageof the programs (from SBT) is:
+Usage of the programs (from SBT) is:
 
 `runMain Life -n«count»`     Uses «count» columns and rows in a square, 
-and starts off with a random collection of cells alive.  
+and starts off with a random collection of live cells.  
     
 `runMain Lyfe «cols»X«rows» «width»x«height»` Uses «cols» columns 
 and «rows» rows in a rectangle of dimension «width»x«height» pixels.
+If there is room for more columns or rows in the given rectangle, then 
+one of (cols, rows) is increased so as to fill the rectangle.
 
-It starts off with a random collection of cells alive. When run interactively
-from the terminal, the simulation can be stopped and started, and
+The defaults give reasonably good performance; but be aware that
+the fundamental limitation of this approach is that the display is
+a generic component that "polls" each of the cells for its image
+once per generation.
+
+The simulation can be stopped and started, and
 cells can be "painted" alive when it is stopped. For details run
 the program with `-h.` 
 
-Other message-passing solutions could have workers working on larger rectangular regions
+Other message-passing solutions might have workers working on larger rectangular regions
 of the grid, and exchanging the edges of their regions with neighbour
 workers on every generation.
 

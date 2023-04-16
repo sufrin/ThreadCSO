@@ -34,24 +34,19 @@ object Lyfe extends App {
   
   class Cellular[T](val cols: Int, val rows: Int)(implicit tag: ClassTag[T]) extends Iterable[T] {
     val a: Array[T] = Array.ofDim[T](rows*cols)(tag)
+    @inline def apply(n: Int): T = a(n)
+    @inline def apply(c: Int, r:Int): T = a(r*cols+c)
+    @inline def update(c: Int, r: Int, t: T): Unit = { a(r*cols+c) = t }
 
-    def apply(n: Int): T = {
-        a(n)
-    }
-
-    def apply(c: Int, r:Int): T = {
-      a(r*cols+c)
-    }
-
-    def update(c: Int, r: Int, t: T): Unit = {
-      a(r*cols+c) = t
-    }
+    def neighbours(c: Int, r: Int): Seq[(Int, Int)] =
+      for { rd<-List(-1, 0, +1); cd <- List(-1, 0, +1) if (rd!=0 || cd!=0) }
+        yield ((c+cols+cd)%cols, (r+rows+rd)%rows)
 
     override def iterator: Iterator[T] = new Iterator[T] {
       var i = 0
       var t = rows*cols
-      override def hasNext: Boolean = i<t
-      override def next(): T = {
+      def hasNext: Boolean = i<t
+      def next(): T = {
         val v = a(i)
         i += 1
         v
