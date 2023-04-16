@@ -1,5 +1,5 @@
 import javax.swing._
-import java.awt.{BorderLayout, Dimension}
+import java.awt.{BorderLayout, Dimension, Font}
 import java.awt.event._
 import javax.swing.event._
 import javax.swing.border.Border
@@ -65,6 +65,11 @@ package object widgets {
           if (h < 0) getPreferredSize.height else h
         )
       )
+      self
+    }
+
+    def withFont(f: Font): T = {
+      setFont(f)
       self
     }
 
