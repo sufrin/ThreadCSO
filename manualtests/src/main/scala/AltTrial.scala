@@ -1,3 +1,4 @@
+import io.SourceLocation.SourceLocation
 import io.threadcso._
 
 /** <p> A mixin to deal with common argument-parsing matters that arise in
@@ -119,9 +120,9 @@ abstract class AltTrial(implicit loc: SourceLocation) {
 
   @inline def microSleep(range: Int, base: Long = 0) =
     if (range > 0) {
-      io.threadcso.debug.Logging.log(3, s"(")
+      io.threadcso.debug.Logging.log(3, s"(")(sourceLocation)
       sleep((base + random.nextInt(range)) * microSec)
-      io.threadcso.debug.Logging.log(3, s")")
+      io.threadcso.debug.Logging.log(3, s")")(sourceLocation)
     }
 
   def mkBuf[T](name: String): Chan[T] =
