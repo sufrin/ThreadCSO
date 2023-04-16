@@ -23,15 +23,19 @@ class LyfeCell(  val x: Double,
               ) extends Displayable {
 
   val neighbours        = 8
-  var state: Boolean    = false
-  var lifetime: Int     = 0
-  // Birth on 6 as well as 3
+
+  /** Number of generations this cell has been "alive" */
+  var lifeTime: Int     = 0
+
+  /** Birth on 6 neighbours as well as 3 neighbours */
   var b6 = false
 
+  /** Selected from the GUI  */
   var selected: Boolean = false
-  def color: Color      = Color.GREEN
+
 
   val neighbourState = new Array[Boolean](neighbours)
+  var count = 0
 
   /**
     * This process simultaneously broadcasts this cell's state to its neighbours
@@ -42,8 +46,8 @@ class LyfeCell(  val x: Double,
     * done directly.
     */
   val exchangeStates: PROC = {
-    val broadcast = ||(for { nbr <- toNbr}             yield π { nbr ! state})
-    val update =    ||(for { i <- 0 until neighbours } yield π { neighbourState(i) = fromNbr(i)?() })
+    val broadcast = ||(for { nbr <- toNbr}             yield π { nbr ! (lifeTime>0)})
+    val update =    proc { count = 0; for { i <- 0 until neighbours } fromNbr(i)?{ case true => count+=1; case false => } } // ||(for { i <- 0 until neighbours } yield π { neighbourState(i) = fromNbr(i)?() })
     (broadcast || update)
   }
 
@@ -51,9 +55,9 @@ class LyfeCell(  val x: Double,
     * Returns the next state computed from neighbours' states.
     */
   def nextState: Boolean= {
-    var count = 0
-    for (s <- neighbourState) if (s) count += 1
-    state match {
+    //var count = 0
+    //for (s <- neighbourState) if (s) count += 1
+    (lifeTime>0) match {
       case true =>
         count match {
           case 0 => false
@@ -67,8 +71,16 @@ class LyfeCell(  val x: Double,
     }
   }
 
+
   override def paintOn(g: Graphics2D, toPixels: Double=>Int): Boolean = {
-    g.setColor(if (state) (if (lifetime<3) Color.GREEN else Color.RED) else (if (b6) Color.GRAY else Color.LIGHT_GRAY))
+    import Color._
+    val c = lifeTime match {
+      case 0             => if (b6) GRAY else LIGHT_GRAY
+      case 1 | 2         => GREEN
+      case 3 | 4 | 5 | 6 => RED
+      case _             => BLUE
+    }
+    g.setColor(c)
     g.fillRect(toPixels(x), toPixels(y), toPixels(w), toPixels(h))
     g.setColor(Color.WHITE)
     g.drawRect(toPixels(x), toPixels(y), toPixels(w), toPixels(h))
@@ -86,13 +98,12 @@ class LyfeCell(  val x: Double,
   val controller: PROC = proc {
     repeat (true) {
       instructions ? {
-        case Live  => { state = true; lifetime = 0 }
-        case Die   => state = false
+        case Live  => { lifeTime = 1 }
+        case Die   => { lifeTime = 0 }
         case Sync  =>
           exchangeStates()
           val next = nextState
-          if (state&&next) lifetime+=1 else lifetime=0
-          state = nextState
+          if (next) lifeTime += 1 else lifeTime=0
       }
     }
   }

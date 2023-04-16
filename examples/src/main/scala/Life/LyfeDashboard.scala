@@ -17,9 +17,7 @@ import io.threadcso._
   * `title` is the title to be placed on the window.
   *
   */
-class LyfeDashboard[Body<:Displayable](val allBodies: collection.mutable.Queue[Body], val title: String="", var width: Int = 1200, var height: Int = 800) {
-
-  var FPS: Int    = 10 // Frames/second
+class LyfeDashboard[Body<:Displayable](val allBodies: Iterable[Body], val title: String="", var width: Int = 1200, var height: Int = 800) {
 
   /** Whether the simulation is running or not */
   var running = false
@@ -56,13 +54,20 @@ class LyfeDashboard[Body<:Displayable](val allBodies: collection.mutable.Queue[B
   val overruns = textField("", 10) { _ => }.withTitledBorder("Average overrun μs").withTip("Average frame overrun time since the last FPS adjustment")
   val reports = textField("", 60) { _ => }.withTitledBorder("Reports")
 
-  val fps = spinner(FPS, 0, 100, 5) {
-    value =>
-        FPS       = value + 1
-        overRun   = 0.0
+  var FPS: Int    = 25// Frames/second
+
+  val fps = {
+    def B(value: Int) = widgets.radioButton(f"$value%03d", FPS == value) {
+      case false =>
+      case true =>
+        FPS = value
+        overRun = 0.0
         overCount = 0
         overruns.setText("None")
-  } withTitledBorder ("FPS") withTip ("Target number of frames per (real) second")
+    }
+    val buttons = buttonGroup(B(1), B(5), B(10), B(25), B(50), B(75), B(100), B(150), B(200), B(250), B(300), B(350), B(400), B(500))
+    col(row(buttons.take(7)), row(buttons.drop(7))) withTitledBorder ("FPS") withTip ("Target number of frames per (real) second")
+  }
 
   def reportOverrun(behind: Double): Unit = {
     overRun += behind
