@@ -5,7 +5,7 @@
 import app.OPT._
 import display._
 import io.threadcso._
-
+import io.threadcso.channel.PortState
 
 import scala.reflect.ClassTag
 
@@ -67,6 +67,7 @@ object Lyfe extends App {
   var _rows  = 40
   var width  = 1000
   var height = 800
+  var fast   = false
 
   val Options = List(
     OPT("[0-9]+x[0-9]+", { s =>
@@ -79,6 +80,7 @@ object Lyfe extends App {
       _cols = fields(0).toInt
       _rows = fields(1).toInt
     }, "cols X rows in cells" ),
+    OPT("-f", fast, "Use experimental 'fast' channels in cells."),
     OPT("-h", { Usage() }, "prints usage text"),
   )
 
@@ -234,6 +236,41 @@ object Lyfe extends App {
         sleep(ahead)
     }
 
+    /**
+      *
+      * An experimental and partial implementation of very fast channels
+      * (This isn't needed for the implementation; the experiment is to see
+      *  if it is worthwhile)
+      *
+      */
+    class FastChan[T](name: String) extends lock.primitive.DataChan[T](name) with Chan[T] {
+      /** Signal that the channel is to be closed forthwith */
+      override def close(): Unit = ???
+      override def readBefore(ns: Milliseconds): Option[T] = ???
+      override def ??[U](f: T => U): U = ???
+      override def closeIn(): Unit = ???
+      override def canInput: Boolean = ???
+      override def inPortState: PortState = ???
+      override def registerOut(alt: alternation.Runnable, theIndex: Int): PortState = ???
+      override def unregisterOut(): PortState = ???
+      override def registerIn(alt: alternation.Runnable, theIndex: Int): PortState = ???
+      override def unregisterIn(): PortState = ???
+      /** Discover the name generator */
+      override def nameGenerator: basis.NameGenerator = ???
+      override def writeBefore(nsWait: Milliseconds)(value: T): Boolean = ???
+      override def closeOut(): Unit = ???
+      override def canOutput: Boolean = ???
+      override def outPortState: PortState = ???
+
+      /** Block until a value is available for input, then read and return it. */
+      override def ?(): T = read()
+      override def ?(ignored: Unit): T = read()
+    }
+
+    /** Channel factory for interCell communication channels  */
+    def makeChan[T](name: String): Chan[T] =
+      if (fast) new FastChan(name) else OneOne(name)
+
     def Main(): Unit = {
       println(debugger)
 
@@ -264,7 +301,7 @@ object Lyfe extends App {
         for (x <- 0 until cols) yield
           for (y <- 0 until rows) yield
             for (i <- 0 until neighbours) yield
-              OneOne[Boolean](s"($x,$y)($i)")
+                makeChan[Boolean](s"($x,$y)($i)")
 
       /**
         * The output links of each cell are indexed by the number of the

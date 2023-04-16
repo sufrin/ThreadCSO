@@ -89,7 +89,7 @@ class LyfeCell(  val x: Double,
     true
   }
 
-  val instructions: Chan[Instruction] = OneOne[Instruction]
+  val instructions: Chan[Instruction] = new Lyfe.FastChan[Instruction](s"FastChan($x,$y)")
 
   /**
     *   The controlling PROC of this cell
