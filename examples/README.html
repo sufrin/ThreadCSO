@@ -824,7 +824,7 @@ padding-left: 128px!important;
 <p>You might want to read the rest of the Wikipedia article.</p>
 <p>We will consider a variant with a finite $N$ by $N$ grid, treated as a toroid, i.e. where the top and bottom edges of the grid are treated as being adjacent, as are the left and right edges.</p>
 <h4 id="your-task">Your task</h4>
-<p>Your task is to implement the Game of Life. Your program should use $p$ processes to update the cells on each generation. You will probably want to allocate some region of the grid to each process.</p>
+<p>Your task is to implement the Game of Life. Your program should use <code>p</code> processes to update the cells on each generation. You will probably want to allocate some region of the grid to each process.</p>
 <p>There are two essentially different ways to structure the program:</p>
 <ol type="1">
 <li>as a shared-variable synchronous data parallel program</li>
@@ -847,47 +847,82 @@ padding-left: 128px!important;
 <h3 id="boids">Boids</h3>
 <p>This is an example of a hybrid concurrent implementation using <a href="https://github.com/sufrin/ThreadCSO">ThreadCSO</a> barriers, semaphores, and channels to simulates a collection of flocking birds, as originally specified in <a href="https://en.wikipedia.org/wiki/Boids">Boids</a>.</p>
 <p>Once started it displays the flock at the specified framerate, and permits various parameters to be set dynamically from the keyboard of the terminal from which it was started. Each bird is simulated by a single threadcso process, as are the display controller, the interaction controller, and the keyboard.</p>
-<p>Birds and the display synchronise on a barrier (twice per displayed frame), and the keyboard communicates by a channel with the interaction controller that can set the bird parameters. There is no synchronisation involved here, though a purist might complain that different birds might thereby read different parameters during the same display cycle.</p>
-<h3 id="particles">Particles</h3>
-<p>A demonstration of pseudo-gravitational particle calculations done by several workers in lock-step, coordinated by barriers, with (many) parameters of the simulation settable from the GUI. A description of the technique used for particle computations is given in the Particle Computations section of the lecture notes on <a href="https://github.com/sufrin/ThreadCSO/blob/main/Lectures/03-dataparallel.pdf">Synchronous Data Parallel Programming</a>.</p>
-<ol type="1">
+<p>Birds and the display synchronise on a barrier (twice per displayed frame), and the keyboard communicates by a channel with the interaction controller that can set the flock characteristics. There is no synchronisation involved here, though a purist might complain that different birds might thereby read different parameters during the same display cycle.</p>
+<p>Usage (from sbt) is:</p>
+<p><code>runMain Boids</code> [<em>args</em>]</p>
+<p>Each <em>arg</em> specifies wither the flock size (as a number), the window dimensions (<em>width</em><code>x</code><em>height</em>), or one of the flock characteristics.</p>
+<p>If no <em>args</em> are given then the flock characteristics and window size are taken to be</p>
+<p>250 1000x700 R=40 S+ A+ drag=0.900 co=0.00200 se=8.00 al=0.0500 f=0.750 r=0150 V=10.0 v=5.00</p>
+<p>Flock characteristics are as follows:</p>
+<pre><code>      drag=0.9      drag coefficient
+      co=0.001      Cohesiveness
+      se=8.0        Min separation
+      al=0.05       Tendency to align with visible neighbours
+      f=0.7500      Field of vision (as a fraction of π)
+      r=150.0       Range of vision
+      V=10.0        Max velocity
+      v=5.0         Min velocity  </code></pre>
+<p>They are changed from the keyboard by typing (individually or together) commands of the form</p>
+<p><em>characteristic</em><code>=</code><em>value</em></p>
+<p>For example:</p>
+<pre><code>      f=0.25 r=50.0</code></pre>
+<p>reduces the field and range of vision of the birds.</p>
+<p>Additional parameters pertain to the details of the simulation. Apart from <code>R</code> they appear to have little effect.</p>
+<pre><code>      S+            synchronising (+) or not (-)
+      A+            antialiasing (+) or not (-)
+      R=40          frame rate (ms/frame)</code></pre>
+<h3 id="gravitation">Gravitation</h3>
+<p>A demonstration of pseudo-gravitational particle calculations done by several workers in lock-step, coordinated by barriers. A description of the technique used for particle computations is given in the Particle Computations section of the lecture notes on <a href="https://github.com/sufrin/ThreadCSO/blob/main/Lectures/03-dataparallel.pdf">Synchronous Data Parallel Programming</a>.</p>
+<ul>
+<li><p>The number of particles is the product of the number of worker processes and twice the &quot;quota&quot; of particles for each worker.</p></li>
 <li><p>The particles move in a closed container with energy absorbent walls.</p></li>
-<li><p>There is an upper bound on the speed to which they can accelerate</p></li>
-<li><p>Clicking on a particle increases its density by an order of magnitude (and changes its hue &quot;redward&quot;. The mass of a particle is calculated in the usual way from its radius, <em>viz</em>: density×(4/3)πR³</p></li>
-<li><p>Control-clicking on a particle decreases its density by an order of magnitude.</p></li>
-<li><p>One or more particles can be selected (or deselected) by Shift-clicking.</p></li>
-<li><p>When the simulation is not running, selected particles can be nudged, by using the direction keys on the keyboard. Their radius can be decreased by pressing <code>1</code>, or increased by pressing <code>2</code>. Radii of <em>all</em> particles is decreased (increased) by pressing control-<code>1</code> (control-<code>2</code>).</p></li>
-<li><p>Coefficients of restitution of walls and particles can be set interactively or as the application begins.</p></li>
-<li><p>δt is the simulated elapsed time between computed frames</p></li>
-<li><p>FPS is the (target) number of frames to be shown per elapsed second of real time This is really here to test the efficiency of our scala code, and under some circumstances it may not be reached; but this doesn&#39;t damage the simulation.</p></li>
-<li><p>The number of particles is the product of P (the number of worker processes), and 2×S (the number of particles managed per worker process).</p></li>
+<li><p>Denser particles are darker.</p></li>
+<li><p>The simulation can be stopped or started from the GUI by pressing the space bar or clicking on the &quot;Running&quot; checkbox.</p></li>
+<li><p>When the simulation is stopped, individual particles can be selected by mouse clicking on them. A mouse click away from any particle clears the selection; otherwise each mouse click adds to the selection. Clicking on a particle with the Ctrl/Cmd shift pressed deselects the particle if it was selected, and selects it if it wasn&#39;t selected. Ctrl-A (and Cmd-A) selects all particles.</p></li>
+</ul>
+<p>The density, radius or velocity of selected particles can be changed by rotating the mousewheel in the appropriate direction, with the appropriate radiobutton (Radius/Density/Speed) selected.</p>
+<p>Several parameters are dynamically settable from the GUI.</p>
+<ol type="1">
+<li><p><code>C</code> is the upper bound on the speed to which particles can accelerate</p></li>
+<li><p><code>Wall</code> is the coefficient of restitution of walls.</p></li>
+<li><p><code>Bounce</code> is the &quot;bounciness&quot; of particles. Initially set to a factor that almost reverses the force on particles that are touching/overlapping.</p></li>
+<li><p>δt is the simulated elapsed time between computed frames.</p></li>
+<li><p>FPS is the (target) number of frames to be shown per elapsed second of real time. This is really here to test the efficiency of our scala code, and under some circumstances it may not be reached; but this doesn&#39;t damage the simulation. Feedback is given in the &quot;Overrun&quot; field of the user interface: the number given is the average of the last 100 overrun times (in μs) since FPS changed.</p></li>
 </ol>
 <p>Usage (from sbt) is</p>
-<p><code>package examples; runMain Particles</code> [<em>args</em>], where each <em>arg</em> is one of</p>
-<p>S «S: int» (default 1) each worker manages 2xS particles</p>
-<p>P «P: int» (default 4) number of worker processes</p>
-<p>t «∂t: double» (default 3.0) time quantum for simulation</p>
-<p>s «scale: int» (default -11) order of magnitude of &#39;gravitational&#39; constant: G = 6.79E<scale></p>
-<p>W «Wall: double» (default 0.9) When it hits a wall a particle&#39;s momentum *= -Wall.</p>
-<p>B «Ball: double» (default 1.0) force multiplier for touching particles [negative =&gt; repulsion]</p>
-<p>FPS «FPS: int» (600) frames to be shown per second (target value)</p>
-<p>w=«int» (800) width of the arena (units)</p>
-<p>h=«int» (700) height of the arena (units)</p>
-<p>C «CF: double» (16.0) particle speed is limited to <code>|</code>(width/CF∂t, height/CF∂t)<code>|</code>.</p>
-<p>-d enable the debugger (false)</p>
-<p><code>--</code> the remaining parameters are taken to be particle specifications of the form <code>&lt;radius&gt;@&lt;x&gt;,&lt;y&gt;</code>.</p>
-<p>A total of 2×P×S particles participates in the simulation. The initial positions of the non-specified particles are chosen randomly. Their initial radii are intended to give a decent range that depends on the numbers of particles and the width of the display.</p>
-<p>Default example</p>
-<pre><code>    runMain Particles                          # 4 workers 8 particles</code></pre>
+<p><code>runMain Particles</code> [<em>args</em>], where each <em>arg</em> is one of</p>
+<pre><code>    q num -- each worker manages 2xnum particles
+    w num -- number of workers is num</code></pre>
+<p>The initial position and radii of most particles is chosen randomly. Initial radii are intended to give a decent range that depends on the numbers of particles and the width of the display.</p>
+<p>Example:</p>
+<ul>
+<li><p>4 workers 8 particles</p>
+<pre><code>runMain Gravitation                          </code></pre></li>
+</ul>
 <p>This is the one to play with first. Try making one of the particles very dense; then try setting <code>Repel</code>, and/or setting the wall&#39;s momentum multiplier to a fraction &gt; 1.</p>
 <p>Other examples:</p>
 <ul>
-<li><p>Two very large particles managed by a single worker</p>
-<pre><code>runMain Particles P 1 -- 250@150,150 40@200,200</code></pre></li>
-<li><p>Larger numbers of particles</p>
-<pre><code>runMain Particles s -9 P 40                # 80 particles, G = 6.79E-9
-runMain Particles S 4  P 40  w=1800 h=1000 # 320 particles, G = 6.79E-11 </code></pre></li>
+<li><p>2 particles managed by a single worker</p>
+<pre><code>runMain Gravitation w 1 q 1</code></pre></li>
+<li><p>512 particles</p>
+<pre><code>runMain Gravitation w 32 q 8</code></pre></li>
 </ul>
-<p>Things can get a bit hectic when gravitation is high and there are lots of particles; but you can moderate behaviour from the control panel of the viewer.</p>
+<p>Things can get a bit hectic when gravitation is high and there are lots of particles; but you can moderate behaviour from the GUI.</p>
+<p>When the <code>MX</code> (mass exchange) feature is set and a heavy particle and a lighter particle intersect for 5 ticks or more, about 20% of the heavier particle&#39;s mass is transferred to the lighter particle.</p>
+<h3 id="autonomous">Autonomous</h3>
+<p>A like <code>Gravitation</code>, save that each body is simulated by its own process that (by default) computes its next visible state when it receives <code>Tick</code> messages from the controller. There are (presently) two distinct kinds of body, namely sphere and immobile; but the programme framework is set up to support more than just these kinds.</p>
+<p>The <code>Gravitation</code> interface is supplemented as follows:</p>
+<ol type="1">
+<li><p>Selected particles are deleted in response to <code>Delete</code> or <code>Backspace</code>.</p></li>
+<li><p>Immobile particles are added at the cursor in response to <code>z</code>, and mobile particles are added in response to <code>a</code>.</p></li>
+</ol>
+<p>Example:</p>
+<ul>
+<li><p>No preset immobiles or spheres</p>
+<pre><code>runMain Autonomous</code></pre></li>
+<li><p>20 immobiles, 128 spheres</p>
+<pre><code>runMain Autonomous i 20 s 128</code></pre></li>
+</ul>
+<p>The initial position of each body is chosen randomly. Initial radii are intended to give a decent range that depends on the numbers of particles and the width of the display.</p>
 </body>
 </html>

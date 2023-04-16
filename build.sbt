@@ -1,13 +1,13 @@
 //
 // to build all the jar files
-// ./cso -sbt clean test package
+// sbt20 clean test package
 //
 
 ThisBuild / organization := "ox"
 Global / resolvers += "scala-integration" at
   "https://scala-ci.typesafe.com/artifactory/scala-integration/"
 ThisBuild / scalaVersion := "2.13.11-bin-114c1da"
-ThisBuild / version := "0.1.1-SNAPSHOT"
+ThisBuild / version := "1.2.1"
 ThisBuild / fork := true
 ThisBuild / javaOptions ++= Seq("--enable-preview") // when running
 ThisBuild / javacOptions ++= Seq("--enable-preview", "--release", "14") // when compiling,
@@ -15,6 +15,10 @@ ThisBuild / javacOptions ++= Seq("--enable-preview", "--release", "14") // when 
 lazy val scalaReflect = Def.setting {
   "org.scala-lang" % "scala-reflect" % scalaVersion.value
 }
+
+lazy val root = (project in file("."))
+   .aggregate(app, core, macroSub)
+   
 
 lazy val core = (project in file("core"))
   .dependsOn(macroSub)

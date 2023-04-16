@@ -15,7 +15,7 @@ unset JAVA_OPTS
 #
 #
 #
-CSO=/Users/sufrin/GitHomes/LoomCSO
+CSO=/Users/sufrin/GitHomes/threadcso/ThreadCSO
 JAVA_OPTS="-Xmx256M -Xms32M --enable-preview"
 JAVA_HOME=/Users/sufrin/Downloads/jdk-20.jdk/Contents/Home
 
@@ -31,8 +31,9 @@ esac
 #
 case $1 in
   -jars)
-     find $CSO -name "*.jar" -a -not \( -path "*sbt*" \) -exec stat -f "%Sm%n  %N" \{\} \;  ;
-     exit;;
+     (cd $CSO ;\
+      ls -l $(find . -name "*.jar" -a -not \( -path "*sbt*" \)) )
+    exit;;
 
   -sbt);;
   
@@ -50,6 +51,10 @@ esac
 # Collect jar files for the path
 #
 for jar in $(find $CSO -name "*.jar" | grep -v sbt)
+do
+  CSOPATH=$jar:$CSOPATH
+done
+for jar in $(find . -name "*.jar" | grep -v sbt)
 do
   CSOPATH=$jar:$CSOPATH
 done

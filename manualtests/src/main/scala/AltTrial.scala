@@ -1,4 +1,4 @@
-import io.SourceLocation._
+import io.SourceLocation.SourceLocation
 import io.threadcso._
 
 /** <p> A mixin to deal with common argument-parsing matters that arise in
@@ -8,7 +8,7 @@ import io.threadcso._
   * a test. See the tests themselves for detail.
   * {{{
   * -d    (debugger)
-  * -b=0  (buffer radius -- 0 means use a OneOne)
+  * -b=0  (buffer size -- 0 means use a OneOne)
   * -a=0  (count of arguments to synthesise)
   * -mn=4 (alternation branching factor)
   * -wp=0 (microSleep for writing)
@@ -91,7 +91,7 @@ abstract class AltTrial(implicit loc: SourceLocation) {
         println(s"""Arguments must match one (or more) of:
             -Kpoolkind (set the default executor)
             -d (debugger)
-            -b=$bufferSize (buffer radius)
+            -b=$bufferSize (buffer size)
             -a=$nargs (count of arguments to synthesise)
             -mn=$mn (alternation branching factor)
             -wp=$wp (microSleep for writing)
@@ -120,9 +120,9 @@ abstract class AltTrial(implicit loc: SourceLocation) {
 
   @inline def microSleep(range: Int, base: Long = 0) =
     if (range > 0) {
-      io.threadcso.debug.Logging.log(3, s"(")
+      io.threadcso.debug.Logging.log(3, s"(")(sourceLocation)
       sleep((base + random.nextInt(range)) * microSec)
-      io.threadcso.debug.Logging.log(3, s")")
+      io.threadcso.debug.Logging.log(3, s")")(sourceLocation)
     }
 
   def mkBuf[T](name: String): Chan[T] =
@@ -146,7 +146,7 @@ abstract class AltTrial(implicit loc: SourceLocation) {
   * inherited by an enclosing serve.
   */
 object AltQuorum extends AltTrial() {
-  case class Arrive(id: Int, reply: !![List[Int]])
+  case class  Arrive(id: Int, reply: !![List[Int]])
 
   val sa =
     N2NBuf[Arrive](20, writers = 0, readers = 1, "sa") // ManyOne is essential
@@ -239,13 +239,13 @@ object AltQuorum extends AltTrial() {
             admitIfPossible
           }
         }
-          | sa =?=> { msg => swaiting.enqueue(msg); admitIfPossible }
-          | ta =?=> { msg => twaiting.enqueue(msg); admitIfPossible }
-          | pa =?=> { msg => pwaiting.enqueue(msg); admitIfPossible }
-          | quit =?=> { _ => stop }
+          | sa   =?=> { msg => swaiting.enqueue(msg); admitIfPossible }
+          | ta   =?=> { msg => twaiting.enqueue(msg); admitIfPossible }
+          | pa   =?=> { msg => pwaiting.enqueue(msg); admitIfPossible }
+          | (quit) =?=> { _ => stop }
       )
 
-      // Here if admitIfPossible throws an exception
+      // Here when the server stops
       println(
         s"Server stopped:\n REP $replies\n S $swaiting\n T " +
           s"$twaiting\n P $pwaiting\n $sa\n $ta\n $pa\n $leave\n " +
@@ -264,10 +264,13 @@ object AltQuorum extends AltTrial() {
     println((id, P(id))); sleep(seconds(1)); leave ! id
   })
   def l(id: Int) = fork(proc { leave ! id })
+
+  /**  This script stops after 10s */
   val script1 = proc("script1") {
-    s(1); s(2); t(3); p(4);
-    p(5); s(6); s(7); t(8);
-    p(9); t(10); s(11); s(12); sleep(seconds(20)); Quit()
+    for { i <- 1 to 12 } s(100+i); // a dozen students
+    t(20); t(21); t(22); t(23)
+    p(10); p(11); p(12)
+    sleep(10*Sec); Quit()
   }
 
   def MAIN(args: Seq[String]): Unit = {
@@ -282,7 +285,8 @@ object AltQuorum extends AltTrial() {
   * `orelse` logic. Expected output: one line per argument then SENT, then ELSE,
   * then DONE.</p>
   */
-object Alt0 extends AltTrial() {
+object Alt0 extends AltTrial()
+ {
   val a = OneOne[String]("a")
   def MAIN(args: Seq[String]): Unit = {
     (π { for (arg <- args) { a ! arg }; println("SENT"); a.closeOut() }
@@ -476,24 +480,34 @@ object Alt1A extends AltTrial {
 /** <p> Same as Alt1 except that the channel `c` is replaced by a collection of
   * `mn` channel, and the single outport event in the serve loop replaced by a
   * corresponding collection.
+  *
   * {{{
-  * (  π ("a") { repeat { println(s"a ! \${a?()}"); microSleep(wr, wa)  } }
-  * || π ("b") { repeat { println(s"b ! \${b?()}"); microSleep(wr, wb)  } }
+  * (  π ("a") {
+  *      repeat { println(s"a ! \${a?()}"); microSleep(wr, wa)  }
+  *    }
+  * || π ("b") {
+  *      repeat { println(s"b ! \${b?()}"); microSleep(wr, wb)  }
+  *    }
   * || π ("writer")
   * { for (c <- chans)
   * { for (arg<-args) { c!s"\${c.name}.\$arg"; sleep(wp*microSec) } ;  c.closeOut()  }}
   * || π ("server")
   * { var arg  = a.nothing
-  * var full = false
-  * serve ( (full && b.outPort) =!=> { full = false; arg }
-  * | (full && a.outPort) =!=> { full = false; arg }
-  * | |(for (c <- chans) yield (!full && c.inPort) =?=> { v => arg = v; full = true })
-  * | after(ws * microSec) ==> { Console.print("*") }
-  * )
-  * a.closeOut()
-  * b.closeOut()
+  *   var full = false
+  *   serve ( (full && b.outPort) =!=>
+  *           { full = false; arg }
+  *         | (full && a.outPort) =!=>
+  *           { full = false; arg }
+  *         | |(for (c <- chans) yield (!full && c.inPort) =?=>
+  *                 { v => arg = v; full = true })
+  *         | after(ws * microSec) ==>
+  *                 { Console.print("*") }
+  *         )
+  *   a.closeOut()
+  *   b.closeOut()
   * }
   * )
+  *
   * }}}
   */
 object AltM extends AltTrial {

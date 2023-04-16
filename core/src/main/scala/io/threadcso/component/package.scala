@@ -3,8 +3,8 @@ import io.SourceLocation._
 
 /** <p> A collection of several process-generators that (mostly) yield processes
   * to work on (or produce) finite or infinite streams of values presented as
-  * channel. All are designed to terminate cleanly -- 'i.e.' to `closeIn` or
-  * `closeOut` all the channel.that they communicate on in the appropriate
+  * channels. All are designed to terminate cleanly -- 'i.e.' to `closeIn` or
+  * `closeOut` all the channels that they communicate on in the appropriate
   * direction for the type of port.
   *
   * Some of these components were inspired by (or copied from) components from
@@ -14,8 +14,6 @@ import io.SourceLocation._
   * {{{
   * @version 03.20120824
   * @author Bernard Sufrin, Oxford
-  * \$Revision: 247 $
-  * \$Date: 2017-10-20 15:00:00 +0100 (Fri, 20 Oct 2017) $
   * }}}
   */
 package object component {
@@ -50,11 +48,13 @@ package object component {
   /** Copy from the given input stream to the given output streams, performing
     * the outputs concurrently. Terminate when the input stream or any of the
     * output streams is closed.
+    *
     * {{{
-    * in   /|----> x, ...
+    *          in   /|----> x, ...
     * x, ... >---->{ | : outs
-    * \|----> x, ...
+    *               \|----> x, ...
     * }}}
+    *
     */
   def tee[T](in: channel.??[T], outs: channel.!![T]*): PROC = π("tee") {
     var v = null.asInstanceOf[T] // in.nothing
@@ -64,13 +64,16 @@ package object component {
     for (out <- outs) out.closeOut()
   }
 
-  /** Merge several input streams Into a single output stream. Terminate when
+  /**
+    * Merge several input streams into a single output stream. Terminate when
     * the output stream, or <i>all</i> the input streams have closed.
+    *
     * {{{
-    * >---->|\  out
+    *   >---->|\  out
     * ins :   | }----->
-    * >---->|/
+    *   >---->|/
     * }}}
+    *
     */
   def merge[T](ins: collection.Seq[??[T]], out: !![T]): PROC = π("merge") {
     serve(ins.head =?=> { x => out ! x })
@@ -115,32 +118,28 @@ package object component {
     }
 
   /** Output all the given `ts` onto the output port, then terminate.
+    *
     * {{{
     * +------------+ t1, ...
     * | t1, ... tn +--------->
     * +------------+
     * }}}
+    *
     */
   def const[T](ts: T*)(out: channel.!![T]): PROC = π("const") {
     for (t <- ts) out ! t; out.closeOut()
   }
 
-  /** A composite component that sums its input stream onto its output stream
-    * {{{
-    *
-    * in                        out
-    * [x,y,z,...] >------>|\              /|---------> [x,x+y,x+y+z,...]
-    * |+}----------->{ |
-    * +-->|/              \|--+
-    * |                       |
-    * +----------<{(0)}<------+
-    * }}}
+  /**
+    *  A composite component that sums its input stream onto its output stream.
+    *  Try drawing it!
     */
   def Integrator(in: channel.??[Long], out: channel.!![Long]): PROC = {
     val mid, back, addl = OneOne[Long]
-    (zipwith((x: Long, y: Long) => x + y)(in, addl, mid)
+    (  zipwith((x: Long, y: Long) => x + y)(in, addl, mid)
     || tee(mid, out, back)
-    || prefix(0L)(back, addl))
+    || prefix(0L)(back, addl)
+    )
   }
 
   /** Merges the streams `in` and `inj` onto `out`, giving priority to data

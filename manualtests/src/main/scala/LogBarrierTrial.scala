@@ -1,7 +1,7 @@
 import io.threadcso._
 import io.threadcso.lock.LogBarrier
 
-/** <p> Simple trial of the barrier implementation.
+/** Simple trial of the barrier implementation.
   *
   * Expected output from a no-argument trial
   * {{{
@@ -33,7 +33,7 @@ import io.threadcso.lock.LogBarrier
 object LogBarrierTrial 
 {
   import io.threadcso.debug.Logger
-  val log = Logger("LogBarrier", 200)
+  val log = Logger("LogBarrierTrial", 200)
   def main(args: Array[String]): Unit = {
     var N = 5
     var stallC, stallU = -1
@@ -50,7 +50,7 @@ object LogBarrierTrial
       else {
         println(
           """Usage: -d start debugger   | 
-             <int> -- radius of problem | 
+             <int> -- size of problem |
              -s -- use a single barrier | 
              -u=<n> -- forget update sync at round <n> | 
              -c=<n> forget compute sync at round <n>"""
@@ -98,3 +98,80 @@ object LogBarrierTrial
     if (!deb) exit()
   }
 }
+
+/** Simple trial of the combininglogbarrier
+  *
+  * The program runs N agents, each of whom decrements an internal
+  * counter (initialized to its identity) until the consensus is
+  * that the sum of the counters is nonpositive. Agent 0 prints the
+  * consensus sum at each round.
+  *
+  * A stall can be provoked by agent N/2 on the round given by `-s=theRound`,
+  * and in this case debugger is automatically started as the trial begins.
+  *
+  * The following outputs are as expected for a 50-agent (the default count) system
+  *
+  * ./runexample CombiningLogBarrierTrial -s=20
+  * Debugger(http://localhost:9999)
+  * 1:1225 2:1175 3:1125 4:1075 5:1025 6:975 7:925 8:875 9:825 10:775
+  * 11:725 12:675 13:625 14:575 15:525 16:475 17:425 18:375 19:325 20:275
+  * 25 stalling
+  * ^C
+  *
+  * 1981 % ./runexample CombiningLogBarrierTrial
+  * 1:1225 2:1175 3:1125 4:1075 5:1025 6:975 7:925 8:875 9:825 10:775
+  * 11:725 12:675 13:625 14:575 15:525 16:475 17:425 18:375 19:325 20:275
+  * 21:225 22:175 23:125 24:75 25:25 26:-25
+  *
+  */
+object CombiningLogBarrierTrial
+{ import io.threadcso.debug.Logger
+  val log = Logger("LogBarrier", 200)
+  def main(args: Array[String]): Unit = {
+    var N = 50
+    var stall = -1
+    var deb = false
+    for (arg <- args)
+      if (arg.matches("[0-9]+")) N = arg.toInt
+      else if (arg.matches("-s=[0-9]+")) {
+        deb = true; stall = arg.substring(3).toInt
+      }
+      else if (arg.matches("-d")) deb = true
+      else {
+        println(
+          """Usage: -d start debugger   |
+             <int> -- (default $N) Number of agents |
+             -s=<n> -- agent 0 forgets a sync at round <n> """
+        )
+        exit()
+      }
+    if (deb) println(debugger)
+    val cb = CombiningLogBarrier(N, 0, { (m: Int, n: Int) => m+n }, null)
+
+    def agent(me: Int) =
+      proc(s"agent($me)") {
+        var local = me
+        var round = 0
+        var going = true
+        while (going) {
+          sleep(seconds(0.5*scala.util.Random.nextDouble()))
+          var tot = 0
+          if (round==stall && me==N/2) {
+              println(s"($me stalling)")
+          }
+          else
+            tot = cb.sync(me)(local)
+          round += 1
+          if (me==0) print(s" $round:$tot")
+          if (me==0&&round%10==0) println()
+          going = tot>0
+          local -= 1
+        }
+        if (me==0) println("")
+      }
+
+    run(||(for (i <- 0 until N) yield agent(i)))
+    if (!deb) exit()
+  }
+}
+

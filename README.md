@@ -50,23 +50,17 @@ Just run
 
 This will produce a few `.jar` files that should be placed in
 the scala / scalac class path as you run / compile a scala
-program that uses `threadcso`. The script `scripts/threadcso`
-will -- with a little editing to get the absolute paths bound
-to the symbols `CSO` and `JAVA_HOME` correct for your computer
--- be able to make appropriate class path and other exports,
-or will run or compile a program that uses `threadcso`. Take
-a look at it. 
-       
-    .../core/target/scala-2.13/threadcso_2.13-0.1.1-SNAPSHOT.jar
-    .../app/target/scala-2.13/app_2.13-1.0.1-SNAPSHOT.jar
-    .../target/scala-2.13/threadcso_2.13-0.1.1-SNAPSHOT.jar
-    .../macros/target/scala-2.13/macros_2.13-1.0.1-SNAPSHOT.jar
-    .../manualtests/target/scala-2.13/manualtests_2.13-0.1.1-SNAPSHOT.jar
-    .../examples/target/scala-2.13/examples_2.13-0.1.1-SNAPSHOT.jar     
+program that uses `threadcso`.
 
-If the (rudimentary) tests were passed you can start a session with `sbt`
-and run some of the examples directly. Here's an example of a (two command)
-session:
+The script `scripts/onejar` will -- with a little editing of
+`scripts/configuration.sh` to get the absolute paths bound to the
+symbols `CSO` and `JAVA_HOME` correct for your computer -- construct
+a single jar that includes all the relevant class files generated
+by the above sbt command.
+
+If the (rudimentary) tests were passed you can also start a session
+with `sbt` and run some of the examples directly. Here's an example
+of a (two command) session with sbt:
 
     sbt:threadcso> project examples
     sbt:examples> runMain Life
@@ -81,25 +75,34 @@ your downloaded *jdk* (which must be no earlier than *jdk 20*),
 then run
 
     sh scripts/minimalbuildscript
+    sh scripts/
 
-This will build a `.jar` file that consolidates all the necessary
-components to compile and run `threadcso` programs, as well as
-one containing the compiled `examples`. It will also generate a
-script `runcso` that will run any of the examples mentioned
-in `examples/README.md`. Try one of these:
+This will, independently of sbt, build a `.jar` file that consolidates
+all the necessary components to compile and run `threadcso` programs,
+as well as one containing the compiled `examples`. It will also
+generate a script `runexample` that will run any of the examples
+mentioned in `examples/README.md`. Try one of these:
 
-    ./runcso Life
-    ./runcso Particles s -9 P 40 
-    ./runcso Particles S 4  P 40  w=1800 h=1000 
+    ./runexample Life
+    ./runexample Particles s -9 P 40 
+    ./runexample Particles S 4  P 40  w=1800 h=1000 
 
 Or if you want to look at the corpse of a deadlocked non-solution
 to the dining philosophers problem, try:
 
-    ./runcso Phils
+    ./runexample Phils
 
 Then, when the program appears to deadlock, use a web browser to
 connect to the debugger whose port is announced as the program
 starts.
+
+#### Model scripts
+
+Running
+
+    sh scripts/minimalbuildscript
+
+
 
 
 ### Introduction

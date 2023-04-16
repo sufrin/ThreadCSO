@@ -22,8 +22,9 @@ import io.threadcso.semaphore.BooleanSemaphore
   *
   */
 
-class LogBarrier(n: Int, name: String = "") {
+class LogBarrier(n: Int, _name: String = null) {
   assert(n >= 1)
+  val name = if (_name==null) s"LogBarrier($n)" else _name
   /** thread signals parent that it's ready */
   val ready = Array.fill(n)(BooleanSemaphore(false))
   /** parent signals thread that it can proceed */
@@ -50,6 +51,49 @@ class LogBarrier(n: Int, name: String = "") {
   
 }
 
-object LogBarrier {
-  def apply(n: Int, name: String = ""): LogBarrier = new LogBarrier(n, name)
+class CombiningLogBarrier[T](n: Int, e: T, op: (T, T) => T, _name: String = null) {
+  import io.threadcso.lock.primitive.DataChan
+  val name = if (_name==null) s"CombiningLogBarrier($n)" else _name
+
+  assert(n >= 1)
+  private var r, g = -1
+
+  /** thread signals parent that it's ready */
+  val ready = Array.fill(n)({ r+=1; DataChan[T](s"$name.ready($r)") })
+
+  /** parent signals thread that it can proceed */
+  val go    = Array.fill(n)({ g+=1; DataChan[T](s"$name.go($r)")})
+  
+  @inline private def left(id: Int): Int  = 1+2*id
+  @inline private def right(id: Int): Int = 2+2*id
+
+  def sync(id: Int)(myResult: T): T = {
+    val l = left(id)
+    val r = right(id)
+    var result: T = myResult
+    // await both children and incorporate their answers
+    if (l<n) result = op(result, ready(l).read())
+    if (r<n) result = op(result, ready(r).read())
+    // children ready
+    if (id != 0) {
+       ready(id).write(result) // tell parent
+       result = go(id).read()  // await parent's result
+    }
+    if (l<n) go(l).write(result)
+    if (r<n) go(r).write(result)
+    result
+  }
 }
+
+
+object LogBarrier {
+  def apply(n: Int, name: String = null): LogBarrier =
+      new LogBarrier(n, name)
+}
+
+object CombiningLogBarrier {
+  def apply[T](n: Int, e: T, op: (T, T) => T, name: String = null): CombiningLogBarrier[T] =
+      new CombiningLogBarrier(n, e, op, name)
+}
+
+

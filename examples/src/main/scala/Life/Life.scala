@@ -26,7 +26,7 @@ class Life (val N: Int = 256, val W : Int = 64, val frameDwell: Long = 10L) {
   var height = N / W   // height of one strip
 
   // Barrier: constructed at startup
-  var barrier: Barrier = new Barrier(W)
+  var barrier = lock.LogBarrier(W)
 
   /** Worker for the global grid region rows [me*height..(me+1)*height]
     *
@@ -62,7 +62,7 @@ class Life (val N: Int = 256, val W : Int = 64, val frameDwell: Long = 10L) {
           (grid(i)(j) && neighbours == 2) || neighbours == 3
       }
 
-      barrier.sync()
+      barrier.sync(me)
       for (i <- start until end) {
         val nextRow = nextGen(i - start)
 
@@ -73,7 +73,7 @@ class Life (val N: Int = 256, val W : Int = 64, val frameDwell: Long = 10L) {
         // that the nextGen declaration is moved to //** above
 
       }
-      barrier.sync()
+      barrier.sync(me)
       if (me == 0) {
         display.draw
         sleep(frameDwell * milliSec)
@@ -206,7 +206,7 @@ object Life {
        }
     }
 
-    println(s"Life -n$N -w$W -f$D (height=${N/W})")
+    println(s"Life -n$N -w$W -f$D (rows/worker=${N/W})")
 
     val life = new Life(N, W, D)
     life.setup(args.filter(_.matches("[A-Za-z0-9]+")).toList)

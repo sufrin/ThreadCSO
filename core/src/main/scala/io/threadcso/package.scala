@@ -8,14 +8,9 @@ import io.threadcso.alternation.Run
   * import io.threadcso._
   * }}}
   *
-  * The present version of the ThreadCSO library API is `1.2R`''r'' (for some
-  * number ''r'')
+  * March 2023: changes 1.2 => 1.3
   *
-  * The revision number (`R`''r'') will change if bugs are corrected but the
-  * code remains consistent with the previous API. Its minor version number will
-  * change if there is a correction to the code that breaks consistency with the
-  * previous API. Its major version will change if there is a substantial change
-  * in the semantics of an important CSO construct.
+  *   - virtual threads incorporated (requires jdk20)
   *
   * August 2017: changes 1.1 => 1.2
   *
@@ -101,6 +96,8 @@ package object threadcso {
   type Flag = io.threadcso.semaphore.Flag
   type Barrier = lock.Barrier
   type CombiningBarrier[T] = lock.CombiningBarrier[T]
+  type LogBarrier = lock.LogBarrier
+  type CombiningLogBarrier[T] = lock.CombiningLogBarrier[T]
 
   /** Factory for `BooleanSemaphore`s. @see
     * [[io.threadcso.semaphore.BooleanSemaphore]]
@@ -127,16 +124,28 @@ package object threadcso {
   val Flag = io.threadcso.semaphore.Flag
 
   /** Factory for `Barrier`s */
-  def Barrier(n: Int, name: String = ""): Barrier = new lock.Barrier(n, name)
+  def Barrier(n: Int, name: String = null): Barrier = new lock.Barrier(n, name)
 
   /** Factory for `CombiningBarrier`s */
   def CombiningBarrier[T](
       n: Int,
       e: T,
       f: (T, T) => T,
-      name: String = ""
+      name: String = null
   ): CombiningBarrier[T] =
     new CombiningBarrier[T](n, e, f, name)
+
+  /** Factory for `LogBarrier`s */
+  def LogBarrier(n: Int, name: String=null): LogBarrier = new LogBarrier(n, name)
+
+  /** Factory for `CombiningLogBarrier`s */
+  def CombiningLogBarrier[T](
+                           n: Int,
+                           e: T,
+                           f: (T, T) => T,
+                           name: String = null
+                         ): CombiningLogBarrier[T] =
+    new lock.CombiningLogBarrier[T](n, e, f, name)
 
   ///////////////////////
 

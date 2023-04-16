@@ -1,0 +1,7 @@
+#!/bin/bash
+#
+# scalac with threadcso library on the classpath
+#
+export JAVA_OPTS="-Xmx1024M -Xms128M --enable-preview"
+export JAVA_HOME="/Users/sufrin/Downloads/jdk-20.jdk/Contents/Home"
+scalac -cp threadcso-2.13+jdk20+1.3.jar "$@"

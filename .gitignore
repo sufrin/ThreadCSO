@@ -7,3 +7,5 @@ target/
 metal.sbt
 .bsp/
 core/src/test/scala/LISTING.pdf
+LISTING.pdf
+primchan/primchan.jar

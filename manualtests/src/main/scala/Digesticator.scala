@@ -5,6 +5,8 @@ import scala.collection.mutable.TreeMap
 
 /** A program to ''digest'' the texts in a collection of files identified by
   * their (local) paths or URLs.
+  *
+  * (See also: `Digest`, which is not intrinsically different)
   */
 
 object Digesticator extends App {

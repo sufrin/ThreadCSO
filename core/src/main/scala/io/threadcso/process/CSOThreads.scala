@@ -102,7 +102,7 @@ object CSOThreads {
     * 4)
     */
   val poolSecs: Long =
-    getPropElse("io.threadcso.pool", _.toLong)(4L) // deprecated
+    getPropElse("io.threadcso.pool", _.toLong)(10L) // deprecated
 
   /** Setting a jdk property with `-Dio.threadcso.pool.SECS=`''secs'' specifies
     * that idling pooled threads expire after ''secs'' idling. Default same as
@@ -206,6 +206,7 @@ object CSOThreads {
                   vThreads    += ((id, current))
                   try {
                     r.run()
+                    vThreads.remove(id)
                   } catch {
                     case thr: Throwable => vThreads.remove(id); throw thr
                   }
@@ -256,6 +257,9 @@ object CSOThreads {
     */
    def executor(): CSOExecutor = getExecutor(poolKIND)
 
+   /**
+     * Get the thread pool (Executor) with the given kind
+     */
    def getExecutor(poolKind: String): CSOExecutor =
    poolKind.toUpperCase match {
       case "SIZED"        => SIZED
@@ -272,7 +276,7 @@ object CSOThreads {
      *        It's only used to debrief the pooled executors.
      */
     def shutDown(): Unit =
-    {
+    {  
        for { ex <- List(SIZED,ADAPTIVE,CACHED,UNPOOLED,VIRTUAL) } ex.shutdown()
     }
 

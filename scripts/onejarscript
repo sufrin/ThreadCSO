@@ -1,0 +1,32 @@
+#!/bin/bash
+#
+# Makes a single jarfile of all the library modules compiled by sbt
+#
+source $(dirname $0)/configuration.sh
+#
+#
+#
+JARS=$(find `pwd` -name "*.jar" -a \
+            \( \( -path "*/target/*" \)  -a \
+            -not \( \( -path "*sbt*" \)  -o \
+                    \( -path "*test*" \) -o \
+                    \( -path "*examples/*" \) \
+                    \) \
+            \))
+#
+#
+#
+rm    -rf $BUILD
+mkdir -p  $BUILD
+echo Unpacking jars:
+for JAR in $JARS
+do
+  echo $JAR
+  (cd $BUILD; jar xf $JAR)
+done
+echo
+echo Making $LIBJAR
+jar cfM $LIBJAR -C $BUILD .
+rm -rf $BUILD
+  
+

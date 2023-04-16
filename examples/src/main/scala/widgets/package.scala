@@ -1,5 +1,5 @@
 import javax.swing._
-import java.awt.{BorderLayout, Dimension}
+import java.awt.{BorderLayout, Dimension, Font}
 import java.awt.event._
 import javax.swing.event._
 import javax.swing.border.Border
@@ -23,6 +23,10 @@ import javax.swing.border.Border
   * been our watchword. Moreover, we have -- through haste not conviction --
   * taken a somewhat cavalier approach to the subtleties of the Scala type
   * system.
+  *
+  * In the few situations where we *know empirically* that a method of the standard Swing
+  * toolkit may block, and thereby cause  a deadlock, we override the method by one
+  * that uses `SwingUtilities.invokeLater`.
   */
 
 package object widgets {
@@ -35,8 +39,12 @@ package object widgets {
   trait Widget[+T] extends JComponent {
     val self = this.asInstanceOf[T]
 
+    /** Set the tooltip */
+    def withTip(tip: String): T = { setToolTipText(tip); self}
+
     /** Set the X alignment (for use in Col layouts), and return this */
     def withAlignmentX(f: Double): T = { setAlignmentX(f.floatValue); self }
+
 
     /** Set the X alignment (for use in Col layouts), and return self */
     def alignX(f: Double): T = { setAlignmentX(f.floatValue); self }
@@ -57,6 +65,11 @@ package object widgets {
           if (h < 0) getPreferredSize.height else h
         )
       )
+      self
+    }
+
+    def withFont(f: Font): T = {
+      setFont(f)
       self
     }
 
@@ -354,7 +367,12 @@ package object widgets {
     */
   abstract class JTextField(text: String, cols: Int)
       extends javax.swing.JTextField(text, cols)
-      with ActionWidget[JTextField] {}
+      with ActionWidget[JTextField] {
+    override def setText(text: String): Unit = {
+      // Avoid getting stuck behind a lock
+      SwingUtilities.invokeLater { () => super.setText(text) }
+    }
+  }
 
   /** A label (with an optional Icon) */
   class JLabel(name: String, icon: Icon*)
