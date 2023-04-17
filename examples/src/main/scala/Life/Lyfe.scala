@@ -1,18 +1,15 @@
-
-
-
-
 import app.OPT._
 import display._
 import io.threadcso._
 import io.threadcso.channel.PortState
 
-import scala.reflect.ClassTag
-
 
 /**
   *
-  *  Life implementation in which the cells exchange states along channels
+  *  Life implementation in which the cells exchange states along channels. 
+  *  This is a challenge to the raw speed of channel implementations and to the
+  *  scheduling algorithms for the virtual thread implementation that underlies
+  *  CSO processes (post 2023). 
   *
   */
 object Lyfe extends App {
@@ -20,8 +17,20 @@ object Lyfe extends App {
   val Command = "Lyfe"
   type Cell = LyfeCell
 
+  class CellArray(cols: Int, rows: Int) extends ColByRowArray[Cell](cols, rows) {
 
-  var allCells: Cellular[Cell] = null
+  }
+
+  object CellArray {
+    def apply[T](cols: Int, rows: Int)(init: (Int, Int) => Cell): CellArray = {
+      val a = new CellArray(cols, rows)
+      for {c <- 0 until cols; r <- 0 until rows}
+        a(c, r) = init(c, r)
+      a
+    }
+  }
+
+  var allCells: CellArray = null
 
   @inline def forSelectedCells(effect: Cell => Unit): Unit = {
       for { cell <- allCells if cell.selected } effect(cell)
@@ -31,37 +40,6 @@ object Lyfe extends App {
     for { cell <- allCells } effect(cell)
   }
 
-  
-  class Cellular[T](val cols: Int, val rows: Int)(implicit tag: ClassTag[T]) extends Iterable[T] {
-    val a: Array[T] = Array.ofDim[T](rows*cols)(tag)
-    @inline def apply(n: Int): T = a(n)
-    @inline def apply(c: Int, r:Int): T = a(r*cols+c)
-    @inline def update(c: Int, r: Int, t: T): Unit = { a(r*cols+c) = t }
-
-    def neighbours(c: Int, r: Int): Seq[(Int, Int)] =
-      for { rd<-List(-1, 0, +1); cd <- List(-1, 0, +1) if (rd!=0 || cd!=0) }
-        yield ((c+cols+cd)%cols, (r+rows+rd)%rows)
-
-    override def iterator: Iterator[T] = new Iterator[T] {
-      var i = 0
-      var t = rows*cols
-      def hasNext: Boolean = i<t
-      def next(): T = {
-        val v = a(i)
-        i += 1
-        v
-      }
-    }
-  }
-
-  object Cellular {
-    def apply[T](cols: Int, rows: Int)(init: (Int,Int)=>T)(implicit tag: ClassTag[T]): Cellular[T] =
-      { val a = new Cellular[T](cols, rows)
-        for { c<-0 until cols; r<-0 until rows }
-            a(c, r) = init(c, r)
-        a
-      }
-  }
 
   var _cols  = 50
   var _rows  = 40
@@ -345,7 +323,7 @@ object Lyfe extends App {
         }
 
       // set up the cells
-      allCells = Cellular[Cell](cols, rows) {
+      allCells = CellArray(cols, rows) {
         case (c, r) =>  new LyfeCell(c * R, r * R, R, R, linkIn(c)(r), linkOut(c)(r))
       }
 
