@@ -33,14 +33,11 @@ class LyfeCell(  val x: Double,
   /** Selected from the GUI  */
   var selected: Boolean = false
 
-
-  val neighbourState = new Array[Boolean](neighbours)
   var count = 0
 
   /**
     * This process simultaneously broadcasts this cell's state to its neighbours
     * and reads its individual neighbours' states.
-    *
     * Because *reading* is done sequentially there is no need to
     * capture the individual neighbours' states so counting is
     * done directly.
@@ -51,25 +48,6 @@ class LyfeCell(  val x: Double,
     (broadcast || update)
   }
 
-  /**
-    * Returns the next state computed from neighbours' states.
-    */
-  def nextState: Boolean= {
-    //var count = 0
-    //for (s <- neighbourState) if (s) count += 1
-    (lifeTime>0) match {
-      case true =>
-        count match {
-          case 0 => false
-          case 1 => false
-          case 2 => true
-          case 3 => true
-          case _ => false
-        }
-      case false =>
-        count == 3 || (b6 && count == 6)
-    }
-  }
 
   override def paintOn(g: Graphics2D, toPixels: Double=>Int): Boolean = {
     import Color._
@@ -101,8 +79,23 @@ class LyfeCell(  val x: Double,
         case Die   => { lifeTime = 0 }
         case Sync  =>
           exchangeStates()
-          val next = nextState
-          if (next) lifeTime += 1 else lifeTime=0
+          lifeTime = lifeTime match {
+            case 0 =>  count match {
+              case 3       => 1
+              case 6 if b6 => 1
+              case _       => 0
+            }
+
+            case _ => count match {
+              case 2 | 3 => lifeTime + 1
+              case _     => 0
+            }
+          }
+          lifeTime = count match {
+            case 2 | 3 => if (lifeTime>0) lifeTime + 1 else 0
+            case 6     => if (b6) 1 else 0
+            case _     => 0
+          }
 
       }
     }
