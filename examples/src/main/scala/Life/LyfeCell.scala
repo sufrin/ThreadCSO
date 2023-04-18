@@ -22,6 +22,18 @@ class LyfeCell(  val x: Double,
                  val toNbr:        Seq[!![Boolean]],
               ) extends Displayable {
 
+  /*
+   * TODO: A heuristic that might improve redisplaying speed by
+   *  not changing what's shown of a cell if it has not changed. This
+   *  cannot be implemented JUST at the cell level, for at the moment
+   *  repainting the screen relies on each cell painting its own
+   *  background (because the screen is cleared at a draw). Getting it
+   *  right will involve changes to `Display`.
+   */
+
+  /**
+    * Number of proper neighbours
+    */
   val neighbours        = 8
 
   /** Number of generations this cell has been "alive" */

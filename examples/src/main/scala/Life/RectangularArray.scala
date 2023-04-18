@@ -53,6 +53,12 @@ class RectangularArray[T](val cols: Int, val rows: Int)(implicit tag: ClassTag[T
     */
   @inline private def wrapply(c: Int, r: Int): T = apply((c+cols)%cols,(r+rows)%rows)
 
+  @inline def at(c: Int, r: Int): Option[T] =
+    if (0 <= c && c < cols && 0 <= r && r < rows) Some(apply(c, r)) else None
+
+  @inline def definedAt(c: Int, r: Int): Boolean =
+    (0 <= c && c < cols && 0 <= r && r < rows)
+
   // row and column deltas for neighbours listed in conventional neighbour order,
   // namely clockwise from the north west. Any consistent cyclic permutation
   // (rotation) of both these arrays is permissible, but pointless.

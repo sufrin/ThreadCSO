@@ -38,8 +38,11 @@ object Lyfe extends App {
   var allCells: CellArray = null
   @inline def forSelectedCells(effect: Cell => Unit): Unit = allCells.forSelected(effect)
   @inline def forEachCell(effect: Cell => Unit): Unit = allCells.forEach(effect)
-  @inline def forCells(cols: Seq[Int], rows: Seq[Int])(effect: Cell=> Unit): Unit = {
-     for { row <- rows; col <- cols } effect(allCells(col, row))
+  @inline def forCells(xs: Seq[Int], ys: Seq[Int])(effect: Cell=> Unit): Unit = {
+     for { row <- ys; col <- xs if allCells.definedAt(col, row) } effect(allCells(col, row))
+  }
+  @inline def forCell(col: Int, row: Int)(effect: Cell => Unit): Unit = {
+    if (allCells.definedAt(col, row)) effect(allCells(col, row)) else {}
   }
 
   var _cols  = 50
@@ -162,18 +165,17 @@ object Lyfe extends App {
 
 
               case VK_RIGHT if !running =>
-                mouseX += 1
-                allCells(mouseX, mouseY).selected = true
+                mouseX = (mouseX + 1) min (allCells.cols-1)
+                allCells(mouseX, mouseY).selected = !CONTROL
               case VK_LEFT if !running =>
-                mouseX -= 1
-                allCells(mouseX, mouseY).selected = true
+                mouseX = (mouseX-1) max 0
+                allCells(mouseX, mouseY).selected = !CONTROL
               case VK_UP if !running =>
-                mouseY -= 1
-                allCells(mouseX, mouseY).selected = true
+                mouseY = (mouseY-1) max 0
+                allCells(mouseX, mouseY).selected = !CONTROL
               case VK_DOWN if !running =>
-                mouseY += 1
-                allCells(mouseX, mouseY).selected = true
-
+                mouseY = (mouseY + 1) min (allCells.rows-1)
+                allCells(mouseX, mouseY).selected = !CONTROL
 
               case VK_SPACE  if running =>
                    GUI.setRunning(!running)
