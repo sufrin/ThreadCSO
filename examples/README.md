@@ -185,25 +185,45 @@ individual process.
 Usage of the programs (from SBT) is:
 
 `runMain Life -n«count»`     Uses «count» columns and rows in a square, 
-and starts off with a random collection of live cells.  
+and starts off with a random collection of live cells.  Run the
+program with `-h` to see details of other paramater settings.
     
 `runMain Lyfe «cols»X«rows» «width»x«height»` Uses «cols» columns 
 and «rows» rows in a rectangle of dimension «width»x«height» pixels.
 If there is room for more columns or rows in the given rectangle, then 
-one of (cols, rows) is increased so as to fill the rectangle.
-
-The defaults give reasonably good performance; but be aware that
-the fundamental limitation of this approach is that the display is
-a generic component that "polls" each of the cells for its image
-once per generation.
+one of (cols, rows) is increased so as to fill the rectangle. Default
+parameters are 80X80 800x800. Living cells are coloured by age: newborn cells 
+are green; cells that have lasted up to 7 generations are red; cells that have 
+lasted beyond 7 generations are coloured blue.
 
 The simulation can be stopped and started, and
 cells can be "painted" alive when it is stopped. For details run
 the program with `-h.` 
 
-Other message-passing solutions might have workers working on larger rectangular regions
-of the grid, and exchanging the edges of their regions with neighbour
-workers on every generation.
+#### Performance
+
+**Life:**
+The default parameters (65536 cells in a square array) give (astonishingly) 
+good performance. If you  want to see what is happening in detail it's a good 
+idea to increase the  frame dwell time from `-f10` to `-f100` (units are 
+in milliseconds).
+
+**Lyfe:** 
+The defaults (80X80) give very good performance; but be aware that
+the fundamental limitation of this approach is that the display is
+a generic component that "polls" each of the `N` cells for its image
+once per generation, and that the number of intercell messages 
+per generation is  `NxN`. Within each cell the messages are sent 
+in parallel and  received sequentially. At 100X100 performance is
+acceptable. At 256X256 (65K cells) performance is just about 
+adequate.
+
+**Note:** performance descriptors are from runs made on a 32G (3.2GHz Intel)
+Mac Mini.
+
+
+
+
 
 #### Background
 An early version of the **Lyfe** implementation
@@ -219,6 +239,10 @@ and that:
 "Using virtual threads would be a better bet for
 a serious attempt (and we will present one due to Jones and Goldsmith
 (Programming in **occam2**) in due course)."
+
+Other message-passing solutions might have workers working on larger rectangular regions
+of the grid, and exchanging the edges of their regions with neighbour
+workers on every generation.
 
 ## Additional Examples
 

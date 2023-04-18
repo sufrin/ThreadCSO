@@ -1,18 +1,15 @@
-
-
-
-
 import app.OPT._
 import display._
 import io.threadcso._
 import io.threadcso.channel.PortState
 
-import scala.reflect.ClassTag
-
 
 /**
   *
-  *  Life implementation in which the cells exchange states along channels
+  *  Life implementation in which the cells exchange states along channels. 
+  *  This is a challenge to the raw speed of channel implementations and to the
+  *  scheduling algorithms for the virtual thread implementation that underlies
+  *  CSO processes (post 2023). 
   *
   */
 object Lyfe extends App {
@@ -20,47 +17,32 @@ object Lyfe extends App {
   val Command = "Lyfe"
   type Cell = LyfeCell
 
+  class CellArray(cols: Int, rows: Int) extends RectangularArray[Cell](cols, rows) {
+        @inline def forSelected(effect: Cell=> Unit): Unit =
+          for { cell <- this if cell.selected } effect(cell)
 
-  var allCells: Cellular[Cell] = null
-
-  @inline def forSelectedCells(effect: Cell => Unit): Unit = {
-      for { cell <- allCells if cell.selected } effect(cell)
+        @inline def forEach(effect: Cell=> Unit): Unit =
+          this.foreach(effect)
   }
 
-  @inline def forAllCells(effect: Cell => Unit): Unit = {
-    for { cell <- allCells } effect(cell)
-  }
-
-  
-  class Cellular[T](val cols: Int, val rows: Int)(implicit tag: ClassTag[T]) extends Iterable[T] {
-    val a: Array[T] = Array.ofDim[T](rows*cols)(tag)
-    @inline def apply(n: Int): T = a(n)
-    @inline def apply(c: Int, r:Int): T = a(r*cols+c)
-    @inline def update(c: Int, r: Int, t: T): Unit = { a(r*cols+c) = t }
-
-    def neighbours(c: Int, r: Int): Seq[(Int, Int)] =
-      for { rd<-List(-1, 0, +1); cd <- List(-1, 0, +1) if (rd!=0 || cd!=0) }
-        yield ((c+cols+cd)%cols, (r+rows+rd)%rows)
-
-    override def iterator: Iterator[T] = new Iterator[T] {
-      var i = 0
-      var t = rows*cols
-      def hasNext: Boolean = i<t
-      def next(): T = {
-        val v = a(i)
-        i += 1
-        v
-      }
+  object CellArray {
+    def apply[T](cols: Int, rows: Int)(init: (Int, Int) => Cell): CellArray = {
+      val a = new CellArray(cols, rows)
+      for {c <- 0 until cols; r <- 0 until rows}
+        a(c, r) = init(c, r)
+      a
     }
   }
 
-  object Cellular {
-    def apply[T](cols: Int, rows: Int)(init: (Int,Int)=>T)(implicit tag: ClassTag[T]): Cellular[T] =
-      { val a = new Cellular[T](cols, rows)
-        for { c<-0 until cols; r<-0 until rows }
-            a(c, r) = init(c, r)
-        a
-      }
+  /** The array of cells -- initialized when dimensions are known  */
+  var allCells: CellArray = null
+  @inline def forSelectedCells(effect: Cell => Unit): Unit = allCells.forSelected(effect)
+  @inline def forEachCell(effect: Cell => Unit): Unit = allCells.forEach(effect)
+  @inline def forCells(xs: Seq[Int], ys: Seq[Int])(effect: Cell=> Unit): Unit = {
+     for { row <- ys; col <- xs if allCells.definedAt(col, row) } effect(allCells(col, row))
+  }
+  @inline def forCell(col: Int, row: Int)(effect: Cell => Unit): Unit = {
+    if (allCells.definedAt(col, row)) effect(allCells(col, row)) else {}
   }
 
   var _cols  = 50
@@ -80,6 +62,7 @@ object Lyfe extends App {
       _cols = fields(0).toInt
       _rows = fields(1).toInt
     }, "cols X rows in cells" ),
+    OPT("[0-9]+", { arg => _rows= arg.toInt; _cols = _rows; width = 10* _rows; height=10* _rows }, "rows and columns of 10x10 cells" ),
     OPT("-f", fast, "Use experimental 'fast' channels in cells."),
     OPT("-h", { Usage() }, "prints usage text"),
   )
@@ -88,21 +71,29 @@ object Lyfe extends App {
     super.Usage()
     Console.err.println(
       """
-        |The dashboard should be self-explanatory.
-        |Cells can be manipulated when the simulation is stopped (and only then).
+        |The dashboard is self-explanatory.
         |
-        |Mouse click      selects the cell the mouse points to.
-        |Ctrl-mouseclick  inverts the selection of the cell the mouse points to.
+        |When the simulation is stopped:
+        | Mouse click      selects the cell the mouse points to.
+        | Ctrl-mouseclick  inverts the selection of the cell the mouse points to.
         |
-        |mousedrag        selects the cells dragged over
-        |ctrl-mousedrag   deselects the cells dragged over
+        | mousedrag        selects the cells dragged over
+        | ctrl-mousedrag   deselects the cells dragged over
         |
-        |Ctrl-Delete/Backspace kills all cells.
-        |Delete/Backspace      kills all selected cells.
+        | Ctrl-Delete/Backspace kills all cells.
+        | Delete/Backspace      kills all selected cells.
         |
-        |Space brings to life all the selected cells and starts the simulation.
-        |Z     selects about 1/5th of the cells, randomly chosen.
-        |6     switches the birth/survival regime between B3/S23 and B63/S23.
+        | Left/Right/Up/Down
+        |       selects the cell leftwards, rightwards, upwards, downwards
+        |       from the last cell selected. Use these keys to select lines.
+        |
+        | Z     selects about 1/5th of the cells, randomly chosen.
+        | 6     switches the birth/survival regime between B3/S23 and B63/S23.
+        | Space brings to life all the selected cells and starts the simulation;
+        |
+        |When the simulation is running:
+        | Space stops the simulation
+        | Mouse click stops the simulation
         |
         |""".stripMargin)
   }
@@ -112,7 +103,6 @@ object Lyfe extends App {
 
   @inline private def running: Boolean = GUI.running
 
-  var totalCells = 0
   var RADIUS     = 0.0
   var GENERATION = 0
 
@@ -120,36 +110,40 @@ object Lyfe extends App {
       *   Process that reacts to all display events
       */
   val interactionManager = proc("interactionManager") {
-      var mouseX, mouseY, lastX, lastY: Double = -1.0
-      var down = false
+    var lastX, lastY, mouseX, mouseY   = 0
+
+    def toLast[D](mouse: MouseEventDetail[D]): Unit = {
+        lastX = (mouse.x / RADIUS).toInt
+        lastY = (mouse.y / RADIUS).toInt
+    }
+
+    def toMouse[D](mouse: MouseEventDetail[D]): Unit = {
+      mouseX = (mouse.x / RADIUS).toInt
+      mouseY = (mouse.y / RADIUS).toInt
+    }
+
+    var down = false
 
       repeat {
         GUI.fromDisplay ? {
 
           case Dragged(mouse) if !running =>
             val STATE = !(mouse.isControl || mouse.isMeta)
-            mouseX = mouse.x
-            mouseY = mouse.y
-            val (l, r) = ((lastX min mouseX) - RADIUS, lastX max mouseX)
-            val (b, t) = ((lastY min mouseY) - RADIUS, lastY max mouseY)
-            forAllCells {
-              cell =>
-                if (l <= cell.x && cell.x <= r && b <= cell.y && cell.y <= t) {
-                  cell.selected = STATE
-                }
-            }
+            toLast(mouse)
+            val cols = (lastX min mouseX) until (lastX max mouseX)+1
+            val rows = (lastY min mouseY) until (lastY max mouseY)+1
+            forCells(cols, rows) { _.selected = STATE }
             GUI.refresh()
 
           case Pressed(mouse) if running =>
+            toMouse(mouse)
             GUI.setRunning(false)
             StatusReport()
 
           case Pressed(mouse) if !running =>
-            down  = true
-            lastX = mouse.x
-            lastY = mouse.y
+            toMouse(mouse)
             val CONTROL = mouse.isControl || mouse.isMeta
-            val lastHits = GUI.display.at(lastX, lastY, false)
+            val lastHits = GUI.display.at(mouse.x, mouse.y, false)
 
             // add to / remove from the selection
             if (CONTROL)
@@ -169,6 +163,20 @@ object Lyfe extends App {
             import java.awt.event.KeyEvent._
             key.code match {
 
+
+              case VK_RIGHT if !running =>
+                mouseX = (mouseX + 1) min (allCells.cols-1)
+                allCells(mouseX, mouseY).selected = !CONTROL
+              case VK_LEFT if !running =>
+                mouseX = (mouseX-1) max 0
+                allCells(mouseX, mouseY).selected = !CONTROL
+              case VK_UP if !running =>
+                mouseY = (mouseY-1) max 0
+                allCells(mouseX, mouseY).selected = !CONTROL
+              case VK_DOWN if !running =>
+                mouseY = (mouseY + 1) min (allCells.rows-1)
+                allCells(mouseX, mouseY).selected = !CONTROL
+
               case VK_SPACE  if running =>
                    GUI.setRunning(!running)
                    StatusReport()
@@ -183,7 +191,7 @@ object Lyfe extends App {
                     GUI.setRunning(true)
 
               case VK_DELETE | VK_BACK_SPACE if !running && CONTROL =>
-                forAllCells { cell =>
+                forEachCell { cell =>
                   cell.lifeTime = 0
                 }
                 GENERATION = 0
@@ -197,13 +205,13 @@ object Lyfe extends App {
 
               case VK_Z if !running =>
                   val random = new scala.util.Random
-                  for (_ <- 0 until totalCells / 5) {
-                    val cell = random.nextInt(totalCells)
+                  for (_ <- 0 until allCells.elements / 5) {
+                    val cell = random.nextInt(allCells.elements)
                     allCells(cell).selected = true
                   }
 
               case VK_6 if (!running) =>
-                   forAllCells { cell => cell.b6 = !cell.b6 }
+                   forEachCell { cell => cell.b6 = !cell.b6 }
 
               case _ =>
                    StatusReport()
@@ -220,7 +228,7 @@ object Lyfe extends App {
       val alive = allCells.filter { _.lifeTime>0 }
       val longLived = alive.filter { _.lifeTime >2 }
       val verylongLived = longLived.filter { _.lifeTime >6 }
-      GUI.report(s"Generation $GENERATION: of $totalCells cells, ${alive.size} are alive; ${longLived.size} alive >2; ${verylongLived.size} alive >6")
+      GUI.report(s"Generation $GENERATION: of ${allCells.elements} cells, ${alive.size} are alive; ${longLived.size} alive >2; ${verylongLived.size} alive >6")
     }
 
     /** Evaluate `body`, taking at least `t` nanoseconds. Sleep if evaluation
@@ -274,7 +282,6 @@ object Lyfe extends App {
     def Main(): Unit = {
       println(debugger)
 
-      val neighbours = 8
 
       val w = width  / _cols
       val h = height / _rows
@@ -283,42 +290,33 @@ object Lyfe extends App {
       val cols   = width / R
       val rows   = height / R
 
-      totalCells = rows * cols
       RADIUS     = R
 
       /**
         *
-        * Topologically the playing field is a torus: with westmost
-        * and eastmost cells neighbouring, as well as northmost and southmost cells.
+        * Topologically the cell field is a torus represented as an
+        * array: with westmost and eastmost columns considered to be
+        * adjacent, as well as northmost and southmost columns.
         *
-        * Intercell channels: each cell has 8 link channels, one to each
-        * of its neighbours, with neighbours numbered clockwise from 0 to 7.
-        * Neighbour 0 is its "north-west" neighbour; neighbour 1 is its
-        * "north" neighbour; ... neighbour 7 is its "west" neighbour.
+        * Each cell has 8 link channels, one to each of its neighbours.
+        * Neighbours are (by convention) numbered clockwise from 0 to 7.
+        * Neighbour 0 is the "north-west" neighbour; neighbour 1 is
+        * the "north" neighbour; ... neighbour 7 is the "west" neighbour.
+        * This convention is respected by `RectangularArray.neighbours(c, r)`,
+        * but it doesn't really matter what the starting compass direction is.
         */
 
-      val links: IndexedSeq[IndexedSeq[IndexedSeq[Chan[Boolean]]]] =
-        for (x <- 0 until cols) yield
-          for (y <- 0 until rows) yield
-            for (i <- 0 until neighbours) yield
-                makeChan[Boolean](s"($x,$y)($i)")
+        val linkOut = RectangularArray[IndexedSeq[Chan[Boolean]]](cols, rows) {
+          (c, r) => for (i <- RectangularArray.Neighbourhood) yield makeChan[Boolean](s"($c,$r)($i)")
+        }
 
-      /**
-        * The output links of each cell are indexed by the number of the
-        * neighbour to which they send.
-        *
-        */
-      val linkOut: IndexedSeq[IndexedSeq[IndexedSeq[!![Boolean]]]] = links
 
       /**
         * The input links of each cell are the output
-        * links of the corresponding neighbour, to wit:
+        * links of its corresponding neighbour, to wit:
         * neighbour `i` for output is neighbour `(i+4)%8`
-        * for input.
-        *
-        * The computation of this "view" of the links is
-        * straightforward; complicated only by the
-        * "wrapping around" of cells on the torus.
+        * for input. The computation of this "view" of the links is
+        * straightforward.
         *
         * {{{
         *               out in
@@ -332,21 +330,17 @@ object Lyfe extends App {
         *   west        7   3    east
         * }}}
         */
-      val linkIn: IndexedSeq[IndexedSeq[IndexedSeq[??[Boolean]]]] =
-      for (col <- 0 until cols) yield
-        for (row <- 0 until rows) yield {
-          val west  = (col + cols - 1) % cols
-          val east  = (col + 1) % cols
-          val north = (row + 1) % rows
-          val south = (row + rows - 1) % rows
-          val nr = Array(south, south, south, row,  north, north, north, row)
-          val nc = Array(east,  col,   west,  west, west,  col,   east,  east)
-          for (i <- 0 until neighbours) yield links(nc(i))(nr(i))(i)
+        val linkIn = RectangularArray[IndexedSeq[Chan[Boolean]]](cols, rows) {
+          (c, r) =>
+            val hood = linkOut.neighbourhood(c, r).iterator
+            // assert: the count of `hood` is `Neighbours`
+            (for { i <- linkOut.Neighbourhood } yield hood.next()((i+4)%linkOut.Neighbours)).toIndexedSeq
         }
 
+
       // set up the cells
-      allCells = Cellular[Cell](cols, rows) {
-        case (c, r) =>  new LyfeCell(c * R, r * R, R, R, linkIn(c)(r), linkOut(c)(r))
+      allCells = CellArray(cols, rows) {
+        case (c, r) =>  new LyfeCell(c * R, r * R, R, R, linkIn(c, r), linkOut(c, r))
       }
 
       // Sends a `Sync` to each cell, concurrently
@@ -355,7 +349,7 @@ object Lyfe extends App {
       val displayController: PROC = proc("DisplayController") {
 
             // start the cell controllers
-            forAllCells(cell=>cell.controller.fork)
+            forEachCell(cell=>cell.controller.fork)
 
             repeat {
                 takeTime(seconds(1.0 / GUI.FPS)) {
