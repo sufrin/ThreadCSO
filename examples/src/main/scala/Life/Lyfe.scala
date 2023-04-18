@@ -68,21 +68,29 @@ object Lyfe extends App {
     super.Usage()
     Console.err.println(
       """
-        |The dashboard should be self-explanatory.
-        |Cells can be manipulated when the simulation is stopped (and only then).
+        |The dashboard is self-explanatory.
         |
-        |Mouse click      selects the cell the mouse points to.
-        |Ctrl-mouseclick  inverts the selection of the cell the mouse points to.
+        |When the simulation is stopped:
+        | Mouse click      selects the cell the mouse points to.
+        | Ctrl-mouseclick  inverts the selection of the cell the mouse points to.
         |
-        |mousedrag        selects the cells dragged over
-        |ctrl-mousedrag   deselects the cells dragged over
+        | mousedrag        selects the cells dragged over
+        | ctrl-mousedrag   deselects the cells dragged over
         |
-        |Ctrl-Delete/Backspace kills all cells.
-        |Delete/Backspace      kills all selected cells.
+        | Ctrl-Delete/Backspace kills all cells.
+        | Delete/Backspace      kills all selected cells.
         |
-        |Space brings to life all the selected cells and starts the simulation.
-        |Z     selects about 1/5th of the cells, randomly chosen.
-        |6     switches the birth/survival regime between B3/S23 and B63/S23.
+        | Left/Right/Up/Down
+        |       selects the cell leftwards, rightwards, upwards, downwards
+        |       from the last cell selected. Use these keys to select lines.
+        |
+        | Z     selects about 1/5th of the cells, randomly chosen.
+        | 6     switches the birth/survival regime between B3/S23 and B63/S23.
+        | Space brings to life all the selected cells and starts the simulation;
+        |
+        |When the simulation is running:
+        | Space stops the simulation
+        | Mouse click stops the simulation
         |
         |""".stripMargin)
   }
@@ -125,6 +133,7 @@ object Lyfe extends App {
             GUI.refresh()
 
           case Pressed(mouse) if running =>
+            toMouse(mouse)
             GUI.setRunning(false)
             StatusReport()
 
@@ -150,6 +159,21 @@ object Lyfe extends App {
             val CONTROL = key.isControl || key.isMeta
             import java.awt.event.KeyEvent._
             key.code match {
+
+
+              case VK_RIGHT if !running =>
+                mouseX += 1
+                allCells(mouseX, mouseY).selected = true
+              case VK_LEFT if !running =>
+                mouseX -= 1
+                allCells(mouseX, mouseY).selected = true
+              case VK_UP if !running =>
+                mouseY -= 1
+                allCells(mouseX, mouseY).selected = true
+              case VK_DOWN if !running =>
+                mouseY += 1
+                allCells(mouseX, mouseY).selected = true
+
 
               case VK_SPACE  if running =>
                    GUI.setRunning(!running)
