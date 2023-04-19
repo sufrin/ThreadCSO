@@ -1,10 +1,10 @@
 package io
 
-import io.SourceLocation.sourcePathMACRO
+import io.SourceLocation.{sourcePathMACRO, sourceLocationMACRO}
+
 import scala.language.experimental.macros
 
-/** Import all from this object to enable source location reporting as complete
-  * paths instead of filenames
+/** Same functionality as `SourceLocation`
   *
   * @see
   *   [[io.SourceLocation]]
@@ -17,7 +17,9 @@ object SourcePath {
     * `SourceLocation.sourceLocation` would return.
     */
 
+  implicit def sourcePath:     SourcePath     = macro sourcePathMACRO
+  implicit def sourceLocation: SourceLocation = macro sourceLocationMACRO
   type SourceLocation = io.SourceLocation.SourceLocation
+  type SourcePath     = io.SourceLocation.SourcePath
 
-  implicit def sourceLocation: SourceLocation = macro sourcePathMACRO
 }

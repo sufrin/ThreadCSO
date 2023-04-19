@@ -34,6 +34,31 @@ lazy val core = (project in file("core"))
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.15" % "test"
   )
 
+lazy val eieio = (project in file("eieio"))
+   .dependsOn(macroSub)
+   .dependsOn(core)
+   .dependsOn(app)
+   .settings(
+    scalacOptions ++= Seq(
+      "-deprecation",
+      "-unchecked"
+      /* "-Werror" */
+    )
+   )
+
+lazy val net = (project in file("net"))
+  .dependsOn(macroSub)
+  .dependsOn(core)
+  .dependsOn(app)
+  .dependsOn(eieio) // for Logging at present: refactor this
+  .settings(
+    scalacOptions ++= Seq(
+      "-deprecation",
+      "-unchecked"
+      /* "-Werror" */
+    )
+  )
+   
 lazy val macroSub = (project in file("macros"))
   .settings(
     libraryDependencies += scalaReflect.value
