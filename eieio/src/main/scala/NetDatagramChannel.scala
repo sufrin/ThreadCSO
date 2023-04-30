@@ -7,10 +7,11 @@ import ox.eieio.types._
 
 import java.net._
 import java.nio.ByteBuffer
-import java.nio.channels.{ClosedChannelException, _}
+import java.nio.channels._
 import scala.annotation.tailrec
+import io.SourceLocation._
   
-object NetDatagramChannel extends Logger("DatagramChannel")
+object NetDatagramChannel extends ox.logging.Log("DatagramChannel")
 {  
    def bound(address: InetSocketAddress): NetDatagramChannel =
    { val channel = new NetDatagramChannel(DatagramChannel.open())

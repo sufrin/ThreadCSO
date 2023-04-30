@@ -1,5 +1,6 @@
 import app.OPT._
 import io.threadcso._
+import io.threadcso.debug.Logging
 import ox.eieio._
 import ox.eieio.codecs._
 import ox.eieio.options._
@@ -8,6 +9,8 @@ import ox.eieio.types._
 import java.net.{InetAddress, InetSocketAddress}
 import java.nio.ByteBuffer
 import scala.collection.mutable
+import ox.logging.{Log, Logging => LOGGING}
+
 // import Thing._ // Awaiting 2.12 Scala pickler
 
 /** 
@@ -80,13 +83,13 @@ abstract class ManualTest(doc: String) extends App
     , OPT("-d", debugging,    s"<int> port on which to start the debugger [$debugging]")
     , OPT("-#",  copies,      s"<int> copies [$copies]")
     , OPT("-L=.+",            l => {level=l.substring(3)},      s"-L=<level> set level for subsequent -L logs [$level]")
-    , OPT("-L",               m => Logging.setLevel(m, level),  s"<name> set loglevel of Log named <name> [$level]")
+    , OPT("-L",               m => LOGGING.setLevel(m, level),  s"<name> set loglevel of Log named <name> [$level]")
     , OPT("-L.+=.+",          l => l match {
         case s"-L$name=$lev" =>
              level = lev
-             Logging.setLevel(name, level)
+             LOGGING.setLevel(name, level)
         },                    s"-L<name>=<level> set level of Log named <name> to <level>")
-    , OPT("-A=.*",            l => {level=l.substring(3); Logging.setLevel("ALL", level)}, s"-A=<level> set default log level for all Logs to <level>")
+    , OPT("-A=.*",            l => {level=l.substring(3); LOGGING.setLevel("ALL", level)}, s"-A=<level> set default log level for all Logs to <level>")
     , ELSE("<anything else>", l => nonSwitch.enqueue(l), "Add this to the list of transmissions" )
     )
 
@@ -219,7 +222,7 @@ object strings extends ManualTest("strings -- round-trips encoded strings")
 
 
 object echoserver extends ManualTest("echo -- (server) reflects uninterpreted bytes")
-{ val log = new Logger("echo")
+{ val log = new Log("echo")
   def MAIN : Unit =
   { // delay = 5000
 
@@ -255,7 +258,7 @@ object echoserver extends ManualTest("echo -- (server) reflects uninterpreted by
 }
 
 object datagramecho extends ManualTest("datagramecho -- (server) reflects uninterpreted byte datagrams")
-{ val log = new Logger("datagramecho")
+{ val log = new Log("datagramecho")
   def MAIN : Unit =
   { val channel = NetDatagramChannel.bound(address(host, port))
     Console.println(channel.getLocalAddress)
@@ -292,7 +295,7 @@ object datagrams extends ManualTest("datagrams -- (client) messages forwarded (a
  import ox.eieio.options._
 
   def MAIN : Unit =
-  { val log = new Logger("datagrams")
+  { val log = new Log("datagrams")
     val channel: DatagramConnector = NetDatagramChannel.connected(address(host, port))
     channel.setOption(SO_RCVBUF, RCV)
     channel.setOption(SO_SNDBUF, SND)
@@ -325,7 +328,7 @@ object listen extends ManualTest("listen -- listen to multicast datagrams")
 { import ox.eieio.options._
 
   def MAIN : Unit =
-  { val log = new Logger("datagrams")
+  { val log = new Log("datagrams")
     val channel: MulticastConnector = NetDatagramChannel.multicast(address(port), address(host, port).getAddress)
     channel.setOption(SO_RCVBUF, RCV)
     channel.setOption(SO_SNDBUF, SND)
@@ -363,7 +366,7 @@ object bound extends ManualTest("bound -- listen to datagrams")
 { import ox.eieio.options._
 
   def MAIN : Unit =
-  { val log = new Logger("datagrams")
+  { val log = new Log("datagrams")
 
     val channel = NetDatagramChannel.bound(address(host, port))
     channel.setOption(SO_RCVBUF, RCV)
@@ -401,7 +404,7 @@ object speak extends ManualTest("speak -- (client) messages forwarded (as datagr
  import ox.eieio.options._
 
   def MAIN : Unit =
-  { val log = new Logger("speak")
+  { val log = new Log("speak")
     val channel: DatagramConnector = NetDatagramChannel.connected(address(multicast, port))
     channel.setOption(SO_RCVBUF, RCV)
     channel.setOption(SO_SNDBUF, SND)
@@ -431,7 +434,7 @@ object speak extends ManualTest("speak -- (client) messages forwarded (as datagr
 */
 
 object http extends ManualTest("http -- (server) pretends to be an http server")
-{ val log = new Logger("http")
+{ val log = new Log("http")
   
   def MAIN : Unit =
   run( π ("Runtime") { } || 

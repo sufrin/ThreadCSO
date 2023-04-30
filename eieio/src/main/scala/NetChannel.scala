@@ -1,4 +1,6 @@
 package ox.eieio
+import ox.logging.Log
+
 
 import java.net.{SocketAddress, SocketOption}
 import java.nio.channels._
@@ -9,14 +11,16 @@ import io.threadcso.basis.getPropElse
 import io.threadcso.channel.Closed
 import ox.eieio.types._
 
-object NetChannelRead  extends Logger("NetChannelRead") 
-object NetChannelWrite extends Logger("NetChannelWrite")
+import io.SourceLocation.sourceLocation
+
+object NetChannelRead  extends Log("NetChannelRead")
+object NetChannelWrite extends Log("NetChannelWrite")
 
 /**
   * Provides two factory methods for constructing `NetChannel`s. A `NetChannel` is the
   * CSO interface to (and wrapper for) a `java.nio.channels.AsynchronousSocketChannel`
   */
-object NetChannel extends Logger
+object NetChannel extends Log("NetChannel")
 {  /**
      The `AsynchronousChannelGroup` used in the construction of
      asynchronous channels. This is the pool of threads (re)used

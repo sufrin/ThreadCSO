@@ -5,7 +5,7 @@ import io.threadcso._
 import java.net.InetSocketAddress
 import java.nio.channels._
   
-object ServerSocket extends Logger("ServerSocket")
+object ServerSocket extends ox.logging.Log("ServerSocket")
 
 /** Open an asynchronous network server socket on `port` with
     the given `backlog`.

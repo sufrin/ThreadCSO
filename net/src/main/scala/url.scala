@@ -2,11 +2,13 @@ package ox.net
 import app.OPT._
 
 import java.io.{BufferedReader, InputStreamReader}
+import java.net.URI
 
 
 object url extends App {
+  import ox.logging._
+
   import java.net.URL
-  import ox.eieio.Logging._
 
   var url: URL = null
   var src: String = ""
@@ -18,7 +20,7 @@ object url extends App {
     */
   val Options = List[Opt](
        OPT("-s", src,  s"<name> set src")
-    ,  OPT(".+", { case u: String  => url = new URL(null, u); () }, "<url>")
+    ,  OPT(".+", { u => url = new URI(u).toURL(); () }, "<url>")
   )
   /** The name of this command line application.
     *

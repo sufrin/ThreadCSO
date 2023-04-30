@@ -133,7 +133,7 @@ object codecs {
         }
         // This avoids reparsing strings that span network packets
         {
-          buffer.position(buffer.limit - length) // we want to keep length bytes
+          buffer.position(buffer.limit() - length) // we want to keep length bytes
           buffer.compact() // in the compacted buffer
           buffer.position(length) // and start reading from there
           // conts+=1; log.finer("%d => ReadThen(%d): %s".format(conts, length, buffer))
@@ -204,7 +204,7 @@ object codecs {
         }
         // this avoids reparsing of strings that span network packets
         {
-          buffer.position(buffer.limit - length)
+          buffer.position(buffer.limit() - length)
           buffer.compact()
           buffer.position(length)
           ReadThen(() => decoder(length, cr, true))

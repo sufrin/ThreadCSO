@@ -8,9 +8,11 @@ import io.threadcso.channel.Closed
 
 import ox.eieio.types._
 
+import ox.logging.Log
+
 /**
   * Provides factory methods to construct synchronous network channels. */
-object SyncNetChannel extends Logger("SyncNetChannel")
+object SyncNetChannel extends Log("SyncNetChannel")
 {
    /** Construct a synchronous network channel bound to the given socket address */
    def bound(address: SocketAddress): SyncNetChannel =

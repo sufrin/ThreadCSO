@@ -17,7 +17,7 @@ lazy val scalaReflect = Def.setting {
 }
 
 lazy val root = (project in file("."))
-   .aggregate(app, core, macroSub)
+   .aggregate(app, core, macroSub, net)
    
 
 lazy val core = (project in file("core"))
@@ -50,7 +50,8 @@ lazy val net = (project in file("net"))
   .dependsOn(macroSub)
   .dependsOn(core)
   .dependsOn(app)
-  .dependsOn(eieio) // for Logging at present: refactor this
+  .dependsOn(eieio)   // for codecs and logging
+  //.dependsOn(logging) // for Logging at present: refactor this
   .settings(
     scalacOptions ++= Seq(
       "-deprecation",
@@ -58,7 +59,19 @@ lazy val net = (project in file("net"))
       /* "-Werror" */
     )
   )
-   
+
+// lazy val logging = (project in file("logging"))
+//   .dependsOn(macroSub)
+//   .dependsOn(core)
+//   .dependsOn(app)
+//   .settings(
+//     scalacOptions ++= Seq(
+//       "-deprecation",
+//       "-unchecked"
+//       /* "-Werror" */
+//     )
+//   )
+  
 lazy val macroSub = (project in file("macros"))
   .settings(
     libraryDependencies += scalaReflect.value
