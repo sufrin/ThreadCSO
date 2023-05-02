@@ -8,7 +8,7 @@ package ox.net
   * (NetChannel) framework. These are quick-and-dirty
   * experiments, and I don't recommend using them.
   *
-  * Results: client and server connections all but 1 work.
+  * Results: client and server connections all but 1 work. (Later: ALL WORK)
   * Tested when necessary by using external hosts; secure or insecure.
   *
   * EXCEPT: that I cannot establish a secure server socket. The
@@ -16,6 +16,11 @@ package ox.net
   * It may well be connected with my understanding of how to generate
   * a local certificate for Java. But I have run out of time to investigate
   * this (this season).
+  *
+  * LATER: it /was/ connected with server certificates on my development
+  * machine. The topic of (installing) self-signed server certificates is exasperatingly
+  * badly documented, and the bulk of the documentation serves to obscure the
+  * essentials.
   */
 
 import io.threadcso.component.keyboard
