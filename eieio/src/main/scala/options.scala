@@ -1,7 +1,8 @@
 package ox.eieio
 
 
-import java.net.StandardProtocolFamily
+import java.net.{SocketOption, StandardProtocolFamily}
+import java.nio.channels.SocketChannel
   /**
   {{{
           @version 1
@@ -26,6 +27,12 @@ import java.net.StandardProtocolFamily
     val IP_MULTICAST_LOOP = java.net.StandardSocketOptions.IP_MULTICAST_LOOP
     val IPv4              = StandardProtocolFamily.INET
     val IPv6              = StandardProtocolFamily.INET6
+
+    /** Uniform reference for option-setting  */
+    def setOption(channel: SocketChannel, opt: SocketOption[Integer], value: Int) = channel.setOption(opt, value.asInstanceOf[Integer])
+    def setOption(channel: SocketChannel, opt: SocketOption[java.lang.Boolean], value: Boolean) = channel.setOption(opt, if (value) java.lang.Boolean.TRUE else java.lang.Boolean.FALSE)
+    def setOption[T](channel: SocketChannel, opt: SocketOption[T], value: T) = channel.setOption(opt, value)
+    def getOption[T](channel: SocketChannel, opt: SocketOption[T]): T = channel.getOption(opt)
   }
 
 

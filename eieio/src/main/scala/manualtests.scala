@@ -1,15 +1,18 @@
 import app.OPT._
 import io.threadcso._
-import io.threadcso.debug.Logging
+import io.threadcso.channel.Closed
+import io.threadcso.process.CSOThreads.{UNPOOLED, VIRTUAL}
 import ox.eieio._
 import ox.eieio.codecs._
 import ox.eieio.options._
 import ox.eieio.types._
+import ox.logging.{Log, Logging => LOGGING}
 
+import java.io.{InputStream, InputStreamReader}
 import java.net.{InetAddress, InetSocketAddress}
 import java.nio.ByteBuffer
+import java.nio.channels.SocketChannel
 import scala.collection.mutable
-import ox.logging.{Log, Logging => LOGGING}
 
 // import Thing._ // Awaiting 2.12 Scala pickler
 
@@ -112,12 +115,156 @@ abstract class ManualTest(doc: String) extends App
   {
     if (debugging > 0) System.setProperty("io.threadcso.debugger.port", debugging.toString)
     if (debugging >= 0) Console.println(debugger)
-    println(Logging)
     MAIN
   }
 
 }
 
+import Factories._
+
+object bufferedStrings extends ManualTest("bufferedStrings -- round trips strings with BufferedSyncNetChannel") {
+
+  import io.threadcso.component._
+
+  import scala.collection.mutable.Queue
+
+  val channel =  if (ipkt) BufferedSyncNetChannel.connected(address(host, port), IntPacketOutFactory, IntPacketInFactory)
+                 else
+                 if (vpkt) BufferedSyncNetChannel.connected(address(host, port), VarIntPacketOutFactory, VarIntPacketInFactory)
+                 else
+                    BufferedSyncNetChannel.connected(address(host, port), crlfOutFactory, crlfInFactory)
+
+  def MAIN: Unit = {
+    val kbd = OneOne[String]("kbd")
+    val fromHost = OneOneBuf[String](50, name="fromHost") // A synchronized channel causes deadlock under load
+    val toHost   = OneOneBuf[String](50, name="toHost") // A synchronized channel causes deadlock under load
+    val collected = OneOne[mutable.Queue[String]]("Collected")
+    var n = copies
+    val log = Log("MAIN")
+
+    def prompt = Console.println("> <copies> %d | <text>".format(n))
+    // Bootstrap the channel processes
+    channel.CopyToNet(toHost).withExecutor(VIRTUAL).fork
+    channel.CopyFromNet(fromHost).withExecutor(VIRTUAL).fork
+    run(proc("ui") {
+      repeat {
+        prompt
+        kbd ? () match {
+          case cmd =>
+            if (cmd.matches("[0-9]+")) {
+              n = cmd.toInt
+            }
+            else {
+              val sent = new mutable.Queue[String]
+              var text = cmd
+              val stride = 1 max (n / 10)
+              for (i <- 0 until n) {
+                if ((i % stride) == 0 && !constant) text = "((%s))".format(text)
+                val message = "%d %s".format(i, text)
+                toHost ! message
+                sent.enqueue(message)
+                if (i % stride == 0) Console.print("!%d ".format(i))
+              }
+              toHost ! "RTT"
+              Console.println()
+              val received = collected ? ()
+              log.finest(s"collected=$collected")
+              var k = 0
+              while (received.nonEmpty) {
+                val rx = received.dequeue()
+                val sx = sent.dequeue()
+                if (rx == sx) {
+                  if (k % stride == 0) Console.print("=%d".format(k))
+                }
+                else
+                  Console.println("Record %d: sx=%s rx=%s".format(k, sx, rx))
+                k += 1
+              }
+              Console.println()
+              received.clear()
+              sent.clear()
+              prompt
+            }
+        }
+      }
+      toHost.close()
+    }
+      || (if (nonSwitch.isEmpty) keyboard(kbd) else forwardNonSwitch(kbd)).withName("kbd")
+      || proc("fromHost") {
+      var start = now
+      val results = new mutable.Queue[String]
+      repeat {
+        log.finest("fromHost?()")
+        val decoded = fromHost ? ()
+        log.finest(s"fromHost()=$decoded")
+        decoded match {
+          case "RTT" =>
+            Console.println("RTT %g ns/message".format((now - start).toDouble / n.toDouble))
+            collected ! results
+            start = now
+            ()
+          case s =>
+            log.finest(s"results.enqueue: $decoded")
+            results.enqueue(s)
+            ()
+        }
+      }
+      toHost.close()
+      kbd.close()
+      collected.close()
+    }
+    )
+    kbd.close()
+    fromHost.close()
+    exit()
+  }
+}
+
+object buffered extends ManualTest("bufferedStrings -- round trips keyboard using BufferedSyncNetChannel") {
+  import io.threadcso.component._
+
+  val channel =  BufferedSyncNetChannel.connected(address(host, port), crlfOutFactory, crlfInFactory)
+
+  def MAIN: Unit = {
+    val kbd = OneOne[String]("kbd")
+    val fromHost = OneOneBuf[String](50, name="fromHost") // A synchronized channel causes deadlock under load
+    val toHost   = OneOneBuf[String](50, name="toHost") // A synchronized channel causes deadlock under load
+    val log = Log("MAIN")
+
+    // Bootstrap the channel processes
+    channel.CopyToNet(toHost).withExecutor(VIRTUAL).fork
+    channel.CopyFromNet(fromHost).withExecutor(VIRTUAL).fork
+
+    run(
+         keyboard(kbd)
+      || proc("ui") {
+         repeat {
+          kbd ? () match {
+            case "" =>
+              kbd.close()
+            case line =>
+              log.fine(s"toHost ! $line")
+              toHost ! line
+          }
+        }
+        toHost.close()
+      }
+      || proc("fromHost") {
+           var n = 0
+           repeat  {
+             n += 1
+             val decoded = fromHost ? ()
+             println(f"$n%-3d $decoded")
+          }
+          toHost.closeOut()
+          kbd.close()
+      }
+    )
+    kbd.close()
+    fromHost.close()
+    exit()
+  }
+}
 
 
 /**
@@ -125,8 +272,8 @@ abstract class ManualTest(doc: String) extends App
         current string-encoding. It checks that the received strings are
         identical to those that were sent.
 */
-object strings extends ManualTest("strings -- round-trips encoded strings")
-{ import io.threadcso.component._
+object strings extends ManualTest("strings -- round-trips encoded strings")  {
+  import io.threadcso.component._
 
  import scala.collection.mutable.Queue
 
@@ -220,9 +367,9 @@ object strings extends ManualTest("strings -- round-trips encoded strings")
   }
 }
 
-
-object echoserver extends ManualTest("echo -- (server) reflects uninterpreted bytes")
-{ val log = new Log("echo")
+/** Reflect uninterpreted bytes */
+object echoserver extends ManualTest("echo -- (server) reflects uninterpreted bytes") {
+  val log = new Log("echo")
   def MAIN : Unit =
   { // delay = 5000
 
@@ -257,8 +404,8 @@ object echoserver extends ManualTest("echo -- (server) reflects uninterpreted by
   }
 }
 
-object datagramecho extends ManualTest("datagramecho -- (server) reflects uninterpreted byte datagrams")
-{ val log = new Log("datagramecho")
+object datagramecho extends ManualTest("datagramecho -- (server) reflects uninterpreted byte datagrams") {
+  val log = new Log("datagramecho")
   def MAIN : Unit =
   { val channel = NetDatagramChannel.bound(address(host, port))
     Console.println(channel.getLocalAddress)
@@ -286,12 +433,11 @@ object datagramecho extends ManualTest("datagramecho -- (server) reflects uninte
   }
 }
 
-
 /**
         Keyboard and pseudo-keyboard messages forwarded in the current string encoding (as datagrams) from terminal to host:port, and vice-versa
 */
-object datagrams extends ManualTest("datagrams -- (client) messages forwarded (as datagrams) from terminal to host:port, and vice-versa")
-{ import io.threadcso.component._
+object datagrams extends ManualTest("datagrams -- (client) messages forwarded (as datagrams) from terminal to host:port, and vice-versa") {
+  import io.threadcso.component._
  import ox.eieio.options._
 
   def MAIN : Unit =
@@ -324,8 +470,8 @@ object datagrams extends ManualTest("datagrams -- (client) messages forwarded (a
 /**
         Listen to multicast datagrams encoded with the specified string codec
 */
-object listen extends ManualTest("listen -- listen to multicast datagrams")
-{ import ox.eieio.options._
+object listen extends ManualTest("listen -- listen to multicast datagrams") {
+  import ox.eieio.options._
 
   def MAIN : Unit =
   { val log = new Log("datagrams")
@@ -356,14 +502,13 @@ object listen extends ManualTest("listen -- listen to multicast datagrams")
   }
 }
 
-
 /**
         Listen to datagrams encoded with the specified string codec.
         Datagrams are not connection-oriented, hence the `SocketAddress`
         components of messages to and from the channel.
 */
-object bound extends ManualTest("bound -- listen to datagrams")
-{ import ox.eieio.options._
+object bound extends ManualTest("bound -- listen to datagrams") {
+  import ox.eieio.options._
 
   def MAIN : Unit =
   { val log = new Log("datagrams")
@@ -399,10 +544,9 @@ object bound extends ManualTest("bound -- listen to datagrams")
 /**
         Send multicast datagrams encoded with the specified string codec
 */
-object speak extends ManualTest("speak -- (client) messages forwarded (as datagrams) from terminal to the given multicast address")
-{ import io.threadcso.component._
- import ox.eieio.options._
-
+object speak extends ManualTest("speak -- (client) messages forwarded (as datagrams) from terminal to the given multicast address") {
+  import io.threadcso.component._
+  import ox.eieio.options._
   def MAIN : Unit =
   { val log = new Log("speak")
     val channel: DatagramConnector = NetDatagramChannel.connected(address(multicast, port))
@@ -432,9 +576,8 @@ object speak extends ManualTest("speak -- (client) messages forwarded (as datagr
 /**
         An http server that reflects the headers of requests sent to it.
 */
-
-object http extends ManualTest("http -- (server) pretends to be an http server")
-{ val log = new Log("http")
+object http extends ManualTest("http -- (server) pretends to be an http server")  {
+  val log = new Log("http")
   
   def MAIN : Unit =
   run( π ("Runtime") { } || 
