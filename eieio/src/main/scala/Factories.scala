@@ -3,7 +3,7 @@ import ox.eieio.codecs.UTF8
 import ox.eieio.types._
 import ox.logging.Log
 
-import java.io.{BufferedReader, InputStream, OutputStream}
+import java.io.{BufferedReader, EOFException, InputStream, OutputStream}
 import java.nio.ByteBuffer
 import java.nio.channels.{ByteChannel, SocketChannel}
 
@@ -322,6 +322,59 @@ object Factories {
     }
   }
 
+  object UTF8OutFactory extends EncoderFactory[String] {
+    val SND = 16000
+
+    import ox.eieio.options._
+
+    /** Refactor */
+    override def setOptions(channel: ByteChannel): Unit =
+      channel match {
+        case channel: SocketChannel =>
+          setOption(channel, SO_SNDBUF, SND)
+          setOption(channel, TCP_NODELAY, true) // TODO: factory parameter
+          setOption(channel, SO_KEEPALIVE, true)
+        case _ =>
+      }
+
+    override def makeEncoder(chan: ByteChannel): Encoding[String] = new Encoding[String] {
+      val data = new java.io.DataOutputStream(java.nio.channels.Channels.newOutputStream(chan))
+      var open: Boolean = true
+      override def encode(value: String): Iterable[BUFFER] = {
+        data.writeUTF(value)
+        data.flush()
+        Nil
+      }
+
+      override def clear(): Unit = ()
+    }
+  }
+
+  object UTF8InFactory extends DecoderFactory[String] {
+    val log = Log("crlf")
+    val RCV = 16000
+
+    import ox.eieio.options._
+
+    override def setOptions(channel: ByteChannel): Unit = channel match {
+      case channel: SocketChannel =>
+        setOption(channel, SO_RCVBUF, RCV) // TODO: factory parameters
+        setOption(channel, TCP_NODELAY, true)
+        setOption(channel, SO_KEEPALIVE, true)
+      case _ =>
+    }
+
+    override def makeDecoder(chan: ByteChannel): Decoding[String] = new Decoding[String] {
+      val data = new java.io.DataInputStream(java.nio.channels.Channels.newInputStream(chan))
+      var open: Boolean = true
+
+      override def canDecode: Boolean = open
+
+      def decode(): String = try data.readUTF() catch {
+        case exn: EOFException => open = false; null
+      }
+    }
+  }
 
   object crlfInFactory extends DecoderFactory[String] {
     val log = Log("crlf")
@@ -340,13 +393,11 @@ object Factories {
     override def makeDecoder(chan: ByteChannel): Decoding[String] = new Decoding[String] {
       val chars =  new BufferedReader(java.nio.channels.Channels.newReader(chan, UTF8.newDecoder(), 8192)) // TODO: factory parameters
       var open: Boolean = true
-
       override def canDecode: Boolean = open
       def decode(): String = chars.readLine() match {
         case null   => open=false; ""
         case string => string
       }
-
     }
   }
 

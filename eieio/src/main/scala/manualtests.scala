@@ -50,7 +50,7 @@ abstract class ManualTest(doc: String) extends App
     var level      = "info"
     var json       = false
     var TTL        = 0
-    var vpkt, ipkt, crlf, nul = false
+    var vpkt, ipkt, crlf, nul, utf = false
     lazy val stringCodec: SimpleCodec[String] =
                                 if (vpkt)  VarIntPacketString else
                                 if (ipkt)  IntPacketString    else
@@ -76,6 +76,7 @@ abstract class ManualTest(doc: String) extends App
     , OPT("-crlf",  crlf,     s"(string rep -- bytes; \\r\\n) [$crlf]")
     , OPT("-vpkt",  vpkt,     s"(string rep -- VARINT; bytes) [$vpkt]")
     , OPT("-ipkt",  ipkt,     s"(string rep -- INT; bytes) [$ipkt]")
+    , OPT("-utf",   utf,      s"(string rep -- UTF data stream) [$utf]")
     , OPT("-nul",   nul,      s"(string rep -- bytes; \\u0000) [$nul]")
     , OPT("-k",     constant, s"send constant values for strings/displayables [$constant]")
     , OPT("-sync",  sync,     s"use synchronous channel (one extra process per channel) [$sync]")
@@ -131,6 +132,8 @@ object bufferedStrings extends ManualTest("bufferedStrings -- round trips string
   val channel =  if (ipkt) BufferedSyncNetChannel.connected(address(host, port), IntPacketOutFactory, IntPacketInFactory)
                  else
                  if (vpkt) BufferedSyncNetChannel.connected(address(host, port), VarIntPacketOutFactory, VarIntPacketInFactory)
+                 else
+                 if (utf) BufferedSyncNetChannel.connected(address(host, port), UTF8OutFactory, UTF8InFactory)
                  else
                     BufferedSyncNetChannel.connected(address(host, port), crlfOutFactory, crlfInFactory)
 

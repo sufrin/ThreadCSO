@@ -87,6 +87,7 @@ object ssl extends ox.logging.Log("ssl") {
     val responses = OneOne[Response]
     val in = PseudoChannel(socket.getInputStream)
     val out = PseudoChannel(socket.getOutputStream)
+    log.fine(s"Connection $socket ==> ${socket.getChannel}")
     in.CopyFromNet(responses, ox.eieio.codecs.CRLFString.Decoder(32767)).fork
     out.CopyToNet(requests, ox.eieio.codecs.CRLFString.Encoder(32767)).fork
     ServerConnection(requests, responses)

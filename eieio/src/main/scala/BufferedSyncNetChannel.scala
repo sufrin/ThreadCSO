@@ -103,13 +103,14 @@ class BufferedSyncNetChannel[OUT,IN](_channel:  SocketChannel, encoderFactory: E
  }
 
   /** Synchronous best-endeavour read of up to `buffer.remaining` into the buffer:
-    * throws  `Closed` (if the channel is clos
-    ).*
-    * {{{ PRE:     puttable buffer
-    *POST:    puttable buffer
+    * throws  `Closed` (if the channel is closed).
+    *
+    * {{{
+    * PRE:     puttable buffer
+    * POST:    puttable buffer
     * }}}
  */
-  def red (buffer: BUFFER) =
+  def read (buffer: BUFFER) =
      if (channel.isOpen)
         { 
           BufferedSyncNetChannel.finest("Read(%s)".format(buffer))
@@ -164,7 +165,7 @@ class BufferedSyncNetChannel[OUT,IN](_channel:  SocketChannel, encoderFactory: E
  
         
  ///////////////// CSO interface ///////////////
- /** Fork a thread that repeatedly reads values from the given input port, encodes them, then writes them to the
+ /** A process that repeatedly reads values from the given input port, encodes them, then writes them to the
    * channel. The input port is closed when the channel has been closed; and the channel is closed (and the process
    * terminates) if the input port's CSO channel has been closed. Writing to the network is synchronous. */
   def CopyToNet(in: ??[OUT]): PROC =  proc (this.toString +".CopyToNet") {
@@ -191,14 +192,14 @@ class BufferedSyncNetChannel[OUT,IN](_channel:  SocketChannel, encoderFactory: E
       channel.shutdownOutput()
    }
 
-  /** Fork a process that repeatedly reads and decodes values arriving on the channel, writing them
+  /** A process that repeatedly reads and decodes values arriving on the channel, writing them
     * to the given output port. The output port is closed if the network channel closes, and the network
     * channel is closed if the output port's CSO channel is closed. Reading from the network is synchronous.
     *
     */
   def CopyFromNet(out: !![IN]): PROC = proc (this.toString +".CopyFromNet") {
    BufferedSyncNetChannel.fine(s"CopyToNet($out)")
-   var going = true
+   var going = decoding.canDecode
    repeat (going) {
      BufferedSyncNetChannel.fine(s"CopyFromNet.decode()")
      val decoded = decoding.decode()
