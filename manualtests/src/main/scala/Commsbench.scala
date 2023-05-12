@@ -15,7 +15,7 @@ import scala.language.postfixOps
   * the consumer to read a fixed number of times. The published \G is a measure
   * of the communication overhead.
   *
-  * The channels (--> and <-- in the diagram) can be synchronized or
+  * The channelfactory (--> and <-- in the diagram) can be synchronized or
   * asynchronous. When asynchronous the radius of the buffers can be set.
   *
   * There is also an experiment that measures the overhead of spawning (null)
@@ -23,7 +23,7 @@ import scala.language.postfixOps
   * delta (a delta that outputs to consumer and succ in parallel).
   */
 object Commsbench {
-  import io.threadcso.channel._ // default portsand channels are non-alt
+  import io.threadcso.channel._ // default portsand channelfactory are non-alt
 
   println("CSO (channel based) benchmark for io.threadcso message passing")
 
@@ -158,8 +158,8 @@ object Commsbench {
   -nNUMBER      Experiment is (run || NUMBER null processes)
   -PNUMBER      set threadpool expiry time to NUMBER seconds
   -NNUMBER      Set the number of iterations er experiment (default 10000)
-  -a            Use alt-capable channels
-  +a            Use non-alt-capable channels (default)
+  -a            Use alt-capable channelfactory
+  +a            Use non-alt-capable channelfactory (default)
   -i            turn on threadpool instrumentation
   -d            desperation measure for checking par termination in an -n experiment%n"""
 

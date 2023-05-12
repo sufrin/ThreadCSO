@@ -34,6 +34,7 @@ lazy val core = (project in file("core"))
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.15" % "test"
   )
 
+/* /* Exiled to ATTIC */
 lazy val eieio = (project in file("eieio"))
    .dependsOn(macroSub)
    .dependsOn(core)
@@ -45,13 +46,13 @@ lazy val eieio = (project in file("eieio"))
       /* "-Werror" */
     )
    )
+*/
 
 lazy val net = (project in file("net"))
   .dependsOn(macroSub)
   .dependsOn(core)
   .dependsOn(app)
-  .dependsOn(eieio)   // for codecs and logging
-  //.dependsOn(logging) // for Logging at present: refactor this
+  .dependsOn(logging) // for Logging at present: refactor this
   .settings(
     scalacOptions ++= Seq(
       "-deprecation",
@@ -60,17 +61,17 @@ lazy val net = (project in file("net"))
     )
   )
 
-// lazy val logging = (project in file("logging"))
-//   .dependsOn(macroSub)
-//   .dependsOn(core)
-//   .dependsOn(app)
-//   .settings(
-//     scalacOptions ++= Seq(
-//       "-deprecation",
-//       "-unchecked"
-//       /* "-Werror" */
-//     )
-//   )
+lazy val logging = (project in file("logging"))
+ .dependsOn(macroSub)
+ .dependsOn(core)
+ .dependsOn(app)
+ .settings(
+   scalacOptions ++= Seq(
+     "-deprecation",
+     "-unchecked"
+     /* "-Werror" */
+   )
+ )
   
 lazy val macroSub = (project in file("macros"))
   .settings(

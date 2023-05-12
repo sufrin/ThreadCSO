@@ -14,7 +14,7 @@ class ByteBufferInputStream(size: Int) extends InputStream {
 
     override def read(): Int = {
       finest(s"BBIS.read(): $byteBuffer ${byteBuffer.remaining()}")
-      if (!byteBuffer.hasRemaining) {
+      if (byteBuffer.hasRemaining) {
         val b =  byteBuffer.get()
         println(s"read=$b")
         b

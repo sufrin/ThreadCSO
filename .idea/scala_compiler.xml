@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ScalaCompilerConfiguration">
     <profile name="sbt 1" modules="app,csomacros,macroSub,root,threadcso,threadcso_8296" />
-    <profile name="sbt 2" modules="core,core.threadcso,eieio,examples,logging,manualtests,net,netio">
+    <profile name="sbt 2" modules="ThreadCSO.logging,core,core.threadcso,eieio,examples,logging,manualtests,net,netio">
       <option name="deprecationWarnings" value="true" />
       <option name="uncheckedWarnings" value="true" />
     </profile>

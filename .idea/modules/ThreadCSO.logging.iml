@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<module external.linked.project.id="eieio [file:/Users/sufrin/IdeaProjects/ThreadCSO/]" external.linked.project.path="$MODULE_DIR$/../../eieio" external.root.project.path="$MODULE_DIR$/../.." external.system.id="SBT" type="JAVA_MODULE" version="4">
+<module external.linked.project.id="logging [file:/Users/sufrin/IdeaProjects/ThreadCSO/]" external.linked.project.path="$MODULE_DIR$/../../logging" external.root.project.path="$MODULE_DIR$/../.." external.system.id="SBT" type="JAVA_MODULE" version="4">
   <component name="NewModuleRootManager" LANGUAGE_LEVEL="JDK_14">
-    <output url="file://$MODULE_DIR$/../../eieio/target/scala-2.13/classes" />
-    <output-test url="file://$MODULE_DIR$/../../eieio/target/scala-2.13/test-classes" />
+    <output url="file://$MODULE_DIR$/../../logging/target/scala-2.13/classes" />
+    <output-test url="file://$MODULE_DIR$/../../logging/target/scala-2.13/test-classes" />
     <exclude-output />
-    <content url="file://$MODULE_DIR$/../../eieio">
-      <sourceFolder url="file://$MODULE_DIR$/../../eieio/src/main/scala" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/../../eieio/src/test/scala" isTestSource="true" />
-      <excludeFolder url="file://$MODULE_DIR$/../../eieio/target" />
+    <content url="file://$MODULE_DIR$/../../logging">
+      <sourceFolder url="file://$MODULE_DIR$/../../logging/src/main/scala" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/../../logging/src/test/scala" isTestSource="true" />
+      <excludeFolder url="file://$MODULE_DIR$/../../logging/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
