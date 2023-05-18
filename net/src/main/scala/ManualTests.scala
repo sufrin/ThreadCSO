@@ -173,12 +173,12 @@ object kbdgrams extends ManualTest("kbdgrams -- sends keyboard datagrams, receiv
     // Bootstrap the channel processes
     val toNet        = channel.CopyToNet(toHost).fork
     val fromNet      = channel.CopyFromNet(fromHost).fork
-    val backchannel  = UDPChannel.bind("localhost", port+1, factory)
-    val backFromNet  = backchannel.CopyFromNet(fromBack).fork
+    //val backchannel  = UDPChannel.bind("localhost", port+1, factory)
+    //val backFromNet  = backchannel.CopyFromNet(fromBack).fork
     val fromKeyboard = component.keyboard(kbd, "").fork
     var last: String = ""
     var times = 1
-    log.info(s" $channel\n $backchannel")
+    //log.info(s" $channel\n $backchannel")
 
     run(proc("ui") {
       repeat {
@@ -201,7 +201,7 @@ object kbdgrams extends ManualTest("kbdgrams -- sends keyboard datagrams, receiv
       fromHost.close()
       toNet.interrupt()
       fromNet.interrupt()
-      backFromNet.interrupt()
+      // backFromNet.interrupt()
     }
       || proc("fromHost") {
       var n = 0
@@ -237,7 +237,7 @@ object receivedatagrams extends ManualTest("receivedatagrams receives string dat
   type StringPacket = Packet[String]
   def Test() : Unit =
   { val channel = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024) { UDPChannel.bind(host, port, factory) }
-    Console.println(channel.channel.getLocalAddress)
+    Console.println(s"$factory ${channel.channel.getLocalAddress}")
     if (RCV>0) channel.setOption(SO_RCVBUF, RCV)
     if (SND>0) channel.setOption(SO_SNDBUF, SND)
     channel.setOption(SO_REUSEADDR, true)

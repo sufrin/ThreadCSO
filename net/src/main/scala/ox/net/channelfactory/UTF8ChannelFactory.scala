@@ -1,7 +1,6 @@
 package ox.net.channelfactory
 
-import ox.net.channelfactory.CRLFChannelFactory.{CRLFMixin, UTF8}
-import ox.net.codec.Codec
+import ox.net.codec.{Codec, EndOfInputStream, EndOfOutputStream}
 import ox.net.{ChannelOptions, TypedChannelFactory, TypedSSLChannel, TypedTCPChannel}
 
 import java.io._
@@ -9,14 +8,16 @@ import java.net.Socket
 import java.nio.channels.SocketChannel
 
 object UTF8ChannelFactory extends TypedChannelFactory[String,String] {
+  override def toString = "UTF8 Factory"
 
   trait UTF8Mixin {
+    val utf = ox.logging.Log("utf")
     val input: InputStream
     val output: OutputStream
 
     def sync: Boolean
     def closeOut(): Unit = output.close()
-    def closeIn(): Unit = input.close()
+    def closeIn():  Unit = input.close()
 
     // Laziness here is on account of a cryptointeraction with DataXputStream
     // Non-lazy declaration fails at the first read/write of the DataXputStream
@@ -24,24 +25,33 @@ object UTF8ChannelFactory extends TypedChannelFactory[String,String] {
     // TODO: Investigate why this works. Likely connected with mixin implementation detail?
     lazy val out = new java.io.DataOutputStream(output)
     lazy val in  = new java.io.DataInputStream(input)
-    var outOpen, inOpen: Boolean = true
 
+    var outOpen, inOpen: Boolean = true
     def canEncode: Boolean = outOpen
+    def canDecode: Boolean = inOpen
 
     def encode(value: String): Unit = try {
       out.writeUTF(value)
       if (sync) out.flush()
+      utf.finest(s"UTF: wrote #{${value.length}")
     } catch {
       case exn: IOException =>
         outOpen = false
+        utf.finest(s"UTF: Encode IOException $exn")
+        throw new EndOfOutputStream(out)
     }
 
-    def canDecode: Boolean = inOpen
 
-    def decode(): String = try in.readUTF() catch {
+    def decode(): String = try {
+      val r = in.readUTF()
+      utf.finest(s"UTF: Decode #${r.length} (${r.subSequence(0, 40 min r.length)}...")
+      r
+    } catch {
+      // likely to be a decoding exception because the buffer was too short for an incoming Datagram
       case exn: EOFException =>
         inOpen = false
-        ""
+        utf.finest(s"UTF: Decode EOF $exn")
+        throw new EndOfInputStream(in)
     }
   }
 
@@ -58,9 +68,9 @@ object UTF8ChannelFactory extends TypedChannelFactory[String,String] {
   }
 
   def newCodec(_output: OutputStream, _input: InputStream): Codec[String, String] =
-    new Codec[String, String] with CRLFMixin {
-      val output = new BufferedWriter(new OutputStreamWriter(_output, UTF8.newEncoder()), ChannelOptions.outSize)
-      val input = new BufferedReader(new InputStreamReader(_input, UTF8.newDecoder()), ChannelOptions.inSize) // TODO: factory parameters
+    new Codec[String, String] with UTF8Mixin {
+      val output = new BufferedOutputStream(_output, ChannelOptions.outSize)
+      val input  = new BufferedInputStream(_input, ChannelOptions.inSize)
     }
 
 }

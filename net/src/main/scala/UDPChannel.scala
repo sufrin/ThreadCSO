@@ -2,7 +2,7 @@ package ox.net
 
 import io.SourceLocation._
 import ox.net.SocketOptions._
-import ox.net.codec.Codec
+import ox.net.codec.{Codec, EndOfInputStream}
 
 import java.net._
 import java.nio.ByteBuffer
@@ -94,6 +94,17 @@ case class Packet[T](value: T, address: SocketAddress) {
 
 }
 
+/**
+  * A channel for transmitting and receiving datagrams.
+  *
+  * WARNING: the java datagram channel interface specifies that if a received datagram is too long
+  * for the buffer space allocated to it then the excess length of the datagram is "silently discarded".
+  *
+  * There seems to be no way around this.
+  *
+  * It is therefore essential that adequately sized read-buffers be allocated; or that datagrams carry
+  * an indication of their expected length early in their wire representation.
+  */
 class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFactory[OUT, IN])  extends
       TypedUDPChannel[Packet[OUT],Packet[IN]] {
   import UDPChannel._
@@ -106,8 +117,8 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
     getOption(IP_MULTICAST_IF)
   )
 
-  val output: ByteBufferOutputStream  = new ByteBufferOutputStream(8192)
-  val input:  ByteBufferInputStream   = ByteBufferInputStream(32*1024)
+  val output: ByteBufferOutputStream  = new ByteBufferOutputStream(ChannelOptions.outSize)
+  val input:  ByteBufferInputStream   = ByteBufferInputStream(ChannelOptions.inSize)
   val codec:  Codec[OUT,IN]           = factory.newCodec(output, input)
 
   def encode(packet: Packet[OUT]): Unit = {
@@ -128,7 +139,7 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
     input.reuse()
     val result = Packet(value, addr)
     fine(s"decoded (${bb})=$result")
-     result
+    result
    }
 
    def closeOut(): Unit = output.close()
@@ -141,7 +152,7 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
 
    /** The most recent exception. Set by a channel failure  */
    def lastException: Option[Throwable] = _lastException
-   var outOpen, inOpen = true
+   var inOpen = true
 
    /**
      * The most recent `decode` yielded a valid result if true; else the associated channel closed/failed,
@@ -150,12 +161,6 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
      */
    override def canDecode: Boolean = inOpen
 
-   /**
-     * The most recent `encode` was successful if true; else the associated channel closed/failed,
-     * and `lastException` may explain why.
-     *
-     */
-   override def canEncode: Boolean = outOpen
 
   override
   def toString: String = s"UDPChannel($channel) [$options] [LastException: $lastException])"
@@ -168,24 +173,24 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
     */
   def send(buffer: ByteBuffer, address: SocketAddress): Int =
   { resetLastException()
-    if (channel.isOpen)
-    { buffer.flip()
-      finest(s"UDP.send($buffer)")
-      try {
-          val n = channel.send(buffer, address)
-          if (n<0) outOpen = false
-          n
+    var count = 0
+    try {
+      if (channel.isOpen) {
+        buffer.flip()
+        finest(s"UDP.send($buffer)")
+        while (buffer.hasRemaining())
+          count += channel.send(buffer, address)
+        finest(s"UDP.sent($count)")
+        count
       }
-      catch
-      { case exn: java.lang.Exception =>
-            lastException = exn
-            outOpen = false
-            -1
+      else {
+        -1
       }
-    }
-    else {
-      outOpen = false
-      -1
+    } catch  {
+      case exn: java.lang.Exception =>
+           fine(s"UDP.send threw $exn ")
+           lastException = exn
+           -1
     }
   }
 
@@ -205,7 +210,7 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
       case exn: java.lang.Throwable =>
         lastException = exn
         inOpen = false
-        null
+        throw new EndOfInputStream(input)
     }
   }
 }

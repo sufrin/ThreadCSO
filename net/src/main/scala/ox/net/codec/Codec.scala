@@ -1,5 +1,10 @@
 package ox.net.codec
 
+import io.threadcso.process.Stopped
+
+case class EndOfInputStream(stream: Any) extends Stopped
+case class EndOfOutputStream(stream: Any) extends Stopped
+
 /**
   * An `Encoder[O]` is implicitly associated with a network output stream,
   * to which it forms a bridge: transforming values of type `O`
@@ -16,7 +21,6 @@ trait Encoder[O] {
   def encode(output: O): Unit
 
   /** The most recent `encode` was successful if true; else the associated stream closed or the encode failed */
-  def canEncode: Boolean
 
   /** When `sync` is true of an encoder, its associated stream must be flushed after an `encode`. */
   def sync: Boolean = _sync
@@ -31,6 +35,8 @@ trait Encoder[O] {
     * including the associated stream.
     */
   def closeOut(): Unit
+
+  var lastEncoderException: Option[Throwable] = None
 }
 
 /**
@@ -57,6 +63,8 @@ trait Decoder[I] {
     * including the associated stream.
     */
   def closeIn(): Unit
+
+  var lastDecoderException: Option[Throwable] = None
 }
 
 /**

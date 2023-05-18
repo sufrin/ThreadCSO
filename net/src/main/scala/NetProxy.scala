@@ -7,37 +7,41 @@ import ox.net.codec.{Decoder, Encoder}
 trait NetProxy[OUT,IN] extends NetOutputProxy[OUT] with NetInputProxy[IN]
 
 trait NetOutputProxy[O] extends Encoder[O] {
+  val nop = ox.logging.Log("NOP")
   def CopyToNet(in: ??[O]): PROC = proc(this.toString + ".CopyToNet") {
-    var going = canEncode
-    repeat(going) {
-      val value = in ? ()
-      encode(value)
-      going = canEncode
+    try {
+      repeat {
+        val value = in ? ()
+        encode(value)
+      }
+      // Here if encoder fails or `in` is closed
+      in.closeIn()
+      closeOut()
+    } catch {
+      case exn: java.nio.channels.ClosedByInterruptException =>
+        nop.fine(s"CopyToNet terminated by ClosedInterrupt")
+        in.closeIn()
+        closeOut()
+        lastEncoderException = Some(exn)
     }
-    // Here if encoder fails or in is closed
-    in.closeIn()
-    closeOut()
   }
 }
 
 trait NetInputProxy[I] extends Decoder[I] {
   val log = ox.logging.Log("NIP")
   def CopyFromNet(out: !![I]): PROC = proc(this.toString + ".CopyFromNet") {
-    var going = canDecode
     try {
-      repeat(going) {
+      repeat {
         val decoded = decode()
-        going = canDecode
-        if (going) {
-          out ! decoded
-        }
+        out ! decoded
       }
-      log.fine("CopyFromNet terminated by decode")
-      if (!going) out.closeOut()
+      log.fine("CopyFromNet terminated")
+      out.closeOut()
     } catch {
       case exn: java.nio.channels.ClosedByInterruptException =>
         log.fine(s"CopyFromNet terminated by ClosedInterrupt")
         out.closeOut()
+        lastDecoderException = Some(exn)
     }
     closeIn()
   }
