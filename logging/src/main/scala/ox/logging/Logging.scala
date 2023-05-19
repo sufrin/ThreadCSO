@@ -15,7 +15,7 @@ object Logging
   var showLogNames: Boolean = false
   /** Show stack backtraces at the point at which `Throwable`s are logged.
     * `Throwable` messages are still passed to the current `loggingMethod`. */
-  var showLoggedExceptions: Boolean = false
+  var showLoggedExceptions: Boolean = true
 
   /** Constructor for logging messages  */
   case class Message(level: Int, logName: String, message: String, location: SourceLocation)
@@ -163,8 +163,10 @@ trait Logging
   val name: String
   import scala.annotation.elidable._
 
-  /** The logging level of this log; established at the first invocation of a logging method */
-  lazy val logLevel : Int = Logging.getLevel(name)
+  /** The logging level of this log */
+  @inline def logLevel : Int = Logging.getLevel(name)
+
+  @inline def logging: Boolean = logLevel>=FINE
 
   override def toString = s"Log{name=$name, logLevel=${Logging.levelName(logLevel)})"
 

@@ -15,6 +15,7 @@ object ByteBufferInputStream extends ox.logging.Log("ByteBufferInputStream") {
   * @param size the size of the ByteBuffer allocated for this stream
   */
 class ByteBufferInputStream(size: Int) extends InputStream {
+    override def toString: String = s"ByteBufferInputStream($size) (remaining: ${byteBuffer.remaining()})"
     import ByteBufferInputStream._
     val buf                    = new Array[Byte](size)
     val byteBuffer: ByteBuffer = ByteBuffer.wrap(buf)
@@ -23,7 +24,7 @@ class ByteBufferInputStream(size: Int) extends InputStream {
       finest(s"BBIS.read(): $byteBuffer ${byteBuffer.remaining()}")
       if (byteBuffer.hasRemaining) {
         val b =  byteBuffer.get()
-        println(s"read=$b")
+        finest(f"BBIS.read() = \\0x$b%04x")
         b
       } else -1
     }

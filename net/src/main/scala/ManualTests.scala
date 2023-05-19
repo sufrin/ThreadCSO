@@ -4,11 +4,10 @@ import app.OPT._
 import io.threadcso._
 import ox.logging.{Log, Logging => LOGGING}
 import ox.net.SSLChannel.TLSCredential
-import ox.net.channelfactory.{CRLFChannelFactory, UTF8ChannelFactory}
-import ox.net.httpclient.{factory, host, log, port}
+import ox.net.channelfactory.{CRLFChannelFactory, StringArrayChannelFactory, UTF8ChannelFactory}
+import ox.net.httpclient.{factory, host, port}
 import ox.net.SocketOptions._
-import ox.net.codec.Codec
-import ox.net.kbdgrams.{inBufSize, outBufSize}
+import ox.net.UDPChannel.{Datagram, Malformed, UDP}
 
 import java.io.{File, InputStream, OutputStream}
 import java.net.{InetAddress, InetSocketAddress, Socket}
@@ -20,12 +19,15 @@ import java.nio.channels.SocketChannel
  *  coommand-line flags and parameters.
  */
 abstract class ManualTest(doc: String) extends App {
+  val logging = true
+  val log = ox.logging.Log("test")
   var factory: TypedChannelFactory[String, String] = UTF8ChannelFactory
   var host: String = "localhost"
   var port: Int    = 10000
   var debugPort    = 0
   var SND, RCV     = 0
   var datagram     = false
+  var reflect      = true
   var chunked      = true
   var idle         = 5.0
   def idleNS       = seconds(idle)
@@ -34,6 +36,7 @@ abstract class ManualTest(doc: String) extends App {
 
   val Command: String = doc
   val Options: List[Opt] = List(
+    OPT("-reflect", { reflect = !reflect }, "Don't reflect datagrams to their source (txgrams / rxgrams)"),
     OPT("-datagram", datagram, "Send/receive/reflect datagrams as appropriate"),
     OPT("-crlf", { factory = CRLFChannelFactory }, "Use crlf string protocol"),
     OPT("-utf",  { factory = UTF8ChannelFactory }, "Use utf8 string protocol"),
@@ -52,8 +55,6 @@ abstract class ManualTest(doc: String) extends App {
     OPT("-bb=", bbSize,       "<int> set buffer size for reflect"),
 
   )
-
-  val log = Log("log")
 
   def Main(): Unit = {
     if (debugPort > 0) System.setProperty("io.threadcso.debugger.port", debugPort.toString)
@@ -81,7 +82,7 @@ object reflect extends ManualTest("reflect - a server that reflects all TCP pack
       while (going) {
         val count = channel.read(buffer)
         total += count
-        log.info(s"read:: $count/$total")
+        if (logging) log.finest(s"read:: $count/$total")
         buffer.flip()
         channel.write(buffer)
         buffer.clear()
@@ -121,11 +122,11 @@ object kbd extends ManualTest("kbd -- sends keyboard messages, receives response
                 stop
               case s"*$n" if n matches ("[0-9]+") =>
                 times = n.toInt
-                log.fine(s"toHost ! $last * $times")
+                if (logging) log.fine(s"toHost ! $last * $times")
                 toHost ! (last * times)
               case line =>
                 last = line
-                log.fine(s"toHost ! $line * $times")
+                if (logging) log.fine(s"toHost ! $line * $times")
                 toHost ! (line * times)
             }
           }
@@ -139,7 +140,7 @@ object kbd extends ManualTest("kbd -- sends keyboard messages, receives response
             n += 1
             val decoded = fromHost ? ()
             if (decoded.isEmpty) {
-              log.finest(s"Stopping because decoded $n empty")
+              log.info(s"Stopping because decoded $n empty")
               stop
             }
             if (decoded.size<50)
@@ -157,8 +158,70 @@ object kbd extends ManualTest("kbd -- sends keyboard messages, receives response
   }
 }
 
-object kbdgrams extends ManualTest("kbdgrams -- sends keyboard datagrams, receives responses") {
-  type StringPacket = Packet[String]
+object kbdx extends ManualTest("kbdx -- sends multiple keyboard messages, receives responses") {
+  type StringArray = Array[String]
+  def Test() = {
+    val channel: TypedTCPChannel[StringArray, StringArray] = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024)
+    { TCPChannel.connected(new java.net.InetSocketAddress(host, port), StringArrayChannelFactory) }
+    if (SND>0) channel.setOption(SO_SNDBUF, SND)
+    if (RCV>0) channel.setOption(SO_RCVBUF, RCV)
+    val kbd      = OneOne[String]("kbd")
+    val fromHost = OneOneBuf[StringArray](50, name = "fromHost") // A synchronized channel causes deadlock under load
+    val toHost   = OneOneBuf[StringArray](50, name = "toHost") // A synchronized channel causes deadlock under load
+
+    // Bootstrap the channel processes
+    val toNet        = channel.CopyToNet(toHost).fork
+    val fromNet      = channel.CopyFromNet(fromHost).fork
+    val fromKeyboard = component.keyboard(kbd, "").fork
+
+    var last: String = "?"
+    var times = 1
+
+    run(proc("ui") {
+      var out = Array.ofDim[String](times)
+      repeat {
+        kbd ? () match {
+          case "." =>
+            kbd.close()
+            fromKeyboard.interrupt()
+            stop
+          case s"*$n" if n matches ("[0-9]+") =>
+            times = n.toInt
+            out = Array.ofDim[String](times)
+          case line =>
+            last = line
+        }
+        for { i<-0 until times } out(i) = s"($i)=$last"
+        log.fine(s"toHost ! $last * $times")
+        toHost ! out
+      }
+      toHost.close()
+      toNet.interrupt()
+      fromNet.interrupt()
+    }
+      || proc("fromHost") {
+      var n = 0
+      repeat {
+        n += 1
+        val decoded = fromHost ? ()
+        if (decoded.length==0)
+          println(s"$n: ${decoded.length}")
+        else
+          println(s"$n: ${decoded.toSeq.take(1)(0)}..${decoded.toSeq.drop(decoded.length-1)(0)}")
+      }
+      toHost.closeOut()
+      kbd.close()
+    }
+    )
+    kbd.close()
+    fromHost.close()
+    exit()
+  }
+}
+
+
+object txgrams extends ManualTest("txgrams -- sends keyboard datagrams, receives responses") {
+  type StringPacket = UDP[String]
   def Test() = {
     // sending on port; receiving on a random port
     val channel = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024) {UDPChannel.connect(host, port, factory) }
@@ -166,9 +229,9 @@ object kbdgrams extends ManualTest("kbdgrams -- sends keyboard datagrams, receiv
     if (RCV > 0) channel.setOption(SO_RCVBUF, RCV)
 
     val kbd = OneOne[String]("kbd")
-    val fromHost = N2NBuf[StringPacket](50, writers=1, readers=1, name = "fromHost") // A synchronized channel causes deadlock under load
-    val fromBack = N2NBuf[StringPacket](50, writers=1, readers=1, name = "fromBack") // A synchronized channel causes deadlock under load
-    val toHost   = OneOneBuf[StringPacket](50, name = "toHost") // A synchronized channel causes deadlock under load
+    val fromHost = N2NBuf[UDP[String]](50, writers=1, readers=1, name = "fromHost") // A synchronized channel causes deadlock under load
+    val fromBack = N2NBuf[UDP[String]](50, writers=1, readers=1, name = "fromBack") // A synchronized channel causes deadlock under load
+    val toHost   = OneOneBuf[UDP[String]](50, name = "toHost") // A synchronized channel causes deadlock under load
 
     // Bootstrap the channel processes
     val toNet        = channel.CopyToNet(toHost).fork
@@ -178,7 +241,7 @@ object kbdgrams extends ManualTest("kbdgrams -- sends keyboard datagrams, receiv
     val fromKeyboard = component.keyboard(kbd, "").fork
     var last: String = ""
     var times = 1
-    //log.info(s" $channel\n $backchannel")
+    //if (logging) info(s" $channel\n $backchannel")
 
     run(proc("ui") {
       repeat {
@@ -190,11 +253,11 @@ object kbdgrams extends ManualTest("kbdgrams -- sends keyboard datagrams, receiv
             stop
           case s"*$pat" if pat matches("[0-9]+") =>
             times = pat.toInt
-            toHost ! Packet(last*times, channel.getRemoteAddress)
+            toHost ! Datagram(last*times, channel.getRemoteAddress)
           case line =>
-            log.fine(s"toHost ! $line * $times")
+            if (logging) log.fine(s"toHost ! $line * $times")
             last = line
-            toHost ! Packet(line*times, channel.getRemoteAddress)
+            toHost ! Datagram(line*times, channel.getRemoteAddress)
         }
       }
       toHost.close()
@@ -207,13 +270,19 @@ object kbdgrams extends ManualTest("kbdgrams -- sends keyboard datagrams, receiv
       var n = 0
       repeat {
         n += 1
-        val decoded = fromHost ? ()
-        if (times<4)
-           println(f"$n%-3d $decoded")
-        else
-           println(f"$n%-3d #${decoded.value.size}%-6d ${decoded.address}")
+        fromHost ? {
+          case Datagram(value: String, from) =>
+               if (value.size<40) {
+                 println(f"$n%-3d $value ($from)")
+               } else {
+                 println(f"$n%-3d #${value.size}%-6d ($from) ${value.subSequence(0, 30)}...")
+               }
+          case Malformed(from) =>
+            println(f"$n%-3d [MALFORMED PACKET] ($from)")
+        }
+        ()
       }
-      log.info(s"Host stopped")
+      if (logging) log.info(s"Host stopped")
       toHost.closeOut()
       kbd.close()
     }
@@ -232,9 +301,9 @@ object kbdgrams extends ManualTest("kbdgrams -- sends keyboard datagrams, receiv
   }
 }
 
-object receivedatagrams extends ManualTest("receivedatagrams receives string datagrams") {
+object rxgrams extends ManualTest("rxgrams receives (and reflects) string datagrams") {
   import SocketOptions._
-  type StringPacket = Packet[String]
+  type StringPacket = UDP[String]
   def Test() : Unit =
   { val channel = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024) { UDPChannel.bind(host, port, factory) }
     Console.println(s"$factory ${channel.channel.getLocalAddress}")
@@ -255,8 +324,8 @@ object receivedatagrams extends ManualTest("receivedatagrams receives string dat
       proc (s"Session($channel") {
         repeat {
           val gram = fromHost ? ()
-          log.info(s"fromHost ? $gram")
-          if (datagram) toHost!gram
+          if (logging) log.info(s"fromHost ? $gram")
+          if (reflect) toHost!gram
         }
       }
 
@@ -279,14 +348,14 @@ object httpclient extends ManualTest("httpclient -- GETs from a server then outp
     val fromNet      = channel.CopyFromNet(fromHost).fork
 
     val request = proc("request") {
-      log.fine("Starting request")
+      if (logging) log.fine("Starting request")
       toHost ! "GET / HTTP/1.1"
       toHost ! ""
     }
 
     /**  Echos a single http response, terminated with an empty line */
     val response = proc("response") {
-      log.fine("Starting to read response")
+      if (logging) log.fine("Starting to read response")
       var header = true
       var lineNo = 0
       repeat {
@@ -301,14 +370,14 @@ object httpclient extends ManualTest("httpclient -- GETs from a server then outp
 
           case line =>
             if (header) {
-               log.finest(s"header: $line")
+               if (logging) log.finest(s"header: $line")
             } else {
               lineNo += 1
-              log.finest(f"$lineNo%-4d: $line")
+              if (logging) log.finest(f"$lineNo%-4d: $line")
             }
         }
       }
-      log.finest(s"Response concluded")
+      if (logging) log.finest(s"Response concluded")
     }
     (request || response)()
     exit()
@@ -343,13 +412,13 @@ object httpserver extends ManualTest("httpserver -- core of an https server") {
     @inline def send(line: String): Unit = toClient!line
 
     @inline def headSend(line: String): Unit = {
-      log.finest(s"http: $line")
+      if (logging) log.finest(s"http: $line")
       toClient!line
     }
 
     @inline def bodySend(line: String): Unit = {
       if (chunked) send("%x".format(line.length))
-      log.finest(s"body: $line")
+      if (logging) log.finest(s"body: $line")
       send(line)
     }
 
@@ -360,7 +429,7 @@ object httpserver extends ManualTest("httpserver -- core of an https server") {
 
       def processRequestLine(request: String): Unit = {
         val line = request.trim
-        log.finest(s"TRIMMED: $line")
+        if (logging) log.finest(s"TRIMMED: $line")
         if (line == "")
         // end of the request header reached
         { requestCount += 1
@@ -396,7 +465,7 @@ object httpserver extends ManualTest("httpserver -- core of an https server") {
             case Some(line) =>
               processRequestLine(line)
             case None =>
-              log.fine(s"Client $clientCount went idle")
+              if (logging) log.fine(s"Client $clientCount went idle")
               running = false
           }
       } else
@@ -406,12 +475,12 @@ object httpserver extends ManualTest("httpserver -- core of an https server") {
                        processRequestLine(line)
                    }
                | after(idleNS) ==> {
-                   log.fine(s"Client $clientCount went idle")
+                   if (logging) log.fine(s"Client $clientCount went idle")
                    running = false
                  }
               )}
 
-      log.info(s"Closing client $clientCount session")
+      if (logging) log.info(s"Closing client $clientCount session")
 
       // Stop reading from the client: the server will eventually find out
       fromClient.closeIn()
@@ -421,7 +490,7 @@ object httpserver extends ManualTest("httpserver -- core of an https server") {
 
 
     val listenerHandle = fork(listener)
-    log.info(s"Listener at $listenerHandle")
+    if (logging) log.info(s"Listener at $listenerHandle")
   }
 }
 
@@ -442,10 +511,10 @@ object httpserver extends ManualTest("httpserver -- core of an https server") {
     val clientnum = {
       count += 1; count
     }
-    log.info("New client %d".format(clientnum))
+    if (logging) info("New client %d".format(clientnum))
     @inline def chunk(line: String): Unit = {
       send("%x".format(line.length))
-      log.finest(s"http: '$line''")
+      if (logging) finest(s"http: '$line''")
       send(line)
     }
     @inline def send(line: String): Unit = {
@@ -462,11 +531,11 @@ object httpserver extends ManualTest("httpserver -- core of an https server") {
 
     val handler =
       fork(π {
-        log.info("serving")
+        if (logging) info("serving")
         listener()
-        log.info("serve %d: terminated".format(clientnum))
+        if (logging) info("serve %d: terminated".format(clientnum))
       })
-    log.info("Handler spawned")
+    if (logging) info("Handler spawned")
   }
 
  */

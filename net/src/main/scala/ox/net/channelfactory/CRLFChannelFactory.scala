@@ -1,6 +1,6 @@
 package ox.net.channelfactory
 
-import ox.net.codec.{Codec, EndOfInputStream}
+import ox.net.codec.{Codec}
 import ox.net.{ChannelOptions, TypedChannelFactory, TypedSSLChannel, TypedTCPChannel}
 
 import java.io._
@@ -8,11 +8,10 @@ import java.net.Socket
 import java.nio.channels.SocketChannel
 import javax.net.ssl.SSLSocket
 
-object CRLFChannelFactory extends TypedChannelFactory[String,String] {
-  val crlf = ox.logging.Log("crlf")
+object CRLFChannelFactory extends ox.logging.Log("CRLFChannelFactory") with TypedChannelFactory[String,String] {
   override def toString = "CRLF Factory"
 
-  trait CRLFMixin {
+  trait Mixin {
     val output: java.io.Writer
     val input:  java.io.Reader
     def sync:   Boolean
@@ -29,31 +28,21 @@ object CRLFChannelFactory extends TypedChannelFactory[String,String] {
         var cr:      Boolean  = false
         var reading: Boolean  = true
         while (reading) {
-          val c = try { input.read() } catch {
-            case exn: Throwable =>
-              crlf.finest(s"CRLF Mixin decode exception: $exn")
-              crlf.finest(exn)
-              -2
-          }
+          val c = input.read()
           c match {
-            case -2 =>
-              reading = false
-              inOpen  = false
             case -1 =>
-              // Likely to be a short datagram
-              crlf.finest(s"crlf: decode: source ended before string")
-              reading = false
-              inOpen  = false
+              if (logging) warning(s"crlf: decode: stream ended before string")
+              throw new EOFException()
             case '\r' =>
               cr = true
             case '\n' =>
-              if (cr) reading=false else result.append(c.toChar)
+              if (cr) reading = false else result.append(c.toChar)
             case _ =>
               cr = false
               result.append(c.toChar)
           }
         }
-        if (inOpen) result.toString else throw new EndOfInputStream(input)
+        result.toString
     }
 
     def encode(value: String): Unit = {
@@ -65,14 +54,14 @@ object CRLFChannelFactory extends TypedChannelFactory[String,String] {
 
   val UTF8 = java.nio.charset.Charset.forName("UTF-8")
 
-  def newChannel(theChannel: SocketChannel): TypedTCPChannel[String, String] = new TypedTCPChannel[String, String] with CRLFMixin {
+  def newChannel(theChannel: SocketChannel): TypedTCPChannel[String, String] = new TypedTCPChannel[String, String] with Mixin {
     val channel: SocketChannel = theChannel
     val output = java.nio.channels.Channels.newWriter(channel, UTF8.newEncoder(), ChannelOptions.outSize)
     val input  = java.nio.channels.Channels.newReader(channel, UTF8.newDecoder(), ChannelOptions.inSize)
     sync = true
   }
 
-  def newChannel(theSocket: Socket): TypedSSLChannel[String, String] = new TypedSSLChannel[String, String] with CRLFMixin {
+  def newChannel(theSocket: Socket): TypedSSLChannel[String, String] = new TypedSSLChannel[String, String] with Mixin {
     val socket: Socket = theSocket
     val output = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream, UTF8.newEncoder()), ChannelOptions.outSize)
     val input = new InputStreamReader(socket.getInputStream, UTF8.newDecoder())
@@ -82,7 +71,7 @@ object CRLFChannelFactory extends TypedChannelFactory[String,String] {
       super.close()
       socket match {
         case ssl: SSLSocket =>
-          log.finest(s"SSL socket $ssl shutting down output")
+          if (logging) fine(s"SSL socket $ssl shutting down output")
           ssl.shutdownOutput()
       }
     }
@@ -91,14 +80,14 @@ object CRLFChannelFactory extends TypedChannelFactory[String,String] {
       super.close()
       socket match {
         case ssl: SSLSocket =>
-          log.finest(s"SSL socket $ssl shutting down input")
+          if (logging) fine(s"SSL socket $ssl shutting down input")
           ssl.shutdownInput()
       }
     }
   }
 
   def newCodec(_output: OutputStream, _input: InputStream): Codec[String,String] =
-      new Codec[String,String] with CRLFMixin {
+      new Codec[String,String] with Mixin {
         val output = new BufferedWriter(new OutputStreamWriter(_output, UTF8.newEncoder()), ChannelOptions.outSize)
         val input  = new InputStreamReader(_input, UTF8.newDecoder()) // TODO: factory parameters
         sync = true

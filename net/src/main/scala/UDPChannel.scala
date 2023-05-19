@@ -2,16 +2,33 @@ package ox.net
 
 import io.SourceLocation._
 import ox.net.SocketOptions._
-import ox.net.codec.{Codec, EndOfInputStream}
+import ox.net.UDPChannel.UDP
+import ox.net.codec.Codec
 
+import java.io.{EOFException, UTFDataFormatException}
 import java.net._
 import java.nio.ByteBuffer
 import java.nio.channels._
 
 object UDPChannel extends ox.logging.Log("UDPChannel")
 {
+
+  sealed trait UDP[T] {
+    val address: SocketAddress
+  }
+
+  case class Malformed[T](address: SocketAddress) extends UDP[T]
+  case class Datagram[T](value: T, address: SocketAddress) extends UDP[T] {
+    override def toString: String =
+      value match {
+        case s: String => if (s.length > 20) s"${s.substring(0, 20)}...#${s.length}" else s
+        case _ => value.toString
+      }
+
+  }
+
   /**
-    * @return a `UDPChannel[OUT,IN]` that sends outputs of the form `Packet(OUT, destinationAddress)` from a
+    * @return a `UDPChannel[OUT,IN]` that sends outputs of the form `Datagram(OUT, destinationAddress)` from a
     *         datagram socket at the given `address`.
     * @param address
     * @param factory builds the typed channel from the (untyped) tagaram socket
@@ -28,7 +45,7 @@ object UDPChannel extends ox.logging.Log("UDPChannel")
   }
 
   /**
-    * @return a `UDPChannel[OUT,IN]` that listens for inputs of the form `Packet(OUT, sourceAddress)` from a
+    * @return a `UDPChannel[OUT,IN]` that listens for inputs of the form `Datagram(OUT, sourceAddress)` from a
     *         datagram socket at the given `address`.
     * @param address
     * @param factory builds the typed channel from the (untyped) tagaram socket
@@ -85,28 +102,20 @@ object UDPChannel extends ox.logging.Log("UDPChannel")
 
 }
 
-case class Packet[T](value: T, address: SocketAddress) {
-  override def toString: String =
-    value match {
-      case s: String => if (s.length>20) s"${s.substring(0, 20)}...#${s.length}" else s
-      case _         => value.toString
-    }
 
-}
 
 /**
   * A channel for transmitting and receiving datagrams.
   *
   * WARNING: the java datagram channel interface specifies that if a received datagram is too long
-  * for the buffer space allocated to it then the excess length of the datagram is "silently discarded".
-  *
-  * There seems to be no way around this.
+  * for the buffer space allocated for it then the excess length of the datagram is "silently discarded".
   *
   * It is therefore essential that adequately sized read-buffers be allocated; or that datagrams carry
-  * an indication of their expected length early in their wire representation.
+  * an indication of their expected length early in their wire representation so that the "silent discarding"
+  * can be detected by the `Decoder.decode()` used to decode treceived packets.
   */
 class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFactory[OUT, IN])  extends
-      TypedUDPChannel[Packet[OUT],Packet[IN]] {
+      TypedUDPChannel[UDP[OUT],UDP[IN]] {
   import UDPChannel._
 
   /** The options set on the underlying channel */
@@ -121,25 +130,38 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
   val input:  ByteBufferInputStream   = ByteBufferInputStream(ChannelOptions.inSize)
   val codec:  Codec[OUT,IN]           = factory.newCodec(output, input)
 
-  def encode(packet: Packet[OUT]): Unit = {
-    finest(s"encode:: open: ${channel.isOpen} / connected: ${channel.isConnected}")
+  def encode(packet: UDP[OUT]): Unit = {
     output.reuse()
-    finest(s"before encode(#$packet.value.size) [${output.buffer}]")
-    codec.encode(packet.value)
-    finest(s"after encode($packet) [${output.buffer}]")
-    send(output.buffer, packet.address)
+    if (logging) finest(s"before encode(#{$packet.value.size}) [${output.buffer}]")
+    packet match {
+      case Datagram(value, addr) =>
+        codec.encode (value)
+        if (logging) finest (s"after encode($packet) [${output.buffer}]")
+        send (output.buffer, packet.address)
+      case Malformed(addr) =>
+
+    }
     ()
   }
 
-   def decode(): Packet[IN] = {
+   def decode(): UDP[IN] = {
     val bb   = input.byteBuffer
     val addr = receive(bb)
-    fine(s"decoding ${bb})")
-    val value: IN = codec.decode()
-    input.reuse()
-    val result = Packet(value, addr)
-    fine(s"decoded (${bb})=$result")
-    result
+    if (logging) finest(s"decoding ${bb})")
+     try {
+       val value: IN = codec.decode()
+       input.reuse()
+       val result = Datagram(value, addr)
+       if (logging) finest(s"decoded (${bb})=$result")
+       result
+     } catch  {
+       case exn: EOFException =>
+            warning(s"datagram decode failed (abbreviated) (${exn}) [$input]")
+            Malformed(addr)
+       case exn: UTFDataFormatException =>
+            warning(s"datagram decode failed (UTF8 data malformed) (${exn}) [$input]")
+            Malformed(addr)
+     }
    }
 
    def closeOut(): Unit = output.close()
@@ -177,7 +199,7 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
     try {
       if (channel.isOpen) {
         buffer.flip()
-        finest(s"UDP.send($buffer)")
+        if (logging) finest(s"UDP.send($buffer)")
         while (buffer.hasRemaining())
           count += channel.send(buffer, address)
         finest(s"UDP.sent($count)")
@@ -187,8 +209,8 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
         -1
       }
     } catch  {
-      case exn: java.lang.Exception =>
-           fine(s"UDP.send threw $exn ")
+      case exn: java.lang.Throwable =>
+           if (logging) fine(s"UDP.send threw $exn ")
            lastException = exn
            -1
     }
@@ -203,14 +225,14 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
     buffer.clear
     try {
       val addr = channel.receive(buffer)
-      finest(s"received $buffer from $addr")
+      if (logging) finest(s"received $buffer from $addr")
       buffer.flip
       addr
     } catch {
       case exn: java.lang.Throwable =>
         lastException = exn
         inOpen = false
-        throw new EndOfInputStream(input)
+        throw exn
     }
   }
 }
