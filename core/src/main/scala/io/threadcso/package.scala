@@ -410,8 +410,8 @@ package object threadcso {
   //////////////////////// Channel factory methods /////////////////////////
 
   import io.threadcso.alternation.channel.SharedAltCapableChannel
-  type ??[T] = io.threadcso.alternation.channel.InPort[T]
-  type !![T] = io.threadcso.alternation.channel.OutPort[T]
+  type ??[+T] = io.threadcso.alternation.channel.InPort[T]
+  type !![-T] = io.threadcso.alternation.channel.OutPort[T]
 
   /** Return a synchronous '''alt-capable''' channel (with the given `name`)
     * designed for point-to-point communication. There is a (weak) dynamic check

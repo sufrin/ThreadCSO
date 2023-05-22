@@ -2,9 +2,10 @@ package ox.net
 
 import app.OPT._
 import io.threadcso._
+import org.velvia.msgpack.CollectionCodecs.SeqCodec
 import ox.logging.{Log, Logging => LOGGING}
 import ox.net.SSLChannel.TLSCredential
-import ox.net.channelfactory.{CRLFChannelFactory, StringArrayChannelFactory, UTF8ChannelFactory}
+import ox.net.channelfactory.{CRLFChannelFactory, GenericChannelFactory, StringArrayChannelFactory, UTF8ChannelFactory}
 import ox.net.httpclient.{factory, host, port}
 import ox.net.SocketOptions._
 import ox.net.UDPChannel.{Datagram, Malformed, UDP}
@@ -13,6 +14,8 @@ import java.io.{File, InputStream, OutputStream}
 import java.net.{InetAddress, InetSocketAddress, Socket}
 import java.nio.ByteBuffer
 import java.nio.channels.SocketChannel
+
+
 
 /**
  *  Base class for all the manual tests, dealing with
@@ -216,6 +219,8 @@ object kbdx extends ManualTest("kbdx -- sends multiple keyboard messages, receiv
     exit()
   }
 }
+
+
 
 
 object txgrams extends ManualTest("txgrams -- sends keyboard datagrams, receives responses") {

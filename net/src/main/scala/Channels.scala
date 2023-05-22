@@ -1,8 +1,5 @@
 package ox.net
 
-import ox.net.codec.Codec
-
-import java.io.{InputStream, OutputStream}
 import java.lang
 import java.net.{NetworkInterface, ProtocolFamily, Socket, SocketAddress}
 import java.nio.channels.{DatagramChannel, SocketChannel}
@@ -174,22 +171,9 @@ trait SSLChannelInterface extends ChannelInterface {
   def shutdownOutput(): Unit = close()
 }
 
-trait TypedTCPChannel[OUT,IN] extends NetProxy[OUT,IN] with TCPChannelInterface
-trait TypedUDPChannel[OUT,IN] extends NetProxy[OUT,IN] with UDPChannelInterface
-trait TypedSSLChannel[OUT,IN] extends NetProxy[OUT,IN] with SSLChannelInterface
+trait TypedTCPChannel[-OUT,+IN] extends NetProxy[OUT,IN] with TCPChannelInterface
+trait TypedUDPChannel[-OUT,+IN] extends NetProxy[OUT,IN] with UDPChannelInterface
+trait TypedSSLChannel[-OUT,+IN] extends NetProxy[OUT,IN] with SSLChannelInterface
 
-trait TypedChannelFactory[OUT,IN] {
-  /** Build a `NetProxy`` from the given `SocketChannel` */
-  def newChannel(channel: SocketChannel):  TypedTCPChannel[OUT,IN]
-  /**
-    * Build a `NetProxy`` from the given `Socket`
-    * Expected to be used only for SSL/TLS Sockets.
-    */
-  def newChannel(socket: java.net.Socket): TypedSSLChannel[OUT,IN]
 
-  /**
-    * Build a `Codec` from the given `input` and `output` streams.
-    */
-  def newCodec(output: OutputStream, input: InputStream): Codec[OUT,IN]
-}
 

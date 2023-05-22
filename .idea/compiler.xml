@@ -11,6 +11,7 @@
       <module name="logging" target="14" />
       <module name="macroSub" target="14" />
       <module name="manualtests" target="14" />
+      <module name="msgpack" target="14" />
       <module name="net" target="14" />
       <module name="netio" target="14" />
       <module name="root" target="14" />

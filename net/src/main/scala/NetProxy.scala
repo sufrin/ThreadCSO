@@ -6,9 +6,9 @@ import ox.net.codec.{Decoder, Encoder}
 
 object NetProxy extends ox.logging.Log("NetProxy")
 
-trait NetProxy[OUT,IN] extends NetOutputProxy[OUT] with NetInputProxy[IN]
+trait NetProxy[-OUT,+IN] extends NetOutputProxy[OUT] with NetInputProxy[IN]
 
-trait NetOutputProxy[O] extends Encoder[O] {
+trait NetOutputProxy[-O] extends Encoder[O] {
 
   def CopyToNet(in: ??[O]): PROC = proc(this.toString + ".CopyToNet") {
     try {
@@ -29,7 +29,7 @@ trait NetOutputProxy[O] extends Encoder[O] {
   }
 }
 
-trait NetInputProxy[I] extends Decoder[I] {
+trait NetInputProxy[+I] extends Decoder[I] {
   def CopyFromNet(out: !![I]): PROC = proc(this.toString + ".CopyFromNet") {
     try {
       repeat {

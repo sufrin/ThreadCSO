@@ -51,7 +51,18 @@ lazy val eieio = (project in file("eieio"))
 lazy val net = (project in file("net"))
   .dependsOn(macroSub)
   .dependsOn(core)
+  .dependsOn(msgpack)
   .dependsOn(app)
+  .dependsOn(logging) // for Logging at present: refactor this
+  .settings(
+    scalacOptions ++= Seq(
+      "-deprecation",
+      "-unchecked"
+      /* "-Werror" */
+    )
+  )
+
+lazy val msgpack = (project in file("msgpack"))
   .dependsOn(logging) // for Logging at present: refactor this
   .settings(
     scalacOptions ++= Seq(

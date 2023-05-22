@@ -12,7 +12,7 @@ case class EndOfOutputStream(stream: Any) extends Stopped
   *
   * @tparam O the type of data to be output by the encoder
   */
-trait Encoder[O] {
+trait Encoder[-O] {
   private var _sync: Boolean = true
   /**
     * Encode `output` and transmit its representation to
@@ -28,7 +28,7 @@ trait Encoder[O] {
   /**
     * Set sync.
     */
-  def sync_=(sync: Boolean) = _sync = sync
+  def sync_=(sync: Boolean): Unit = _sync = sync
 
   /**
     * Stop encoding and release/close any engaged resources,
@@ -46,7 +46,7 @@ trait Encoder[O] {
   *
   * @tparam I the type of data to be input
   */
-trait Decoder[I] {
+trait Decoder[+I] {
   /**
     * Decode the next encoded item on the associated network stream
     */
@@ -76,4 +76,4 @@ trait Decoder[I] {
   * @tparam O the type of data to be output by the encoder.
   * @tparam I the type of data to be input.
   */
-trait Codec[O,I] extends Encoder[O] with Decoder[I] { }
+trait Codec[-O,+I] extends Encoder[O] with Decoder[I] { }
