@@ -4,7 +4,7 @@ import ox.net.codec.Codec
 
 import java.io.{InputStream, OutputStream}
 import java.lang
-import java.net.{NetworkInterface, Socket, SocketAddress}
+import java.net.{NetworkInterface, ProtocolFamily, Socket, SocketAddress}
 import java.nio.channels.{DatagramChannel, SocketChannel}
 
 /**
@@ -47,26 +47,50 @@ object SocketOptions {
   val IPv6: java.net.StandardProtocolFamily = java.net.StandardProtocolFamily.INET6
 }
 
-/** Global, dynamically-set channel features */
+/**
+  * Dynamically-set channel features that are bound into network channels at the
+  * point of their construction.
+  */
 object ChannelOptions {
   val IPv4: java.net.StandardProtocolFamily = java.net.StandardProtocolFamily.INET
   val IPv6: java.net.StandardProtocolFamily = java.net.StandardProtocolFamily.INET6
-  var inSize: Int  = 16*1024
-  var outSize: Int = 16*1024
-  var protocolFamily: java.net.ProtocolFamily = IPv4
-  def withOptions[T](protocolFamily: java.net.ProtocolFamily = this.protocolFamily,
+
+  var inSize:  Int                    = 8*1024
+  var outSize: Int                    = 8*1024
+  var protocolFamily: ProtocolFamily  = IPv4
+  var sync: Boolean = true
+  /**
+    * Define a selection of features while constructing a
+    * channel (or, indeed, any value)
+    *
+    * @param inSize size of preallocated input buffers. Affects efficiency, but not correctness.
+    *               Experiments show that it can be as small as 1! But there is generally an expensive  switch of
+    *               kernel context at each read.
+    * @param outSize size of preallocated output buffers. For the moment this should be no smaller than the size of the largest
+    *                message to be sent on the channel. (TODO: apply the easy but non-urgent fix)
+    * @param sync whether the channel is "synchronous", ie. intermediate streams are flushed immediately after writes.
+    *             When false there may be a delay between the logical (CSO) write to a network channel, and its realization
+    *             as a network write. The delay makes for more efficient use of buffers and network capacity, but is not
+    *             appropriate in some situations
+    * @param protocolFamily IPv4 or IPv6
+    */
+  def withOptions[T](protocolFamily: ProtocolFamily = this.protocolFamily,
                      inSize:         Int=this.inSize,
-                     outSize:        Int=this. outSize)(makechannel: => T): T = synchronized {
+                     outSize:        Int=this.outSize,
+                     sync:           Boolean = this.sync)(makechannel: => T): T = synchronized {
       val is = this.inSize
       val os = this.outSize
       val pf = this.protocolFamily
+      val sy = this.sync
       this.inSize         = inSize
       this.outSize        = outSize
       this.protocolFamily = protocolFamily
+      this.sync = sync
       try makechannel finally {
         this.inSize         = is
         this.outSize        = os
         this.protocolFamily = pf
+        this.sync           = sy
       }
   }
 }

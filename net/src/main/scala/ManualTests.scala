@@ -159,7 +159,7 @@ object kbd extends ManualTest("kbd -- sends keyboard messages, receives response
 }
 
 object kbdx extends ManualTest("kbdx -- sends multiple keyboard messages, receives responses") {
-  type StringArray = Array[String]
+  type StringArray = Seq[String]
   def Test() = {
     val channel: TypedTCPChannel[StringArray, StringArray] = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024)
     { TCPChannel.connected(new java.net.InetSocketAddress(host, port), StringArrayChannelFactory) }
@@ -178,7 +178,6 @@ object kbdx extends ManualTest("kbdx -- sends multiple keyboard messages, receiv
     var times = 1
 
     run(proc("ui") {
-      var out = Array.ofDim[String](times)
       repeat {
         kbd ? () match {
           case "." =>
@@ -187,11 +186,10 @@ object kbdx extends ManualTest("kbdx -- sends multiple keyboard messages, receiv
             stop
           case s"*$n" if n matches ("[0-9]+") =>
             times = n.toInt
-            out = Array.ofDim[String](times)
           case line =>
             last = line
         }
-        for { i<-0 until times } out(i) = s"($i)=$last"
+        val out = for { i<-0 until times } yield s"($i)=$last"
         log.fine(s"toHost ! $last * $times")
         toHost ! out
       }

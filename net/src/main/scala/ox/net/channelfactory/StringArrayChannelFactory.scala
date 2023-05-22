@@ -12,22 +12,21 @@ import java.nio.channels.SocketChannel
   * Provided the type can be streamed to an `DataOutputStream`, it's straightforward
   * to provide the corresponding `ChannelFactory`
   */
-object StringArrayChannelFactory extends ox.logging.Log("StringArrayChannelFactory") with TypedChannelFactory[Array[String],Array[String]] {
-  type StringArray = Array[String]
+object StringArrayChannelFactory extends ox.logging.Log("StringArrayChannelFactory") with TypedChannelFactory[Seq[String],Seq[String]] {
+  type StringArray = Seq[String]
 
   trait Mixin {
     val input:  DataInputStream
     val output: DataOutputStream
     var inOpen, outOpen = true
+    def sync: Boolean
+    import ox.net.codec.StreamEncoding.{StringSeqEncoding => SEX}
 
     /**
       * Decode the next encoded item on the associated network stream
       */
     def decode(): StringArray = try {
-      val count = input.readInt
-      val result = new Array[String](count)
-      for {i <- 0 until count} result(i) = input.readUTF()
-      result
+      SEX.decode(input)
     } catch {
       case exn: UTFDataFormatException => inOpen = false; throw new EndOfInputStream(input)
       case exn: EOFException => inOpen = false; throw new EndOfInputStream(input)
@@ -50,11 +49,9 @@ object StringArrayChannelFactory extends ox.logging.Log("StringArrayChannelFacto
       * Encode `output` and transmit its representation to
       * the associated network stream
       */
-    def encode(array: StringArray): Unit = {
-      val count = array.size
-      output.writeInt(count)
-      for {elt <- array} output.writeUTF(elt)
-      output.flush()
+    def encode(seq: StringArray): Unit = {
+      SEX.encode(output, seq)
+      if (sync) output.flush()
     }
 
     /**
@@ -83,7 +80,7 @@ object StringArrayChannelFactory extends ox.logging.Log("StringArrayChannelFacto
   /**
     * Build a `Codec` from the given `input` and `output` streams.
     */
-  def newCodec(_output: OutputStream, _input: InputStream): Codec[StringArray, StringArray] = new Codec[StringArray,StringArray] with Mixin {
+  def newCodec(_output: OutputStream, _input: InputStream): Codec[StringArray, StringArray] = new Codec[StringArray,StringArray]  with Mixin {
     val output = new DataOutputStream(new BufferedOutputStream(_output))
     val input = new DataInputStream(new BufferedInputStream(_input))
   }

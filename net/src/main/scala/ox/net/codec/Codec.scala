@@ -69,7 +69,7 @@ trait Decoder[I] {
 
 /**
   * A related Encoder/Decoder pair. Usually, though not always,
-  * `O` AND `I` are the same type. When this is true, the
+  * `O` and `I` are the same type. When this is true, the
   * compatibility of the decoder with the encoder can be tested by
   * connecting its associated input and output streams suitably.
   *
