@@ -1,5 +1,6 @@
 package ox.net.channelfactory
 
+import org.velvia.InvalidMsgPackDataException
 import org.velvia.msgpack.{Codec => ImplicitCodec}
 import ox.net.TypedChannelFactory
 import ox.net.TypedSSLChannel
@@ -13,7 +14,7 @@ import java.nio.channels.SocketChannel
 
 /**
   * A class which can be specialized as a builder of type-specific channels for serializable types for which (implicit)
-  * `org.velvia.msgpack.Codec`s can be synthesized or directly constructed. Although it can be a little tedious to
+  * {{{org.velvia.msgpack.Codecs}}} can be synthesized or directly constructed. Although it can be a little tedious to
   * synthesize the `Codec`s the language machinery is just about acceptable. Cases in point are the cases in
   * `MessagePackTests` in which `Ty` is defined respectively by:
   * {{{
@@ -71,6 +72,7 @@ class GenericChannelFactory[T : ImplicitCodec] extends ox.logging.Log("GenericCh
     def decode(): T = try {
       org.velvia.MessagePack.unpack(input)
     } catch {
+      case exn: InvalidMsgPackDataException => inOpen = false; throw new ox.net.codec.EndOfInputStream(input)
       case exn: UTFDataFormatException => inOpen = false; throw new ox.net.codec.EndOfInputStream(input)
       case exn: EOFException => inOpen = false; throw new ox.net.codec.EndOfInputStream(input)
       case exn: IOException => inOpen = false; throw new ox.net.codec.EndOfInputStream(input)
