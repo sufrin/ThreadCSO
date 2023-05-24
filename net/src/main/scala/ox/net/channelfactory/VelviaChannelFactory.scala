@@ -10,13 +10,13 @@ import java.io._
 import java.net.Socket
 import java.nio.channels.SocketChannel
 
-
-
 /**
   * A class which can be specialized as a builder of type-specific channels for serializable types for which (implicit)
   * {{{org.velvia.msgpack.Codecs}}} can be synthesized or directly constructed. Although it can be a little tedious to
-  * synthesize the `Codec`s the language machinery is just about acceptable. Cases in point are the cases in
-  * `MessagePackTests` in which `Ty` is defined respectively by:
+  * synthesize the `Codec`s, the language machinery is more or less acceptable. This class is structurally almost the same as
+  * `DataStreamChannelFactory`.
+  *
+  * Cases in point (of the tedium) are those in `MessagePackTests` in which `Ty` is defined respectively by:
   * {{{
   *   type Ty = (Int, Int)
   *   type Ty = (Int, String)
@@ -38,7 +38,7 @@ import java.nio.channels.SocketChannel
   * }}}
   */
 
-class GenericChannelFactory[T : ImplicitCodec] extends ox.logging.Log("GenericChannelFactory") with TypedChannelFactory[T, T] {
+class VelviaChannelFactory[T : ImplicitCodec] extends ox.logging.Log("VelviaChannelFactory") with TypedChannelFactory[T, T] {
   def newChannel(theChannel: SocketChannel): TypedTCPChannel[T,T] = new TypedTCPChannel[T,T] with Mixin {
     val channel = theChannel
     val output = new DataOutputStream(new BufferedOutputStream(java.nio.channels.Channels.newOutputStream(channel)))

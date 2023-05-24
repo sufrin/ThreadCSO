@@ -3,7 +3,7 @@ package ox.net
 
 import io.threadcso.{OneOne, OneOneBuf, component, exit, proc, repeat, run, stop}
 import ox.net.SocketOptions.{SO_RCVBUF, SO_SNDBUF}
-import ox.net.channelfactory.GenericChannelFactory
+import ox.net.channelfactory.VelviaChannelFactory
 
 
 /**
@@ -28,7 +28,7 @@ object kbdy extends ManualTest("kbdy -- sends multiple keyboard messages (using 
 
     def Test() = {
       val channel: TypedTCPChannel[Ty, Ty] = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024)
-      { TCPChannel.connected(new java.net.InetSocketAddress(host, port), new GenericChannelFactory[Ty]) }
+      { TCPChannel.connected(new java.net.InetSocketAddress(host, port), new VelviaChannelFactory[Ty]) }
 
       if (SND>0) channel.setOption(SO_SNDBUF, SND)
       if (RCV>0) channel.setOption(SO_RCVBUF, RCV)
@@ -94,7 +94,7 @@ object kbdz extends ManualTest("kbdz -- sends multiple keyboard messages (as pai
 
   def Test() = {
     val channel: TypedTCPChannel[Ty, Ty] = ChannelOptions.withOptions(inSize = inBufSize * 1024, outSize = outBufSize * 1024) {
-      TCPChannel.connected(new java.net.InetSocketAddress(host, port), new GenericChannelFactory[Ty])
+      TCPChannel.connected(new java.net.InetSocketAddress(host, port), new VelviaChannelFactory[Ty])
     }
 
     if (SND > 0) channel.setOption(SO_SNDBUF, SND)
@@ -164,7 +164,7 @@ object kbdq extends ManualTest("kbdq -- sends multiple keyboard messages wrapped
 
   def Test() = {
     val channel: TypedTCPChannel[Ty, Ty] = ChannelOptions.withOptions(inSize = inBufSize * 1024, outSize = outBufSize * 1024) {
-      TCPChannel.connected(new java.net.InetSocketAddress(host, port), new GenericChannelFactory[Ty])
+      TCPChannel.connected(new java.net.InetSocketAddress(host, port), new VelviaChannelFactory[Ty])
     }
 
     if (SND > 0) channel.setOption(SO_SNDBUF, SND)

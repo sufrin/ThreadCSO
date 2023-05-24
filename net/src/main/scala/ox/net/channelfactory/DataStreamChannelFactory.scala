@@ -1,6 +1,6 @@
 package ox.net.channelfactory
 
-import ox.net.codec.{Codec, EndOfInputStream}
+import ox.net.codec.{Codec, EndOfInputStream, DataStreamEncoding}
 import ox.net.{TypedChannelFactory, TypedSSLChannel, TypedTCPChannel}
 
 import java.io._
@@ -8,25 +8,34 @@ import java.net.Socket
 import java.nio.channels.SocketChannel
 
 /**
-  * Simple model of a ChannelFactory for a composite type.
-  * Provided the type can be streamed to an `DataOutputStream`, it's straightforward
-  * to provide the corresponding `ChannelFactory`
+  * An abstract `ChannelFactory` for a type that has a `DataStreamEncoding` that can be synthesised or
+  * inferred (for example by using the tools of `DataStreamEncoding`)
+  *
+  * For efficiency we also provide `VelviaChannelFactory`, for direct use with encodings made
+  * from encodings originating with `org.velvia.MessagePack`. These encodings are in general
+  * very much more concise than those originating with `DataStreamEncoding`. They have the
+  * added (killer) virtue of having many language bindings to them and facilitating interworking.
+    *
   */
-object StringArrayChannelFactory extends ox.logging.Log("StringArrayChannelFactory") with TypedChannelFactory[Seq[String],Seq[String]] {
-  type StringArray = Seq[String]
+class DataStreamChannelFactory[T](implicit encoding: DataStreamEncoding.Stream[T])
+       extends ox.logging.Log("DataStreamChannelFactory")
+       with TypedChannelFactory[T,T] {
 
+  /**
+    * This mixin requires `input` and `output` datastreams, and a `sync` in its
+    * host class.
+    */
   trait Mixin {
     val input:  DataInputStream
     val output: DataOutputStream
     var inOpen, outOpen = true
     def sync: Boolean
-    import ox.net.codec.StreamEncoding.{StringSeqEncoding => SEX}
 
     /**
       * Decode the next encoded item on the associated network stream
       */
-    def decode(): StringArray = try {
-      SEX.decode(input)
+    def decode(): T = try {
+      encoding.decode(input)
     } catch {
       case exn: UTFDataFormatException => inOpen = false; throw new EndOfInputStream(input)
       case exn: EOFException => inOpen = false; throw new EndOfInputStream(input)
@@ -49,8 +58,8 @@ object StringArrayChannelFactory extends ox.logging.Log("StringArrayChannelFacto
       * Encode `output` and transmit its representation to
       * the associated network stream
       */
-    def encode(seq: StringArray): Unit = {
-      SEX.encode(output, seq)
+    def encode(t: T): Unit = {
+      encoding.encode(output, t)
       if (sync) output.flush()
     }
 
@@ -60,8 +69,9 @@ object StringArrayChannelFactory extends ox.logging.Log("StringArrayChannelFacto
       */
     def closeOut(): Unit = output.close()
   }
+
   /** Build a `NetProxy`` from the given `SocketChannel` */
-  def newChannel(theChannel: SocketChannel): TypedTCPChannel[StringArray,StringArray] = new TypedTCPChannel[StringArray,StringArray] with Mixin {
+  def newChannel(theChannel: SocketChannel): TypedTCPChannel[T,T] = new TypedTCPChannel[T,T] with Mixin {
     val channel = theChannel
     val output = new DataOutputStream(new BufferedOutputStream(java.nio.channels.Channels.newOutputStream(channel)))
     val input = new DataInputStream(new BufferedInputStream(java.nio.channels.Channels.newInputStream(channel)))
@@ -71,16 +81,16 @@ object StringArrayChannelFactory extends ox.logging.Log("StringArrayChannelFacto
     * Build a `NetProxy`` from the given `Socket`
     * Expected to be used only for SSL/TLS Sockets.
     */
-  def newChannel(theSocket: Socket): TypedSSLChannel[StringArray,StringArray] = new TypedSSLChannel[StringArray, StringArray] with Mixin {
+  def newChannel(theSocket: Socket): TypedSSLChannel[T,T] = new TypedSSLChannel[T, T] with Mixin {
     val socket = theSocket
     val output = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream))
-    val input = new DataInputStream(new BufferedInputStream(socket.getInputStream))
+    val input  = new DataInputStream(new BufferedInputStream(socket.getInputStream))
   }
 
   /**
     * Build a `Codec` from the given `input` and `output` streams.
     */
-  def newCodec(_output: OutputStream, _input: InputStream): Codec[StringArray, StringArray] = new Codec[StringArray,StringArray]  with Mixin {
+  def newCodec(_output: OutputStream, _input: InputStream): Codec[T, T] = new Codec[T,T]  with Mixin {
     val output = new DataOutputStream(new BufferedOutputStream(_output))
     val input = new DataInputStream(new BufferedInputStream(_input))
   }

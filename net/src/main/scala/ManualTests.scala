@@ -5,7 +5,7 @@ import io.threadcso._
 import org.velvia.msgpack.CollectionCodecs.SeqCodec
 import ox.logging.{Log, Logging => LOGGING}
 import ox.net.SSLChannel.TLSCredential
-import ox.net.channelfactory.{CRLFChannelFactory, GenericChannelFactory, StringArrayChannelFactory, UTF8ChannelFactory}
+import ox.net.channelfactory.{CRLFChannelFactory, DataStreamChannelFactory, UTF8ChannelFactory, VelviaChannelFactory}
 import ox.net.httpclient.{factory, host, port}
 import ox.net.SocketOptions._
 import ox.net.UDPChannel.{Datagram, Malformed, UDP}
@@ -164,8 +164,12 @@ object kbd extends ManualTest("kbd -- sends keyboard messages, receives response
 object kbdx extends ManualTest("kbdx -- sends multiple keyboard messages, receives responses") {
   type StringArray = Seq[String]
   def Test() = {
+    import ox.net.codec.DataStreamEncoding.{Sequence, Stream}
+    import ox.net.codec.DataStreamEncoding.Primitive._
+    implicit object StringSeq extends Sequence[String]
+    object CF extends DataStreamChannelFactory[Seq[String]]
     val channel: TypedTCPChannel[StringArray, StringArray] = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024)
-    { TCPChannel.connected(new java.net.InetSocketAddress(host, port), StringArrayChannelFactory) }
+    { TCPChannel.connected(new java.net.InetSocketAddress(host, port), CF) }
     if (SND>0) channel.setOption(SO_SNDBUF, SND)
     if (RCV>0) channel.setOption(SO_RCVBUF, RCV)
     val kbd      = OneOne[String]("kbd")
@@ -192,7 +196,7 @@ object kbdx extends ManualTest("kbdx -- sends multiple keyboard messages, receiv
           case line =>
             last = line
         }
-        val out = for { i<-0 until times } yield s"($i)=$last"
+        val out = (for { i<-0 until times } yield s"($i)=$last").toSeq
         log.fine(s"toHost ! $last * $times")
         toHost ! out
       }

@@ -4,8 +4,8 @@ package ox.net.codec
   *
   * The `varint` encoding defined in the documentation of Google Protocol Buffers can
   * represent signed 64-bit integers (ie Scala `Long` integers).
-  * The name `VarInt` is given to this type here
-  * in order to avoid any doubt.
+  *
+  * The name `VarInt` is given to this.
   *
   * See `http://code.google.com/apis/protocolbuffers/docs/encoding.html`
   *
@@ -58,7 +58,7 @@ object VarInt {
       result // unreached
     }
     catch {
-      case exn: java.io.EOFException => throw new Error("UnsignedVarInt incompletely represented", exn)
+      case exn: java.io.EOFException => throw new java.io.EOFException("UnsignedVarInt incompletely represented")
     }
   }
 
