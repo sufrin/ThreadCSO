@@ -27,6 +27,7 @@ abstract class ManualTest(doc: String) extends App {
   var factory: TypedChannelFactory[String, String] = UTF8ChannelFactory
   var host: String = "localhost"
   var port: Int    = 10000
+  var peerAddr: Option[InetSocketAddress] = None
   var debugPort    = 0
   var SND, RCV     = 0
   var datagram     = false
@@ -43,6 +44,7 @@ abstract class ManualTest(doc: String) extends App {
     OPT("-datagram", datagram, "Send/receive/reflect datagrams as appropriate"),
     OPT("-crlf", { factory = CRLFChannelFactory }, "Use crlf string protocol"),
     OPT("-utf",  { factory = UTF8ChannelFactory }, "Use utf8 string protocol"),
+    OPT("peer://.+:[0-9]+", { case s"peer://$h:$p" => peerAddr = Some(new InetSocketAddress(h, p.toInt) ) }, "Set peer host and port"),
     OPT("//.+:[0-9]+",   { case s"//$h:$p" => host = h; port=p.toInt; () }, "Set host and port"),
     OPT("//.+",          { case s"//$h" => host = h; () }, "Set host"),
     OPT("-d",            { debugPort = -1 }, "Disable debugger [enabled at random port otherwise]"),
@@ -340,6 +342,83 @@ object rxgrams extends ManualTest("rxgrams receives (and reflects) string datagr
     val handle = session.fork
   }
 }
+
+object p2p extends ManualTest("p2p -- exchanges datagrams with another p2p") {
+  type StringPacket = UDP[String]
+  def Test() = {
+    // sending on port; receiving on a random port
+    val channel = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024) {UDPChannel.bind(host, port, factory) }
+    if (SND > 0) channel.setOption(SO_SNDBUF, SND)
+    if (RCV > 0) channel.setOption(SO_RCVBUF, RCV)
+
+    val kbd = OneOne[String]("kbd")
+    val fromPeer = N2NBuf[UDP[String]](50, writers=1, readers=1, name = "fromPeer")
+    val toPeer   = OneOneBuf[UDP[String]](50, name = "toPeer")
+
+    // Bootstrap the channel processes
+    var toNet:   io.threadcso.process.Process.Handle  = null
+    var fromNet: io.threadcso.process.Process.Handle  = null
+
+    val fromKeyboard = component.keyboard(kbd, "").fork
+    var last: String = ""
+    var times = 1
+
+    val self = proc("self") {
+      channel.connect(peerAddr.get)
+      if (logging) log.fine(s"Connected to $peerAddr on $channel")
+      toNet = channel.CopyToNet(toPeer).fork
+      fromNet = channel.CopyFromNet(fromPeer).fork
+      if (logging) log.fine(s"Relaying to and from $peerAddr")
+      repeat {
+        val line = kbd ? ()
+        line match {
+          case "!" =>
+
+          case "." =>
+            kbd.close()
+            fromKeyboard.interrupt()
+            stop
+          case s"*$pat" if pat matches("[0-9]+") =>
+            times = pat.toInt
+            toPeer ! Datagram(last*times, null)
+          case line =>
+            if (logging) log.fine(s"toHost ! $line * $times")
+            last = line
+            toPeer ! Datagram(line*times, null)
+        }
+      }
+      toPeer.close()
+      fromPeer.close()
+    }
+
+    val peer = proc("peer") {
+      var n = 0
+      repeat {
+        n += 1
+        if (logging) log.finest(s"peer listening:")
+        fromPeer ? {
+          case Datagram(value: String, from) =>
+            if (value.size < 40) {
+              println(f"$n%-3d $value ($from)")
+            } else {
+              println(f"$n%-3d #${value.size}%-6d ($from) ${value.subSequence(0, 30)}...")
+            }
+          case Malformed(from) =>
+            println(f"$n%-3d [MALFORMED PACKET] ($from)")
+        }
+        ()
+      }
+      if (logging) log.info(s"Host stopped")
+      toPeer.closeOut()
+      kbd.close()
+    }
+
+    run(self || peer)
+  }
+
+
+}
+
 
 object httpclient extends ManualTest("httpclient -- GETs from a server then outputs the response line-by-line") {
   def Test() = {

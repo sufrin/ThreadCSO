@@ -10,12 +10,11 @@ import java.nio.ByteBuffer
   *  size when necessary to accomodate all that is
   *  written.
   *
-  *  TODO: a more subtle enlargement policy
-  *  TODO: a switchable allocation policy
-  *  TODO: a policy for reclaiming overlong buffers
-  *  TODO: bring channel operations onboard (see `UDPChannel`)
+  * @see
   */
 object ByteBufferOutputStream extends ox.logging.Log("ByteBufferOutputStream")
+
+
 
 class ByteBufferOutputStream(size: Int) extends OutputStream  {
   import ByteBufferOutputStream._
@@ -39,18 +38,17 @@ class ByteBufferOutputStream(size: Int) extends OutputStream  {
     if (logging) finest(s"BBOS.put(buf, $off, $len) $buffer")
   }
 
-  def reuse(): Unit = {
-    if (logging) finest(s"bbos.reuse($size) / $buffer")
-    buffer.clear()
-  }
-
-  def enlarge() = {
+  def enlarge(): Unit = {
     val capacity = buffer.capacity * 2
     if (logging) finest(s"BBOS.enlarge -> $capacity")
     val newBuffer = ByteBuffer.allocate(capacity)
     buffer.flip()
     newBuffer.put(buffer)
     buffer = newBuffer
+  }
+
+  override def flush(): Unit = {
+    super.flush()
   }
 
 }

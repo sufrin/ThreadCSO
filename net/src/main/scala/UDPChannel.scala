@@ -17,8 +17,25 @@ object UDPChannel extends ox.logging.Log("UDPChannel")
     val address: SocketAddress
   }
 
+  /**
+    * Evidence of the arrival of an undecodeable packet that originated at the given address`. The
+    * packet may well have been "silently truncated". There is no provision for
+    * trying again to decode the undecodeable payload, but a higher-level protocol may
+    * decide to send a "resend" notification.
+    */
   case class Malformed[T](address: SocketAddress) extends UDP[T]
-  case class Datagram[T](value: T, address: SocketAddress) extends UDP[T] {
+
+  /**
+    * A `Datagram` originating at the given address, or to be sent to the
+    * given address.
+    *
+    * In the latter case, if the address is `null` then the datagram is sent
+    * to the currently-connected remote address.
+    *
+    *
+    * @see UDPChannel.encode
+    */
+  case class Datagram[T](value: T, address: SocketAddress = null) extends UDP[T] {
     override def toString: String =
       value match {
         case s: String => if (s.length > 20) s"${s.substring(0, 20)}...#${s.length}" else s
@@ -29,9 +46,10 @@ object UDPChannel extends ox.logging.Log("UDPChannel")
 
   /**
     * @return a `UDPChannel[OUT,IN]` that sends outputs of the form `Datagram(OUT, destinationAddress)` from a
-    *         datagram socket at the given `address`.
+    *         datagram socket at the given `address`, and receives inputs of form `Datagram(OUT, sourceAddress)`
+    *         at that datagram socket. The returned channel is open to recieving datagrams from any source.
     * @param address
-    * @param factory builds the typed channel from the (untyped) tagaram socket
+    * @param factory builds the typed channel from the (untyped) datagram socket
     * @param family
     * @tparam OUT
     * @tparam IN
@@ -45,8 +63,8 @@ object UDPChannel extends ox.logging.Log("UDPChannel")
   }
 
   /**
-    * @return a `UDPChannel[OUT,IN]` that listens for inputs of the form `Datagram(OUT, sourceAddress)` from a
-    *         datagram socket at the given `address`.
+    * @return a `UDPConnection[OUT,IN]` that reads inputs of the form `Datagram(OUT, sourceAddress)` from
+    *         datagram socket bound to the given `address`; its source address
     * @param address
     * @param factory builds the typed channel from the (untyped) tagaram socket
     * @param family
@@ -60,6 +78,9 @@ object UDPChannel extends ox.logging.Log("UDPChannel")
     socket.connect(address)
     channel
   }
+
+
+
 
   /**
     * The same as `bind`, but the address is formed from `host` and `port`.  If the port is `0` then an ephemeral
@@ -86,6 +107,7 @@ object UDPChannel extends ox.logging.Log("UDPChannel")
     }
     connect(new InetSocketAddress(address, port), factory, family)
   }
+
   /*
   def multicast(address: InetSocketAddress): NetMulticastChannel =
     multicast(address, address.getAddress)
@@ -126,41 +148,58 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
     getOption(IP_MULTICAST_IF)
   )
 
-  val output: ByteBufferOutputStream  = new ByteBufferOutputStream(ChannelOptions.outSize)
+  /** Connect this channel to the given remote address */
+  def connect(addr: InetSocketAddress): Unit = {
+    if (channel.isConnected) channel.disconnect()
+    channel.connect(addr)
+    if (logging) finest(s"connected: $this to $addr")
+  }
+
+  val output: DatagramOutputStream    = new DatagramOutputStream(channel, ChannelOptions.outSize)
   val input:  ByteBufferInputStream   = ByteBufferInputStream(ChannelOptions.inSize)
   val codec:  Codec[OUT,IN]           = factory.newCodec(output, input)
 
+  /** Encode and send the packet using the channel, if it is a Datagram with an address.
+    * If the datagram address is null, then the packet is sent
+    * to the currently-connected remote address, if any.
+    * If the packet is `Malformed` (these arise from the failed `decode`
+    * of a datagram that was (probably) incomplete.
+    */
   def encode(packet: UDP[OUT]): Unit = {
-    output.reuse()
     if (logging) finest(s"before encode(#{$packet.value.size}) [${output.buffer}]")
     packet match {
       case Datagram(value, addr) =>
+        output.newDatagram(addr)
         codec.encode (value)
         if (logging) finest (s"after encode($packet) [${output.buffer}]")
-        send (output.buffer, packet.address)
       case Malformed(addr) =>
-
     }
     ()
   }
 
+  /**
+    * Await the next datagram packet on the channel then decode and return `Datagram(decoded-input-data, address)`.
+    *
+    * If the packet is malformed on account of a decoding failure caused by
+    * an incompletely-received datagram then `Malformed(addr)` is returned.
+    */
    def decode(): UDP[IN] = {
-    val bb   = input.byteBuffer
-    val addr = receive(bb)
-    if (logging) finest(s"decoding ${bb})")
+    val byteBuffer   = input.byteBuffer
+    val sourceAddress = receive(byteBuffer)
+    if (logging) finest(s"decoding ${byteBuffer})")
      try {
        val value: IN = codec.decode()
        input.reuse()
-       val result = Datagram(value, addr)
-       if (logging) finest(s"decoded (${bb})=$result")
+       val result = Datagram(value, sourceAddress)
+       if (logging) finest(s"decoded (${byteBuffer})=$result")
        result
      } catch  {
        case exn: EOFException =>
             warning(s"datagram decode failed (abbreviated) (${exn}) [$input]")
-            Malformed(addr)
+            Malformed(sourceAddress)
        case exn: UTFDataFormatException =>
             warning(s"datagram decode failed (UTF8 data malformed) (${exn}) [$input]")
-            Malformed(addr)
+            Malformed(sourceAddress)
      }
    }
 
@@ -179,7 +218,6 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
    /**
      * The most recent `decode` yielded a valid result if true; else the associated channel closed/failed,
      * and `lastException` may explain why.
-     *
      */
    override def canDecode: Boolean = inOpen
 
@@ -187,47 +225,29 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
   override
   def toString: String = s"UDPChannel($channel) [$options] [LastException: $lastException])"
 
-  /** Low-level send of datagram `buffer` to `address`.
-    * Yields the number of bytes actually sent; or -1 if the channel effectively closed
-    * or the packet was rejected.
-    * The variable `lastException: Throwable` can be used to find out exactly what went wrong
-    * if
-    */
-  def send(buffer: ByteBuffer, address: SocketAddress): Int =
-  { resetLastException()
-    var count = 0
-    try {
-      if (channel.isOpen) {
-        buffer.flip()
-        if (logging) finest(s"UDP.send($buffer)")
-        while (buffer.hasRemaining())
-          count += channel.send(buffer, address)
-        finest(s"UDP.sent($count)")
-        count
-      }
-      else {
-        -1
-      }
-    } catch  {
-      case exn: java.lang.Throwable =>
-           if (logging) fine(s"UDP.send threw $exn ")
-           lastException = exn
-           -1
-    }
-  }
-
-  /** Low-level receive of datagram `buffer` from the socket to which
+  /**
+    * Low-level receive of datagram `buffer` from the socket to which
     * this datagram channel is connected.
-    * Yields null with !canDecode() if something went wrong
+    *
+    * @return the remote address from which the datagram was sent
+    *
+    *  TODO: Heuristic to check absence of overrun?
+    *        Heuristic: if there is no space left after the receive then unless
+    *        the send was EXACTLY the right size there must have been a silent
+    *        discard of some extra bytes. This heuristic is only useful
+    *        for time-saving, not for correctness, because the codecs themselves
+    *        doing the decoding should check well-formedness.
+    *        A more useful heuristic might be to enlarge the buffer spontaneously
+    *        after the reception of a "nearly overflowing" packet.
     */
   def receive(buffer: ByteBuffer): SocketAddress = {
     resetLastException()
     buffer.clear
     try {
-      val addr = channel.receive(buffer)
-      if (logging) finest(s"received $buffer from $addr")
+      val sourceAddress = channel.receive(buffer)
+      if (logging) finest(s"received $buffer from $sourceAddress")
       buffer.flip
-      addr
+      sourceAddress
     } catch {
       case exn: java.lang.Throwable =>
         lastException = exn
