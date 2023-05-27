@@ -3,11 +3,10 @@ package ox.net
 import io.SourceLocation._
 import ox.net.SocketOptions._
 import ox.net.UDPChannel.UDP
-import ox.net.codec.Codec
+import ox.net.codec.{Codec, EndOfInputStream}
 
 import java.io.{EOFException, UTFDataFormatException}
 import java.net._
-import java.nio.ByteBuffer
 import java.nio.channels._
 
 object UDPChannel extends ox.logging.Log("UDPChannel")
@@ -156,7 +155,7 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
   }
 
   val output: DatagramOutputStream    = new DatagramOutputStream(channel, ChannelOptions.outSize)
-  val input:  ByteBufferInputStream   = ByteBufferInputStream(ChannelOptions.inSize)
+  val input:  DatagramInputStream     = DatagramInputStream(channel, ChannelOptions.inSize)
   val codec:  Codec[OUT,IN]           = factory.newCodec(output, input)
 
   /** Encode and send the packet using the channel, if it is a Datagram with an address.
@@ -178,28 +177,35 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
   }
 
   /**
-    * Await the next datagram packet on the channel then decode and return `Datagram(decoded-input-data, address)`.
+    * Await the next raw datagram packet on the channel then decode and
+    * return `Datagram(decoded-raw-data, sourceAddress)`.
     *
-    * If the packet is malformed on account of a decoding failure caused by
+    * If the packet is malformed because of a decoding failure caused by
     * an incompletely-received datagram then `Malformed(addr)` is returned.
     */
    def decode(): UDP[IN] = {
-    val byteBuffer   = input.byteBuffer
-    val sourceAddress = receive(byteBuffer)
-    if (logging) finest(s"decoding ${byteBuffer})")
      try {
-       val value: IN = codec.decode()
-       input.reuse()
-       val result = Datagram(value, sourceAddress)
-       if (logging) finest(s"decoded (${byteBuffer})=$result")
-       result
-     } catch  {
-       case exn: EOFException =>
-            warning(s"datagram decode failed (abbreviated) (${exn}) [$input]")
-            Malformed(sourceAddress)
-       case exn: UTFDataFormatException =>
-            warning(s"datagram decode failed (UTF8 data malformed) (${exn}) [$input]")
-            Malformed(sourceAddress)
+       val sourceAddress = input.receive()
+       if (logging) finest(s"decoding ${input})")
+       try {
+         val value: IN = codec.decode()
+         input.clear()
+         val result = Datagram(value, sourceAddress)
+         if (logging) finest(s"decoded (${input})=$result")
+         result
+       } catch {
+         case exn: EOFException =>
+           warning(s"datagram decode failed (abbreviated) (${exn}) [$input]")
+           Malformed(sourceAddress)
+         case exn: UTFDataFormatException =>
+           warning(s"datagram decode failed (UTF8 data malformed) (${exn}) [$input]")
+           Malformed(sourceAddress)
+       }
+     } catch {
+       case exn: PortUnreachableException =>
+         lastException = exn
+         inOpen = false
+         throw new EndOfInputStream(input)
      }
    }
 
@@ -225,36 +231,7 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
   override
   def toString: String = s"UDPChannel($channel) [$options] [LastException: $lastException])"
 
-  /**
-    * Low-level receive of datagram `buffer` from the socket to which
-    * this datagram channel is connected.
-    *
-    * @return the remote address from which the datagram was sent
-    *
-    *  TODO: Heuristic to check absence of overrun?
-    *        Heuristic: if there is no space left after the receive then unless
-    *        the send was EXACTLY the right size there must have been a silent
-    *        discard of some extra bytes. This heuristic is only useful
-    *        for time-saving, not for correctness, because the codecs themselves
-    *        doing the decoding should check well-formedness.
-    *        A more useful heuristic might be to enlarge the buffer spontaneously
-    *        after the reception of a "nearly overflowing" packet.
-    */
-  def receive(buffer: ByteBuffer): SocketAddress = {
-    resetLastException()
-    buffer.clear
-    try {
-      val sourceAddress = channel.receive(buffer)
-      if (logging) finest(s"received $buffer from $sourceAddress")
-      buffer.flip
-      sourceAddress
-    } catch {
-      case exn: java.lang.Throwable =>
-        lastException = exn
-        inOpen = false
-        throw exn
-    }
-  }
+
 }
 
 /*

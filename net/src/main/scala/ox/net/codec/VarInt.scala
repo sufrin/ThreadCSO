@@ -3,9 +3,8 @@ package ox.net.codec
 /**
   *
   * The `varint` encoding defined in the documentation of Google Protocol Buffers can
-  * represent signed 64-bit integers (ie Scala `Long` integers).
-  *
-  * The name `VarInt` is given to this.
+  * represent signed 64-bit integers (ie Scala `Long` integers). To avoid confusion
+  * the type name `VarInt` is defined here to be `Long`. 
   *
   * See `http://code.google.com/apis/protocolbuffers/docs/encoding.html`
   *
@@ -27,7 +26,7 @@ package ox.net.codec
 object VarInt {
   type VarInt = Long
 
-  import java.io.{DataInputStream=>DIS, DataOutputStream=>DOS}
+  import java.io.{DataInputStream=>IS, DataOutputStream=>OS}
   private val bit7 = 0x80
 
   /** Injective coding/decoding support */
@@ -42,20 +41,22 @@ object VarInt {
   /** Injective coding/decoding support */
   @inline private def continuedByte(l: Long): Byte = (sevenBits(l) | bit7).asInstanceOf[Byte]
 
-  def readUnsignedVarInt(stream: DIS): VarInt = {
+  def readUnsignedVarInt(stream: IS): VarInt = {
     var result: VarInt = 0
     var shift = 0
     var reading = true
     try {
-      while (true) {
+      while (reading) {
         var byte = eightBits(stream.readByte())
         if (byte < bit7) {
-          return result | (sevenBits(byte) << shift)
+          // This is the first `return` I have ever placed in mid-loop!
+          // return result | (sevenBits(byte) << shift)
+          reading = false
         }
         result = result | (sevenBits(byte) << shift)
         shift += 7
       }
-      result // unreached
+      result
     }
     catch {
       case exn: java.io.EOFException => throw new java.io.EOFException("UnsignedVarInt incompletely represented")
@@ -63,14 +64,14 @@ object VarInt {
   }
 
   /** Read a (signed) VarInt */
-  def readVarInt(stream: DIS): VarInt = {
+  def readVarInt(stream: IS): VarInt = {
     var unsigned = readUnsignedVarInt(stream)
     if ((unsigned & 1) != 0) ~(unsigned >>> 1) else (unsigned >>> 1)
   }
 
 
   /** Write an unsigned VarInt  */
-  def writeUnsignedVarInt(stream: DOS, value: VarInt): Unit = {
+  def writeUnsignedVarInt(stream: OS, value: VarInt): Unit = {
     var v = value
     var cont = true
     while (cont) {
@@ -82,7 +83,7 @@ object VarInt {
   }
 
   /** Write a (signed) VarInt */
-  def writeVarInt(stream: DOS, value: VarInt): Unit = {
+  def writeVarInt(stream: OS, value: VarInt): Unit = {
     var bits: VarInt = value << 1
     if (value < 0) bits = ~bits
     writeUnsignedVarInt(stream, bits)

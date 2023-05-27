@@ -48,7 +48,7 @@ class ByteBufferInputStream(size: Int) extends InputStream {
   }
 
   /** Clear the bytebuffer so it can once again be reused */
-  def reuse(): Unit = {
+  def clear(): Unit = {
     byteBuffer.clear()
   }
 }

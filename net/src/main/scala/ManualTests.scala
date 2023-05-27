@@ -68,7 +68,6 @@ abstract class ManualTest(doc: String) extends App {
   }
 
   def Test(): Unit
-
 }
 
 object reflect extends ManualTest("reflect - a server that reflects all TCP packets without interpretation.") {
@@ -226,10 +225,7 @@ object kbdx extends ManualTest("kbdx -- sends multiple keyboard messages, receiv
   }
 }
 
-
-
-
-object txgrams extends ManualTest("txgrams -- sends keyboard datagrams, receives responses") {
+object txgrams extends ManualTest("txgrams -- sends keyboard datagrams to rxgrams, receives reflected responses") {
   type StringPacket = UDP[String]
   def Test() = {
     // sending on port; receiving on a random port
@@ -238,9 +234,9 @@ object txgrams extends ManualTest("txgrams -- sends keyboard datagrams, receives
     if (RCV > 0) channel.setOption(SO_RCVBUF, RCV)
 
     val kbd = OneOne[String]("kbd")
-    val fromHost = N2NBuf[UDP[String]](50, writers=1, readers=1, name = "fromHost") // A synchronized channel causes deadlock under load
-    val fromBack = N2NBuf[UDP[String]](50, writers=1, readers=1, name = "fromBack") // A synchronized channel causes deadlock under load
-    val toHost   = OneOneBuf[UDP[String]](50, name = "toHost") // A synchronized channel causes deadlock under load
+    val fromHost = N2NBuf[UDP[String]](50, writers=1, readers=1, name = "fromHost")
+    val fromBack = N2NBuf[UDP[String]](50, writers=1, readers=1, name = "fromBack")
+    val toHost   = OneOneBuf[UDP[String]](50, name = "toHost")
 
     // Bootstrap the channel processes
     val toNet        = channel.CopyToNet(toHost).fork
@@ -310,7 +306,7 @@ object txgrams extends ManualTest("txgrams -- sends keyboard datagrams, receives
   }
 }
 
-object rxgrams extends ManualTest("rxgrams receives (and reflects) string datagrams") {
+object rxgrams extends ManualTest("rxgrams receives (and reflects) string datagrams (from txgrams)") {
   import SocketOptions._
   type StringPacket = UDP[String]
   def Test() : Unit =
@@ -320,21 +316,21 @@ object rxgrams extends ManualTest("rxgrams receives (and reflects) string datagr
     if (SND>0) channel.setOption(SO_SNDBUF, SND)
     channel.setOption(SO_REUSEADDR, true)
 
-    val fromHost = OneOneBuf[StringPacket](50, name = "fromHost") // A synchronized channel causes deadlock under load
-    val toHost   = OneOneBuf[StringPacket](50, name = "toHost") // A synchronized channel causes deadlock under load
+    val fromPeer = OneOneBuf[StringPacket](50, name = "fromPeer")
+    val toPeer   = OneOneBuf[StringPacket](50, name = "toPeer")
 
     // Fork the channel processes
     /**  Handle on the network output proxy. */
-    val toNet   = channel.CopyToNet(toHost).fork
+    val toNet   = channel.CopyToNet(toPeer).fork
     /** Handle on the network input proxy. */
-    val fromNet = channel.CopyFromNet(fromHost).fork
+    val fromNet = channel.CopyFromNet(fromPeer).fork
 
     val session =
       proc (s"Session($channel") {
         repeat {
-          val gram = fromHost ? ()
-          if (logging) log.info(s"fromHost ? $gram")
-          if (reflect) toHost!gram
+          val gram = fromPeer ? ()
+          if (logging) log.info(s"fromPeer ? $gram")
+          if (reflect) toPeer!gram
         }
       }
 
@@ -343,31 +339,37 @@ object rxgrams extends ManualTest("rxgrams receives (and reflects) string datagr
   }
 }
 
+
+/**
+  * A point-to-point datagram chat program. Largely to test the `connect`
+  * functionality of
+  */
 object p2p extends ManualTest("p2p -- exchanges datagrams with another p2p") {
   type StringPacket = UDP[String]
   def Test() = {
-    // sending on port; receiving on a random port
-    val channel = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024) {UDPChannel.bind(host, port, factory) }
+
+    val channel = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024) { UDPChannel.bind(host, port, factory) }
+
     if (SND > 0) channel.setOption(SO_SNDBUF, SND)
     if (RCV > 0) channel.setOption(SO_RCVBUF, RCV)
 
-    val kbd = OneOne[String]("kbd")
+    val kbd      = OneOne[String]("kbd")
     val fromPeer = N2NBuf[UDP[String]](50, writers=1, readers=1, name = "fromPeer")
     val toPeer   = OneOneBuf[UDP[String]](50, name = "toPeer")
 
     // Bootstrap the channel processes
-    var toNet:   io.threadcso.process.Process.Handle  = null
-    var fromNet: io.threadcso.process.Process.Handle  = null
+    var toNet:   io.threadcso.process.Process.Handle  = {
+      channel.connect(peerAddr.get)
+      channel.CopyToNet(toPeer).fork
+    }
+    var fromNet: io.threadcso.process.Process.Handle  = channel.CopyFromNet(fromPeer).fork
 
     val fromKeyboard = component.keyboard(kbd, "").fork
     var last: String = ""
     var times = 1
 
     val self = proc("self") {
-      channel.connect(peerAddr.get)
       if (logging) log.fine(s"Connected to $peerAddr on $channel")
-      toNet = channel.CopyToNet(toPeer).fork
-      fromNet = channel.CopyFromNet(fromPeer).fork
       if (logging) log.fine(s"Relaying to and from $peerAddr")
       repeat {
         val line = kbd ? ()
@@ -382,7 +384,7 @@ object p2p extends ManualTest("p2p -- exchanges datagrams with another p2p") {
             times = pat.toInt
             toPeer ! Datagram(last*times, null)
           case line =>
-            if (logging) log.fine(s"toHost ! $line * $times")
+            if (logging) log.fine(s"toPeer ! $line * $times")
             last = line
             toPeer ! Datagram(line*times, null)
         }
@@ -411,32 +413,37 @@ object p2p extends ManualTest("p2p -- exchanges datagrams with another p2p") {
       if (logging) log.info(s"Host stopped")
       toPeer.closeOut()
       kbd.close()
+      fromKeyboard.interrupt()
     }
 
     run(self || peer)
+    exit()
   }
 
 
 }
 
 
-object httpclient extends ManualTest("httpclient -- GETs from a server then outputs the response line-by-line") {
+/**
+  * A trivial https client that sends a `GET / ` and echoes the response to the terminal
+  */
+object httpclient extends ManualTest("httpclient -- GETs from a (secure) server then outputs the response line-by-line") {
   def Test() = {
     val channel = SSLChannel.client(TLSCredential(null, null), host, port, factory)
     if (SND > 0) channel.setOption(SO_SNDBUF, SND)
     if (RCV > 0) channel.setOption(SO_RCVBUF, RCV)
 
-    val fromHost = OneOneBuf[String](50, name = "fromHost") // A synchronized channel causes deadlock under load
-    val toHost   = OneOneBuf[String](50, name = "toHost") // A synchronized channel causes deadlock under load
+    val fromServer = OneOneBuf[String](50, name = "fromServer")
+    val toServer   = OneOneBuf[String](50, name = "toServer")
 
     // Bootstrap the channel processes
-    val toNet        = channel.CopyToNet(toHost).fork
-    val fromNet      = channel.CopyFromNet(fromHost).fork
+    val toNet        = channel.CopyToNet(toServer).fork
+    val fromNet      = channel.CopyFromNet(fromServer).fork
 
     val request = proc("request") {
       if (logging) log.fine("Starting request")
-      toHost ! "GET / HTTP/1.1"
-      toHost ! ""
+      toServer ! "GET / HTTP/1.1"
+      toServer ! ""
     }
 
     /**  Echos a single http response, terminated with an empty line */
@@ -445,7 +452,7 @@ object httpclient extends ManualTest("httpclient -- GETs from a server then outp
       var header = true
       var lineNo = 0
       repeat {
-        val line = fromHost ? ()
+        val line = fromServer ? ()
         line match {
           case "" =>
             if (header) {
@@ -465,11 +472,17 @@ object httpclient extends ManualTest("httpclient -- GETs from a server then outp
       }
       if (logging) log.finest(s"Response concluded")
     }
+
+    // concurrent request/response isn't needed but does no harm
     (request || response)()
+
     exit()
   }
 }
 
+/**
+  *  A trivial secure http server that echoes clients' requests to them as text.
+  */
 object httpserver extends ManualTest("httpserver -- core of an https server") {
 
   def Test() = {
@@ -580,48 +593,3 @@ object httpserver extends ManualTest("httpserver -- core of an https server") {
   }
 }
 
-/*
-  def testServer(): Unit = {
-    ssl.info(s"Serving $host:$port")
-    val socketSpec = if (secure) TLSCredential("xyzzyxyzzy", new File("/Users/sufrin/.keystore")) else NetSocket
-    val socket = serverSocket(socketSpec, port)
-    val serverProcess = server(socket, newSession).withName("ServerProcess")
-    ssl.info(s"server at $port")
-    serverProcess()
-  }
-  var count: Int = 0
-  def newSession(client: ClientConnection[String, String]): Unit = {
-    val serverDate = new java.util.Date().toString
-    val fromNet = client.fromClient
-    val toNet = client.toClient
-    val clientnum = {
-      count += 1; count
-    }
-    if (logging) info("New client %d".format(clientnum))
-    @inline def chunk(line: String): Unit = {
-      send("%x".format(line.length))
-      if (logging) finest(s"http: '$line''")
-      send(line)
-    }
-    @inline def send(line: String): Unit = {
-      toNet ! line
-    }
-    /** Whether to use the time-bounded `alt` or the `readBefore`
-      * when reading `fromNet`.
-      *
-      * TODO: understand why when BOUND was 10, the `readBefore` route
-      * deadlocked; yet the `alt` route didn't.
-      * It's dangerous to have an unbounded `fromNet`, but what
-      * should the `BOUND` be? (100 worked on my tests, ....)
-      */
-
-    val handler =
-      fork(π {
-        if (logging) info("serving")
-        listener()
-        if (logging) info("serve %d: terminated".format(clientnum))
-      })
-    if (logging) info("Handler spawned")
-  }
-
- */
