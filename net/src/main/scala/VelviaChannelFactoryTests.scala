@@ -19,7 +19,6 @@ import ox.net.channelfactory.VelviaChannelFactory
 object kbdy extends ManualTest("kbdy -- sends multiple keyboard messages (using msgpack), receives responses") {
 
   import org.velvia.msgpack._
-  import RawStringCodecs._
   import SimpleCodecs._
   import TupleCodecs._
 
@@ -157,10 +156,9 @@ object kbdq extends ManualTest("kbdq -- sends multiple keyboard messages wrapped
   import CaseClassCodecs._
   import RawStringCodecs._
   import SimpleCodecs._
-  import TupleCodecs._
 
   case class Ty(times: Int, string: String)
-  implicit object TyCodec extends CaseClassCodec2[Ty, Int, String](Ty, { t => Some(t.times, t.string)})
+  implicit object TyCodec extends CaseClassCodec2[Ty, Int, String](Ty.apply, Ty.unapply)
 
   def Test() = {
     val channel: TypedTCPChannel[Ty, Ty] = ChannelOptions.withOptions(inSize = inBufSize * 1024, outSize = outBufSize * 1024) {
@@ -170,8 +168,8 @@ object kbdq extends ManualTest("kbdq -- sends multiple keyboard messages wrapped
     if (SND > 0) channel.setOption(SO_SNDBUF, SND)
     if (RCV > 0) channel.setOption(SO_RCVBUF, RCV)
     val kbd = OneOne[String]("kbd")
-    val fromHost = OneOneBuf[Ty](50, name = "fromHost") // A synchronized channel causes deadlock under load
-    val toHost = OneOneBuf[Ty](50, name = "toHost") // A synchronized channel causes deadlock under load
+    val fromHost = OneOneBuf[Ty](50, name = "fromHost")
+    val toHost = OneOneBuf[Ty](50, name = "toHost")
 
     // Bootstrap the channel processes
     val toNet = channel.CopyToNet(toHost).fork

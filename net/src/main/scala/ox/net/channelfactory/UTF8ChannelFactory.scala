@@ -18,10 +18,6 @@ object UTF8ChannelFactory extends ox.logging.Log("UTF8ChannelFactory") with Type
     def closeOut(): Unit = output.close()
     def closeIn():  Unit = input.close()
 
-    // Laziness here is on account of a cryptointeraction with DataXputStream
-    // Non-lazy declaration fails at the first read/write of the DataXputStream
-    // Exception is reported (correctlty) by Scala as a null value for input/output
-    // TODO: Investigate why this works. Likely connected with mixin implementation detail?
     lazy val out = new java.io.DataOutputStream(output)
     lazy val in  = new java.io.DataInputStream(input)
 
