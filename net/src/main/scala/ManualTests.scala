@@ -4,7 +4,7 @@ import app.OPT._
 import io.threadcso._
 import org.velvia.msgpack.CollectionCodecs.SeqCodec
 import ox.logging.{Log, Logging => LOGGING}
-import ox.net.SSLChannel.TLSCredential
+import ox.net.SSLChannel.{TLSCredential, TLSWithoutCredential, client}
 import ox.net.channelfactory.{CRLFChannelFactory, DataStreamChannelFactory, UTF8ChannelFactory, VelviaChannelFactory}
 import ox.net.httpclient.{factory, host, port}
 import ox.net.SocketOptions._
@@ -23,6 +23,7 @@ import java.nio.channels.SocketChannel
  */
 abstract class ManualTest(doc: String) extends App {
   val logging = true
+  var clientauth = false
   val log = ox.logging.Log("test")
   var factory: TypedChannelFactory[String, String] = UTF8ChannelFactory
   var host: String = "localhost"
@@ -47,6 +48,7 @@ abstract class ManualTest(doc: String) extends App {
     OPT("peer://.+:[0-9]+", { case s"peer://$h:$p" => peerAddr = Some(new InetSocketAddress(h, p.toInt) ) }, "Set peer host and port"),
     OPT("//.+:[0-9]+",   { case s"//$h:$p" => host = h; port=p.toInt; () }, "Set host and port"),
     OPT("//.+",          { case s"//$h" => host = h; () }, "Set host"),
+    OPT("-auth",         { clientauth = !clientauth}, "authenticate client for an SSL channel (experiment)"),
     OPT("-d",            { debugPort = -1 }, "Disable debugger [enabled at random port otherwise]"),
     OPT("-ch",           { chunked = !chunked }, s"Invert chunked ($chunked)"),
     OPT("-d[0-9]+",      { case s"-d$p" => debugPort = p.toInt}, "Enable debugger on port."),
@@ -342,7 +344,7 @@ object rxgrams extends ManualTest("rxgrams receives (and reflects) string datagr
 
 /**
   * A point-to-point datagram chat program. Largely to test the `connect`
-  * functionality of
+  * functionality of datagram channels.
   */
 object p2p extends ManualTest("p2p -- exchanges datagrams with another p2p") {
   type StringPacket = UDP[String]
@@ -429,7 +431,8 @@ object p2p extends ManualTest("p2p -- exchanges datagrams with another p2p") {
   */
 object httpclient extends ManualTest("httpclient -- GETs from a (secure) server then outputs the response line-by-line") {
   def Test() = {
-    val channel = SSLChannel.client(TLSCredential(null, null), host, port, factory)
+    val credential = if (clientauth) TLSCredential("xyzzyxyzzy", new File("/Users/sufrin/.keystore"))  else TLSWithoutCredential
+    val channel = SSLChannel.client(credential, host, port, factory)
     if (SND > 0) channel.setOption(SO_SNDBUF, SND)
     if (RCV > 0) channel.setOption(SO_RCVBUF, RCV)
 
@@ -486,7 +489,7 @@ object httpclient extends ManualTest("httpclient -- GETs from a (secure) server 
 object httpserver extends ManualTest("httpserver -- core of an https server") {
 
   def Test() = {
-    val serverProcess = SSLChannel.server(SSLChannel.TLSCredential("xyzzyxyzzy", new File("/Users/sufrin/.keystore")), port, factory, clientSession)
+    val serverProcess = SSLChannel.server(SSLChannel.TLSCredential("xyzzyxyzzy", new File("/Users/sufrin/.keystore")), port, factory, clientSession, sync=true, clientAuth=clientauth)
     val theServer = fork(serverProcess)
   }
 

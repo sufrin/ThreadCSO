@@ -3,7 +3,7 @@ package ox.net
 import io.threadcso.{PROC, proc, repeat}
 
 import java.io.FileInputStream
-import java.net.ServerSocket
+import java.net.{ServerSocket, Socket}
 import java.security.KeyStore
 
 object SSLChannel extends ox.logging.Log("SSL") {
@@ -11,12 +11,37 @@ object SSLChannel extends ox.logging.Log("SSL") {
   import javax.net._
   import javax.net.ssl._
 
+  /**
+    * Representation of a client or server credential for use
+    * with SSL/TLS or with TCP.
+    */
   trait Credential {}
+  /**
+    * Server credential: the `passphrase` is for a server certificate stored in the
+    * given `keyStoreFile`.
+    */
   case class  TLSCredential(passPhrase: String, keyStoreFile: java.io.File) extends Credential
+
+  case object  TLSWithoutCredential extends Credential
+
+  /**
+    * A meaningless server credential for use with an unencrypted TCP channel.
+    */
   case object TCPCredential extends Credential
 
-  def serverSocketFactory(credentials: Credential): ServerSocketFactory = {
-    credentials match {
+  /**
+    * Return a server socket factory using the given `credential`. If the credential
+    * is a `TCPCredential` the server socket factory returned is the default `javax.net.ServerDocketFactory`.
+    * If the credential is a `TLSCredential` then the socket factory returned is constructed using the method described
+    * at some length in
+    * {{{
+    * https://docs.oracle.com/en/java/javase/11/security/sample-code-illustrating-secure-socket-connection-client-and-server.html
+    * }}}
+    *
+    * @param credentials
+    */
+  def serverSocketFactory(credential: Credential): ServerSocketFactory = {
+    credential match {
       case TCPCredential => ServerSocketFactory.getDefault()
       case TLSCredential(passPhrase, keyStoreFile) =>
         val context = SSLContext.getInstance("TLSv1.2")
@@ -30,18 +55,45 @@ object SSLChannel extends ox.logging.Log("SSL") {
     }
   }
 
+  /**
+    *
+    * Return a socket factory using the given `credential`.
+    *
+    */
+  def clientSocketFactory(credential: Credential): SocketFactory = {
+    credential match {
+      case TCPCredential => SocketFactory.getDefault()
+      case TLSCredential(passPhrase, keyStoreFile) =>
+        val context = SSLContext.getInstance("TLSv1.2")
+        val keyStore = KeyStore.getInstance("JKS")
+        val keyManagers = KeyManagerFactory.getInstance("SunX509")
+        keyStore.load(new FileInputStream(keyStoreFile), passPhrase.toCharArray)
+        keyManagers.init(keyStore, passPhrase.toCharArray)
+        finest(s"${keyManagers.getKeyManagers()}")
+        context.init(keyManagers.getKeyManagers(), null, null)
+        context.getSocketFactory()
+    }
+  }
+
   private def newServerSocket(credential: Credential, port: Int): ServerSocket = {
     val factory = serverSocketFactory(credential)
     factory.createServerSocket(port)
   }
 
+  private def newSocket(credential: Credential, host: String, port: Int): Socket = {
+    val factory = clientSocketFactory(credential)
+    factory.createSocket(host, port)
+  }
+
   /**
     * Build a `TypedSSLChannel[OUT,IN]` that connects to `//host:port` using the given credential.
-    * If the credential is a `TLSCredential` then communication uses `SSL/TLS`, otherwise a plain
-    * `TCP` channel is used.
+    * If the credential is a `TLSWithoutCredential` then communication uses `SSL/TLS`, but
+    * the client identity is not certified.
+    * If the credential is a `TLSCredential`
+    * then communication uses `SSL/TLS`, using the client identity
+    * as certified. otherwise a plain `TCP` channel is used.
     *
-    * The details of a `TLSCredential` are ignored they may be eventually used to provide
-    * the client's individual credential to the server.
+    *
     *
     *
     * @param credential
@@ -54,10 +106,15 @@ object SSLChannel extends ox.logging.Log("SSL") {
     */
   def client[OUT, IN](credential: Credential, host: String, port: Int, factory: ox.net.TypedChannelFactory[OUT, IN]): TypedSSLChannel[OUT,IN] = {
     val socketFactory = credential match {
-      case _: TLSCredential => SSLSocketFactory.getDefault()
-      case TCPCredential    => javax.net.SocketFactory.getDefault()
+      case TLSWithoutCredential => SSLSocketFactory.getDefault()
+      case _ : TLSCredential    => clientSocketFactory(credential)
+      case TCPCredential        => javax.net.SocketFactory.getDefault()
     }
     val socket        = socketFactory.createSocket(host, port)
+    socket match {
+      case socket: SSLSocket => socket.startHandshake()
+      case _                 =>
+    }
     val channel       = factory.newChannel(socket)
     fine(s"Client socket $socket")
     channel
@@ -81,9 +138,14 @@ object SSLChannel extends ox.logging.Log("SSL") {
                       port:        Int,
                       factory:     ox.net.TypedChannelFactory[OUT, IN],
                       session:     TypedSSLChannel[OUT, IN] => Unit,
-                      sync:        Boolean = true
-                     ): PROC = proc(s"Server $credential $port (sync=$sync)") {
+                      sync:        Boolean = true,
+                      clientAuth:  Boolean = false
+                     ): PROC = proc(s"Server $credential $port (sync=$sync, clientAuth=$clientAuth") {
       val socket: ServerSocket = newServerSocket(credential, port)
+     if (clientAuth) socket match {
+       case socket: SSLServerSocket => socket.setNeedClientAuth(true)
+       case _ =>
+     }
       val sync = true //
       info(s"Serving on $port with $credential")
       repeat {
