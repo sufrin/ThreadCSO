@@ -5,13 +5,19 @@ import ox.net.codec.Codec
 import java.io.{InputStream, OutputStream}
 import java.nio.channels.SocketChannel
 
+/**
+  *  A factory used to associate various forms of wire-encoded streaming input and output into
+  *  typed channels capable of encoding and decoding `OUT` and `IN`. Although it is usually
+  *  sufficient to define only the `newCodec` method, it may be more efficient for certain encodings, or require
+  *  less new code to be written, to define the two `newChannel` methods independently.
+  */
 trait TypedChannelFactory[-OUT, +IN] {
 
   /** Build a `NetProxy`` from the given `SocketChannel` */
   def newChannel(channel: SocketChannel): TypedTCPChannel[OUT, IN]
 
-  /** Build a `NetProxy`` from the given `Socket`
-    * Expected to be used only for SSL/TLS Sockets.
+  /** Build a `NetProxy`` from the given `Socket`.
+    * Normally used only for SSL/TLS Sockets.
     */
   def newChannel(socket: java.net.Socket): TypedSSLChannel[OUT, IN]
 

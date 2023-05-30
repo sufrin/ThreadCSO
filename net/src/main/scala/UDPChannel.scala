@@ -80,7 +80,6 @@ object UDPChannel extends ox.logging.Log("UDPChannel")
 
 
 
-
   /**
     * The same as `bind`, but the address is formed from `host` and `port`.  If the port is `0` then an ephemeral
     * port is used. The protocol family is determined by the host address.
@@ -126,7 +125,24 @@ object UDPChannel extends ox.logging.Log("UDPChannel")
 
 
 /**
-  * A channel for transmitting and receiving datagrams.
+  * A typed channel for transmitting and receiving datagrams of type `OUT`, and `IN` respectively.
+  * Datagrams to be sent take the form:
+  * {{{
+  *   Datagram(out: OUT, destination: SocketAddress = null)
+  * }}}
+  * then encoded as their wire representations and sent to `destination`.
+  * If `destination` is (unspecified or) null, then it is taken to be the address, if
+  * any, to which the channel is currently connected. If the channel is not currently
+  * connected then an error is thrown.
+  *
+  * Received datagrams are delivered in one of the forms:
+  * {{{
+  *  Datagram(in: IN, source: SocketAddress)
+  *  Malformed(source: SocketAddress)
+  * }}}
+  * In the former case, the `IN` is the result of decoding a datagram arriving in wire representation
+  * from `source`. The latter case is a notification that an arriving datagram (from source) has not been
+  * in the wire encoding declared for this channel, or has been truncated en-route.
   *
   * WARNING: the java datagram channel interface specifies that if a received datagram is too long
   * for the buffer space allocated for it then the excess length of the datagram is "silently discarded".
@@ -147,7 +163,9 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
     getOption(IP_MULTICAST_IF)
   )
 
-  /** Connect this channel to the given remote address */
+  /** Disconnect this channel from the address, if any, to which it is currently
+    * connected, then connect it to the given remote address
+    */
   def connect(addr: InetSocketAddress): Unit = {
     if (channel.isConnected) channel.disconnect()
     channel.connect(addr)
@@ -161,8 +179,8 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
   /** Encode and send the packet using the channel, if it is a Datagram with an address.
     * If the datagram address is null, then the packet is sent
     * to the currently-connected remote address, if any.
-    * If the packet is `Malformed` (these arise from the failed `decode`
-    * of a datagram that was (probably) incomplete.
+    * If the packet is `Malformed` then it is ignored: such packets usually arise
+    * as results of arriving datagrams that cannot be decoded.
     */
   def encode(packet: UDP[OUT]): Unit = {
     if (logging) finest(s"before encode(#{$packet.value.size}) [${output.buffer}]")
@@ -182,6 +200,13 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
     *
     * If the packet is malformed because of a decoding failure caused by
     * an incompletely-received datagram then `Malformed(addr)` is returned.
+    *
+    * If the channel is connected, then another reason for failure might
+    * be that the address to which it is connected is unreachable. This
+    * causes an `EndOfInputStream` exception to be thrown. The
+    * exception will be treated *as if* the channel was closed; except
+    * that its `lastException` will retain the  `PortUnreachableException`
+    * by which the unreachability was detected.
     */
    def decode(): UDP[IN] = {
      try {

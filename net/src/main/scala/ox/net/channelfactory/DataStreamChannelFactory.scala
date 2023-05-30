@@ -78,7 +78,7 @@ class DataStreamChannelFactory[T](implicit encoding: DataStreamEncoding.Stream[T
   }
 
   /**
-    * Build a `NetProxy`` from the given `Socket`
+    * Build a `NetProxy`` from the given `Socket`.
     * Expected to be used only for SSL/TLS Sockets.
     */
   def newChannel(theSocket: Socket): TypedSSLChannel[T,T] = new TypedSSLChannel[T, T] with Mixin {

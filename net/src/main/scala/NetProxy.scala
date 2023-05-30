@@ -39,6 +39,10 @@ trait NetInputProxy[+I] extends Decoder[I] {
       NetProxy.fine("CopyFromNet terminated")
       out.closeOut()
     } catch {
+      case exn: java.io.EOFException =>
+        NetProxy.fine(s"CopyFromNet terminated by external channel close")
+        out.closeOut()
+        lastDecoderException = Some(exn)
       case exn: java.nio.channels.ClosedByInterruptException =>
         NetProxy.fine(s"CopyFromNet terminated by ClosedInterrupt")
         out.closeOut()

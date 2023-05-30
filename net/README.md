@@ -3,8 +3,8 @@
 This package provides relatively lightweight means for
 deriving cross-network transport between `ox.threadcso` programs
 communicating via channels. It provides a more-or-less uniform
-API that is suitable for SSL/TLS connections, UDP (Datagram) connections,
-and TCP connections. 
+API that is suitable for UDP (Datagram) connections,
+encrypted SSL/TLS connections, and unencrypted TCP connections. 
 
 Cross-network transport is typed (by output, and input type), and 
 presents to an application as a pair of  proxy processes whose

@@ -11,8 +11,15 @@ object DatagramInputStream extends ox.logging.Log("DatagramOutputStream") {
     new DatagramInputStream(channel, size)
 }
 
+/**
+  *   An input stream view of a `DatagramChannel` with a buffer of the given `size`.
+  */
 class DatagramInputStream(val channel: DatagramChannel, size: Int) extends ByteBufferInputStream(size) {
 
+  /**
+    * Receive the next datagram on the associated `channel`, and return the address
+    * from which it was sent.
+    */
   def receive(): SocketAddress = {
     receive(byteBuffer)
   }
@@ -32,7 +39,7 @@ class DatagramInputStream(val channel: DatagramChannel, size: Int) extends ByteB
     *         A more useful heuristic might be to enlarge the buffer spontaneously
     *         after the reception of a "nearly overflowing" packet.
     */
-  def receive(buffer: ByteBuffer): SocketAddress = {
+  @inline private def receive(buffer: ByteBuffer): SocketAddress = {
       buffer.clear
       val sourceAddress = channel.receive(buffer)
       if (logging) finest(s"received $buffer from $sourceAddress")

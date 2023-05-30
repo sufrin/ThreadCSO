@@ -99,66 +99,66 @@ object reflect extends ManualTest("reflect - a server that reflects all TCP pack
   }
 }
 
-object kbd extends ManualTest("kbd -- sends keyboard messages, receives responses") {
+object kbd extends ManualTest("kbd1 -- sends keyboard messages, receives responses") {
   def Test() = {
     val channel: TypedTCPChannel[String, String] = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024)
-                  { TCPChannel.connected(new java.net.InetSocketAddress(host, port), factory) }
+    { TCPChannel.connected(new java.net.InetSocketAddress(host, port), factory) }
     if (SND>0) channel.setOption(SO_SNDBUF, SND)
     if (RCV>0) channel.setOption(SO_RCVBUF, RCV)
-      val kbd      = OneOne[String]("kbd")
-      val fromHost = OneOneBuf[String](50, name = "fromHost") // A synchronized channel causes deadlock under load
-      val toHost   = OneOneBuf[String](50, name = "toHost") // A synchronized channel causes deadlock under load
+    val kbd      = OneOne[String]("kbd")
+    val fromHost = OneOneBuf[String](50, name = "fromHost") // A synchronized channel causes deadlock under load
+    val toHost   = OneOneBuf[String](50, name = "toHost") // A synchronized channel causes deadlock under load
 
-      // Bootstrap the channel processes
-      val toNet        = channel.CopyToNet(toHost).fork
-      val fromNet      = channel.CopyFromNet(fromHost).fork
-      val fromKeyboard = component.keyboard(kbd, "").fork
+    // Bootstrap the channel processes
+    val toNet        = channel.CopyToNet(toHost).fork
+    val fromNet      = channel.CopyFromNet(fromHost).fork
+    val fromKeyboard = component.keyboard(kbd, "").fork
 
     var last: String = ""
     var times = 1
 
-      run(proc("ui") {
-          repeat {
-            kbd ? () match {
-              case "." =>
-                kbd.close()
-                fromKeyboard.interrupt()
-                stop
-              case s"*$n" if n matches ("[0-9]+") =>
-                times = n.toInt
-                if (logging) log.fine(s"toHost ! $last * $times")
-                toHost ! (last * times)
-              case line =>
-                last = line
-                if (logging) log.fine(s"toHost ! $line * $times")
-                toHost ! (line * times)
-            }
-          }
-          toHost.close()
-          toNet.interrupt()
-          fromNet.interrupt()
+    run(proc("ui") {
+      repeat {
+        kbd ? () match {
+          case "." =>
+            kbd.close()
+            fromKeyboard.interrupt()
+            stop
+          case s"*$n" if n matches ("[0-9]+") =>
+            times = n.toInt
+            if (logging) log.fine(s"toHost ! $last * $times")
+            toHost ! (last * times)
+          case line =>
+            last = line
+            if (logging) log.fine(s"toHost ! $line * $times")
+            toHost ! (line * times)
         }
-          || proc("fromHost") {
-          var n = 0
-          repeat {
-            n += 1
-            val decoded = fromHost ? ()
-            if (decoded.isEmpty) {
-              log.info(s"Stopping because decoded $n empty")
-              stop
-            }
-            if (decoded.size<50)
-              println(f"$n%-3d $decoded")
-            else
-              println(f"$n%-3d #${decoded.size}%-6d ${decoded.take(20)}...${decoded.drop(decoded.length-20)}")
-          }
-          toHost.closeOut()
-          kbd.close()
+      }
+      toHost.close()
+      toNet.interrupt()
+      fromNet.interrupt()
+    }
+      || proc("fromHost") {
+      var n = 0
+      repeat {
+        n += 1
+        val decoded = fromHost ? ()
+        if (decoded.isEmpty) {
+          log.info(s"Stopping because decoded $n empty")
+          stop
         }
-      )
+        if (decoded.size<50)
+          println(f"$n%-3d $decoded")
+        else
+          println(f"$n%-3d #${decoded.size}%-6d ${decoded.take(20)}...${decoded.drop(decoded.length-20)}")
+      }
+      toHost.closeOut()
       kbd.close()
-      fromHost.close()
-      exit()
+    }
+    )
+    kbd.close()
+    fromHost.close()
+    exit()
   }
 }
 
@@ -492,13 +492,13 @@ object httpserver extends ManualTest("httpserver -- core of an https server") {
 
   var _clientCount: Int = 0
 
-  def clientSession(channel: TypedSSLChannel[String,String]): Unit = {
-    val fromClient   = OneOneBuf[String](50, name = "fromClient")
-    val toClient     = OneOneBuf[String](50, name = "toClient")
-    val toNet        = channel.CopyToNet(toClient).fork
-    val fromNet      = channel.CopyFromNet(fromClient).fork
-    val sessionDate  = new java.util.Date().toString
-    val remote       = channel.getRemoteAddress
+  def clientSession(channel: TypedSSLChannel[String, String]): Unit = {
+    val fromClient = OneOneBuf[String](50, name = "fromClient")
+    val toClient = OneOneBuf[String](50, name = "toClient")
+    val toNet = channel.CopyToNet(toClient).fork
+    val fromNet = channel.CopyFromNet(fromClient).fork
+    val sessionDate = new java.util.Date().toString
+    val remote = channel.getRemoteAddress
 
     val clientCount = {
       _clientCount += 1
@@ -508,11 +508,11 @@ object httpserver extends ManualTest("httpserver -- core of an https server") {
 
     log.info(s"New session $clientCount $sessionDate $remote")
 
-    @inline def send(line: String): Unit = toClient!line
+    @inline def send(line: String): Unit = toClient ! line
 
     @inline def headSend(line: String): Unit = {
       if (logging) log.finest(s"http: $line")
-      toClient!line
+      toClient ! line
     }
 
     @inline def bodySend(line: String): Unit = {
@@ -531,7 +531,8 @@ object httpserver extends ManualTest("httpserver -- core of an https server") {
         if (logging) log.finest(s"TRIMMED: $line")
         if (line == "")
         // end of the request header reached
-        { requestCount += 1
+        {
+          requestCount += 1
           headSend("HTTP/1.1 200 OK")
           headSend("Date: " + sessionDate)
           headSend("Content-Type: text/html")
@@ -569,15 +570,16 @@ object httpserver extends ManualTest("httpserver -- core of an https server") {
           }
       } else
         while (running)
-          alt {(fromClient =?=>
-                   { line =>
-                       processRequestLine(line)
-                   }
-               | after(idleNS) ==> {
-                   if (logging) log.fine(s"Client $clientCount went idle")
-                   running = false
-                 }
-              )}
+          alt {
+            (fromClient =?=> { line =>
+              processRequestLine(line)
+            }
+              | after(idleNS) ==> {
+              if (logging) log.fine(s"Client $clientCount went idle")
+              running = false
+            }
+              )
+          }
 
       if (logging) log.info(s"Closing client $clientCount session")
 
@@ -591,5 +593,25 @@ object httpserver extends ManualTest("httpserver -- core of an https server") {
     val listenerHandle = fork(listener)
     if (logging) log.info(s"Listener at $listenerHandle")
   }
+}
+
+object reflection extends ManualTest("reflection -- a trivial server that reflects strings sent by its clients") {
+
+    def Test(): Unit = {
+    val reflectServer: PROC = TCPChannel.server(port, 0, factory) {
+      case channel: TypedTCPChannel[String, String] =>
+          val fromClient = OneOne[String](name = "fromClient")
+          val toClient = OneOne[String](name = "toClient")
+          val toNet = channel.CopyToNet(toClient).fork
+          val fromNet = channel.CopyFromNet(fromClient).fork
+          fork (proc {
+            repeat {
+              fromClient ? { text => toClient ! text }
+            }
+          })
+    }
+    fork(reflectServer)
+  }
+
 }
 

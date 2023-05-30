@@ -31,7 +31,7 @@ object CRLFChannelFactory extends ox.logging.Log("CRLFChannelFactory") with Type
           val c = input.read()
           c match {
             case -1 =>
-              if (logging) warning(s"crlf: decode: stream ended before string")
+              if (logging) fine(s"crlf: decode: stream ended before string")
               throw new EOFException()
             case '\r' =>
               cr = true

@@ -44,7 +44,7 @@ object UTF8ChannelFactory extends ox.logging.Log("UTF8ChannelFactory") with Type
     } catch { // exceptions caused by datagram truncation
       case exn: EOFException =>
         inOpen = false
-        warning(s"UTF: Decode EOF $exn")
+        fine(s"UTF: Decode EOF $exn")
         throw exn
       case exn: UTFDataFormatException =>
         inOpen = false
