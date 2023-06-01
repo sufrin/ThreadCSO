@@ -24,7 +24,7 @@ import java.nio.channels.SocketChannel
 abstract class ManualTest(doc: String) extends App {
   val logging = true
   var clientauth = false
-  val log = ox.logging.Log("test")
+  val log = ox.logging.Logging.Log("test")
   var factory: TypedChannelFactory[String, String] = UTF8ChannelFactory
   var host: String = "localhost"
   var port: Int    = 10000
@@ -615,6 +615,33 @@ object reflection extends ManualTest("reflection -- a trivial server that reflec
     }
     fork(reflectServer)
   }
+}
 
+object timecast extends ManualTest("timecast -- multicast date/time periodically") {
+  def Test(): Unit = {
+  val addr      = new InetSocketAddress(InetAddress.getByName("224.14.51.6"), 5555)
+  val multicast = UDPChannel.multiBind(addr, CRLFChannelFactory)
+    log.info(s"multicast=$multicast, addr=$addr")
+    val timeStamps = OneOne[UDP[String]](name="timeStamps")
+    val toNet      = multicast.CopyToNet(timeStamps).fork
+    repeat {
+      val now = new java.util.Date(milliTime)
+      timeStamps ! Datagram(s"${now}", addr)
+      sleep(seconds(5.0))
+    }
+  }
+}
+
+object multilisten extends ManualTest("multilisten -- listen to a multicast channel") {
+  def Test(): Unit = {
+    val multicast = UDPChannel.multiConnect("224.14.51.6", 5555, CRLFChannelFactory)
+    val net = OneOne[UDP[String]](name="net")
+    val fromNet = multicast.CopyFromNet(net).fork
+    serve ( net =?=> {
+                  case Datagram(packet, address) => println(s"$packet from $address") ; case m => println(s"??$m??")
+            }
+          | after(seconds(5.0)) ==> println("...")
+          )
+  }
 }
 

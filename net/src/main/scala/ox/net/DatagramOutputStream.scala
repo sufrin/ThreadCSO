@@ -1,13 +1,13 @@
 package ox.net
 
-import ox.net.ByteBufferOutputStream.{finest, logging}
+import ox.net.ByteBufferOutputStream.finest
 
 import java.io.IOException
 import java.net.SocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.DatagramChannel
 
-object DatagramOutputStream extends ox.logging.Log("DatagramOutputStream") {
+object DatagramOutputStream {
   def apply(channel: DatagramChannel, size: Int): DatagramOutputStream =
       new DatagramOutputStream(channel, size)
 }
@@ -19,6 +19,8 @@ object DatagramOutputStream extends ox.logging.Log("DatagramOutputStream") {
 class DatagramOutputStream(val channel: DatagramChannel, size: Int)
     extends ByteBufferOutputStream(size) {
 
+  val log = ox.logging.Log("DatagramOutputStream")
+
   var address: SocketAddress = null
 
   /** Prepare to buffer a new datagram that will, when flushed,
@@ -27,15 +29,16 @@ class DatagramOutputStream(val channel: DatagramChannel, size: Int)
     * by the security manager.
     */
   def newDatagram(address: SocketAddress): Unit = {
+    log.finest(s"DatagramOutputStream.newDatagram($address)")
     if (address eq null) {
       if (channel.isConnected)
           this.address = channel.getRemoteAddress
       else
           throw new IllegalArgumentException(s"newDatagram(null) for unconnected $channel")
     } else {
+      log.finest(s"Assigning $address for this datagram")
       this.address = address
     }
-    if (logging) finest(s"DatagramOutputStream.newDatagram($address)")
     buffer.clear()
   }
 
@@ -43,18 +46,19 @@ class DatagramOutputStream(val channel: DatagramChannel, size: Int)
     * the specified address.
     */
   override def flush(): Unit = {
+    finest(s"flushing")
     super.flush()
-    send(buffer, address)
+    send(buffer, this.address)
   }
 
   def send(buffer: ByteBuffer, address: SocketAddress): Unit = {
     var count = 0
     if (channel.isOpen) {
       buffer.flip()
-      if (logging) finest(s"UDP.send($buffer)")
+      log.finest(s"UDP.send($buffer) to $address")
       while (buffer.hasRemaining())
         count += channel.send(buffer, address)
-      finest(s"DatagramOutputStream($count) to $address")
+      log.finest(s"DatagramOutputStream($count) to $address")
       count
     } else {
       throw new IOException(s"DatagramOutputStream: $channel is not open")

@@ -91,6 +91,17 @@ object Logging
   private
   val levelMap = new scala.collection.mutable.HashMap[String,Int]
 
+  val logMap = new scala.collection.mutable.HashMap[String, Log]
+
+  def Log(name: String): Log =
+    logMap.get(name) match {
+      case Some(logging) => logging
+      case None =>
+        val logging = new Log(name)
+        logMap.put(name, logging)
+        logging
+    }
+
   override def toString(): String =
     levelMap.map { case (name, level) => s"$name=${levelName(level)}"} . mkString("Logging::\n ", "\n ", " ")
 
