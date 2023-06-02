@@ -2,11 +2,15 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/ThreadCSO.logging.iml" filepath="$PROJECT_DIR$/.idea/modules/ThreadCSO.logging.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/app.iml" filepath="$PROJECT_DIR$/.idea/modules/app.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/core.threadcso.iml" filepath="$PROJECT_DIR$/.idea/modules/core.threadcso.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/csomacros.iml" filepath="$PROJECT_DIR$/.idea/modules/csomacros.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/examples.iml" filepath="$PROJECT_DIR$/.idea/modules/examples.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/logging.iml" filepath="$PROJECT_DIR$/.idea/modules/logging.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/manualtests.iml" filepath="$PROJECT_DIR$/.idea/modules/manualtests.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/msgpack.iml" filepath="$PROJECT_DIR$/.idea/modules/msgpack.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/net.iml" filepath="$PROJECT_DIR$/.idea/modules/net.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/root.iml" filepath="$PROJECT_DIR$/.idea/modules/root.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/root-build.iml" filepath="$PROJECT_DIR$/.idea/modules/root-build.iml" />
     </modules>

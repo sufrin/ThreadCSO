@@ -6,11 +6,17 @@
       <module name="core" target="14" />
       <module name="core.threadcso" target="14" />
       <module name="csomacros" target="14" />
+      <module name="eieio" target="14" />
       <module name="examples" target="14" />
+      <module name="logging" target="14" />
       <module name="macroSub" target="14" />
       <module name="manualtests" target="14" />
+      <module name="msgpack" target="14" />
+      <module name="net" target="14" />
+      <module name="netio" target="14" />
       <module name="root" target="14" />
       <module name="ThreadCSO" target="14" />
+      <module name="ThreadCSO.logging" target="14" />
     </bytecodeTargetLevel>
   </component>
 </project>

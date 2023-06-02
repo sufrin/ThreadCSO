@@ -11,8 +11,11 @@
             <option value="$PROJECT_DIR$/APP" />
             <option value="$PROJECT_DIR$/core" />
             <option value="$PROJECT_DIR$/examples" />
+            <option value="$PROJECT_DIR$/logging" />
             <option value="$PROJECT_DIR$/macros" />
             <option value="$PROJECT_DIR$/manualtests" />
+            <option value="$PROJECT_DIR$/msgpack" />
+            <option value="$PROJECT_DIR$/net" />
             <option value="$PROJECT_DIR$/project" />
           </set>
         </option>

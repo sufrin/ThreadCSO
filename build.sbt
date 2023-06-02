@@ -17,7 +17,7 @@ lazy val scalaReflect = Def.setting {
 }
 
 lazy val root = (project in file("."))
-   .aggregate(app, core, macroSub)
+   .aggregate(app, core, macroSub, net)
    
 
 lazy val core = (project in file("core"))
@@ -34,6 +34,56 @@ lazy val core = (project in file("core"))
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.15" % "test"
   )
 
+/* /* Exiled to ATTIC */
+lazy val eieio = (project in file("eieio"))
+   .dependsOn(macroSub)
+   .dependsOn(core)
+   .dependsOn(app)
+   .settings(
+    scalacOptions ++= Seq(
+      "-deprecation",
+      "-unchecked"
+      /* "-Werror" */
+    )
+   )
+*/
+
+lazy val net = (project in file("net"))
+  .dependsOn(macroSub)
+  .dependsOn(core)
+  .dependsOn(msgpack)
+  .dependsOn(app)
+  .dependsOn(logging) // for Logging at present: refactor this
+  .settings(
+    scalacOptions ++= Seq(
+      "-deprecation",
+      "-unchecked"
+      /* "-Werror" */
+    )
+  )
+
+lazy val msgpack = (project in file("msgpack"))
+  .dependsOn(logging) // for Logging at present: refactor this
+  .settings(
+    scalacOptions ++= Seq(
+      "-deprecation",
+      "-unchecked"
+      /* "-Werror" */
+    )
+  )
+
+lazy val logging = (project in file("logging"))
+ .dependsOn(macroSub)
+ .dependsOn(core)
+ .dependsOn(app)
+ .settings(
+   scalacOptions ++= Seq(
+     "-deprecation",
+     "-unchecked"
+     /* "-Werror" */
+   )
+ )
+  
 lazy val macroSub = (project in file("macros"))
   .settings(
     libraryDependencies += scalaReflect.value

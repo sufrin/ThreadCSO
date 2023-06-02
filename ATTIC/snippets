@@ -1,0 +1,76 @@
+  def streamToPort[T](in: java.io.InputStream, out: !![T], decoder: Decoder[T]): PROC = proc {
+      var decode: () => DecodeResult[T] = decoder.decode _
+      val buffer = decoder.buffer
+      repeat {
+        try {
+          var inPrefix = true
+          while (inPrefix) {
+            buffer.put(in.read().asInstanceOf[Byte])
+            while (in.available() > 0) buffer.put(in.read().asInstanceOf[Byte])
+            buffer.flip()
+            decode() match {
+              case types.Decoded(value: T @unchecked) =>
+                inPrefix = false
+                decode   = decoder.decode _
+                out ! value
+              case types.ReadMore =>
+                // still in prefix
+                buffer.compact()
+              case types.ReadThen(cont) =>
+                decode = cont
+            }
+          }
+        } catch {
+          case exn: Throwable => stop
+        }
+      }
+      in.close()
+      out.closeOut()
+    }
+
+  def portToStream[T](in: ??[T], out: java.io.OutputStream, encoder: types.Encoder[T]): PROC = proc {
+    repeat {
+      in ? {
+        t =>
+          encoder.clear()
+          encoder.encode(t)
+      }
+    }
+    out.close()
+  }
+
+  def stringPortToStream[T](in: ??[T], out: java.io.OutputStream): PROC = proc {
+    // val oos = new ObjectOutputStream(out)
+    val oos = new PrintWriter(out)
+    repeat {
+      in ? { t => oos.println(t); oos.flush(); out.flush() }
+    }
+    out.close()
+  }
+
+  def streamToStringPort(in: java.io.InputStream, out: !![String]): PROC = proc {
+    // val ois = new ObjectInputStream(in)
+    val ois = new InputStreamReader(in, "UTF8")
+    val b = new StringBuilder()
+    var reading = true
+    repeat(reading) {
+      try {
+        ois.read() match {
+          case -1 =>
+            reading = false
+          case ch =>
+            b.append(ch.toChar)
+            if (ch == '\n') {
+              val s = b.toString()
+              b.clear()
+              out ! s
+            }
+        }
+        // println(ois.readLine())
+      } catch {
+        case exn: Throwable => stop
+      }
+    }
+    in.close()
+    out.closeOut()
+  }

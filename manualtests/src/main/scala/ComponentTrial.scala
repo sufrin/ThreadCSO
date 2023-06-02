@@ -59,7 +59,7 @@ abstract class ComponentTrial(doc: String)(implicit loc: SourceLocation)
     OPT("-t", time, s"«long» ns delay ($time)"),
     OPT("-T", tick, s"«long» ns tick delay ($tick)"),
     OPT("-p", sequential, false, s"Run parallel trials"),
-    OPT("-A", nonalt, false, s"Use alt-capable channels for Commstime"),
+    OPT("-A", nonalt, false, s"Use alt-capable channelfactory for Commstime"),
     OPT("-a", trials, s"«int» take average over this number of trials"),
     OPT("-d", debug, s"start the debugger"),
     OPT("-dwell", dwell, s"dwell time ($dwell) ms"),
@@ -173,7 +173,7 @@ object Ticked
   }
 }
 
-/** A light test of shared channels. Runs writers in parallel with readers
+/** A light test of shared channelfactory. Runs writers in parallel with readers
   * transmitting args down an N2N/N2NBuf mid
   */
 object Shared extends ComponentTrial("Shared") {
@@ -216,7 +216,7 @@ object Shared extends ComponentTrial("Shared") {
   }
 }
 
-/** A test of shared channels. Runs writers in parallel with readers:
+/** A test of shared channelfactory. Runs writers in parallel with readers:
   * transmitting messages down an N2N/N2NBuf mid, without printing them. Active
   * readers contend for messages, active writers contend for the channel.
   */
@@ -341,7 +341,7 @@ object CloseKeyboard extends ComponentTrial("CloseKeyboard") {
   }
 }
 
-/** This is a tad slower than commscso because the channels are referenced as
+/** This is a tad slower than commscso because the channelfactory are referenced as
   * free variables.
   *
   * Measures communication overheads in a network of the form
@@ -354,7 +354,7 @@ object CloseKeyboard extends ComponentTrial("CloseKeyboard") {
   * the consumer to read a fixed number of times. The published \G is a measure
   * of the communication overhead.
   *
-  * The channels (--> and <-- in the diagram) can be synchronized or
+  * The channelfactory (--> and <-- in the diagram) can be synchronized or
   * asynchronous. When asynchronous the radius of the buffers can be set.
   */
 object Commstime extends ComponentTrial("Commstime") {
