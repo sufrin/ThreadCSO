@@ -39,6 +39,7 @@ abstract class ManualTest(doc: String) extends App {
   var inBufSize, outBufSize = 16 // K
   var bbSize       = 32*1024     // Units, used only for reflect
   var multicastIP  = "224.14.51.6"
+  var interfaceName  = "lo0"
 
   val Command: String = doc
   val Options: List[Opt] = List(
@@ -61,7 +62,8 @@ abstract class ManualTest(doc: String) extends App {
     OPT("-is=", inBufSize,    "<int>k set input buffer size on channelfactory"),
     OPT("-os=", outBufSize,   "<int>k set output buffer size on channelfactory"),
     OPT("-bb=", bbSize,       "<int> set buffer size for reflect"),
-    OPT("-multicast=", multicastIP,  "<multicast-ip-address"),
+    OPT("-multicast=", multicastIP,  "<multicast-ip-address>"),
+    OPT("-if=", interfaceName,  "multicast interface"),
 
   )
 
@@ -622,7 +624,7 @@ object reflection extends ManualTest("reflection -- a trivial server that reflec
 object timecast extends ManualTest("timecast -- multicast date/time periodically") {
   def Test(): Unit = {
   val addr      = new InetSocketAddress(InetAddress.getByName(multicastIP), port)
-  val multicast = UDPChannel.multiBind(addr, CRLFChannelFactory)
+  val multicast = UDPChannel.multicastsTo(interfaceName, addr, CRLFChannelFactory)
     log.info(s"multicast=$multicast, addr=$addr")
     val timeStamps = OneOne[UDP[String]](name="timeStamps")
     val answers    = OneOne[UDP[String]](name="answers")
@@ -645,7 +647,7 @@ object timecast extends ManualTest("timecast -- multicast date/time periodically
 
 object multilisten extends ManualTest("multilisten -- listen to a multicast channel") {
   def Test(): Unit = {
-    val multicast = UDPChannel.multiConnect(multicastIP, port, CRLFChannelFactory)
+    val multicast = UDPChannel.multicastsFrom(interfaceName, multicastIP, port, CRLFChannelFactory)
     val net = OneOne[UDP[String]](name="net")
     val fromNet = multicast.CopyFromNet(net).fork
     serve ( net =?=> {
@@ -653,6 +655,19 @@ object multilisten extends ManualTest("multilisten -- listen to a multicast chan
             }
           | after(seconds(5.0)) ==> println("...")
           )
+  }
+}
+
+object interfaces extends ManualTest("interfaces -- list multicast interfaces") {
+  def Test(): Unit = {
+      import java.net.NetworkInterface._
+      val e = getNetworkInterfaces
+      while (e.hasMoreElements) {
+        val i = e.nextElement()
+        def t(f: java.net.NetworkInterface => Boolean, s: String): String =  if (f(i)) s else ""
+        println(f"${i.getName}%-10s (${i.getMTU}%d) ${t(_.supportsMulticast, "multicast.")}%s${t(_.isVirtual, "virtual.")}%s${t(_.isLoopback, "loopback.")}%s${t(_.isUp, "up.")}%s${t(_.isPointToPoint, "p2p.")}%s ")
+      }
+      exit()
   }
 }
 

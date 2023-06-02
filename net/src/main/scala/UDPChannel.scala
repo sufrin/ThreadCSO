@@ -51,13 +51,16 @@ object UDPChannel extends
     *         later be specialized to communicate with a particular address by `connect(particularAddress)`
     * @param address the socket address to which the channel will be bound.
     * @param factory builds the typed channel from the (untyped) datagram socket
-    * @param family the protocol family
     * @tparam OUT type of data encoded and sent out in datagram packets
     * @tparam IN type of data read in datagram packets then decoded
     *
     */
-  def bind[OUT,IN](address: InetSocketAddress, factory: TypedChannelFactory[OUT, IN], family: ProtocolFamily = IPv4): UDPChannel[OUT,IN] =
-  { val socket = DatagramChannel.open(family)
+  def bind[OUT,IN](address: InetSocketAddress, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT,IN] = {
+    val family = address.getAddress match {
+      case _: Inet4Address => IPv4
+      case _: Inet6Address => IPv6
+    }
+    val socket = DatagramChannel.open(family)
     val channel = new UDPChannel[OUT,IN](socket, factory)
     channel.property("family") = family
     socket.bind(address)
@@ -70,11 +73,14 @@ object UDPChannel extends
     *         only from that address.
     * @param address
     * @param factory builds the typed channel from the (untyped) datagram socket
-    * @param family
     * @tparam OUT
     * @tparam IN
     */
-  def connect[OUT, IN](address: InetSocketAddress, factory: TypedChannelFactory[OUT, IN], family: ProtocolFamily = IPv4): UDPChannel[OUT, IN] = {
+  def connect[OUT, IN](address: InetSocketAddress, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT, IN] = {
+    val family = address.getAddress match {
+      case _: Inet4Address => IPv4
+      case _: Inet6Address => IPv6
+    }
     val socket = DatagramChannel.open(family)
     val channel = new UDPChannel[OUT, IN](socket, factory)
     channel.property("family") = family
@@ -90,11 +96,7 @@ object UDPChannel extends
     */
   def bind[OUT, IN](host: String, port: Int, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT, IN] = {
     val address = InetAddress.getByName(host)
-    val family = address match {
-      case _: Inet4Address => IPv4
-      case _: Inet6Address => IPv6
-    }
-    bind(new InetSocketAddress(address, port), factory, family)
+    bind(new InetSocketAddress(address, port), factory)
   }
 
   /**
@@ -103,34 +105,32 @@ object UDPChannel extends
     */
   def connect[OUT, IN](host: String, port: Int, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT, IN] = {
     val address = InetAddress.getByName(host)
-    val family = address match {
-      case _: Inet4Address => IPv4
-      case _: Inet6Address => IPv6
-    }
-    connect(new InetSocketAddress(address, port), factory, family)
+    connect(new InetSocketAddress(address, port), factory)
   }
 
   /** Return a channel that listens to a multicast IP address/port */
-  def multiConnect[OUT,IN](host: String, port: Int, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT, IN] = {
+  def multicastsFrom[OUT,IN](interfaceName: String, host: String, port: Int, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT, IN] = {
     val address = InetAddress.getByName(host)
-    val family = address match {
-      case _: Inet4Address => IPv4
-      case _: Inet6Address => IPv6
-    }
-    multiConnect(new InetSocketAddress(address, port), factory, family)
+    multicastsFrom(interfaceName, new InetSocketAddress(address, port), factory)
   }
 
   /** Return a channel that listens to a multicast IP address/port  */
-  def multiConnect[OUT, IN](address: InetSocketAddress, factory: TypedChannelFactory[OUT, IN], family: ProtocolFamily = IPv4): UDPChannel[OUT, IN] = {
+  def multicastsFrom[OUT, IN](interfaceName: String, address: InetSocketAddress, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT, IN] = {
+    val family = address.getAddress match {
+      case _: Inet4Address => IPv4
+      case _: Inet6Address => IPv6
+    }
     val socket = DatagramChannel.open(family)
     val channel = new UDPChannel[OUT, IN](socket, factory)
     channel.property("family") = family
     if (address.getAddress.isMulticastAddress) {
-      val networkInterface = NetworkInterface.getByName("lo0") // TODO
+      val networkInterface = NetworkInterface.getByName(interfaceName)
       val membershipKey    = socket.join(address.getAddress, networkInterface)
       channel.setOption(SO_REUSEADDR, value = true)
       log.fine(s"MultiConnect ni=$networkInterface, key=$membershipKey")
-    }
+      channel.property("networkInterface") = networkInterface
+      channel.property("membershipKey")    = membershipKey
+    } else throw new IllegalArgumentException(s"${address.getAddress} is not a multicast address")
     socket.bind(address)
     channel
   }
@@ -141,14 +141,18 @@ object UDPChannel extends
     * (on the host on which the channel is constructed) can be used to send reply
     * datagrams.
     */
-  def multiBind[OUT, IN](address: InetSocketAddress, factory: TypedChannelFactory[OUT, IN], family: ProtocolFamily = IPv4): UDPChannel[OUT, IN] = {
+  def multicastsTo[OUT, IN](interfaceName: String, address: InetSocketAddress, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT, IN] = {
+    val family = address.getAddress match {
+      case _: Inet4Address => IPv4
+      case _: Inet6Address => IPv6
+    }
     val socket = DatagramChannel.open(family)
     val channel = new UDPChannel[OUT, IN](socket, factory)
-    val networkInterface = NetworkInterface.getByName("lo0") // TODO
-    log.fine(s"getByAddress($address)=${NetworkInterface.getByInetAddress(address.getAddress)}")
+    val networkInterface = NetworkInterface.getByName(interfaceName) // TODO
     channel.setOption(IP_MULTICAST_IF, networkInterface)
     channel.setOption(SO_REUSEADDR, value = true)
-    channel.property("family") = family
+    channel.property("family")           = family
+    channel.property("networkInterface") = networkInterface
     socket.bind(new InetSocketAddress(address.getPort))
     log.fine(s"MultiBind Interface: $networkInterface, Address: $address, Channel: $channel")
     channel
@@ -159,13 +163,9 @@ object UDPChannel extends
     * (on the host on which the channel is constructed) can be used to send reply
     * datagrams.
     */
-  def multiBind[OUT, IN](host: String, port: Int, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT, IN] = {
+  def multicastsTo[OUT, IN](interfaceName: String, host: String, port: Int, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT, IN] = {
     val address = InetAddress.getByName(host)
-    val family = address match {
-      case _: Inet4Address => IPv4
-      case _: Inet6Address => IPv6
-    }
-    multiBind(new InetSocketAddress(address, port), factory, family)
+    multicastsTo(interfaceName, new InetSocketAddress(address, port), factory)
   }
 }
 

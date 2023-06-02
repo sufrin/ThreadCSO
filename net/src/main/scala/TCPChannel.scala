@@ -1,10 +1,10 @@
 package ox.net
 
 import io.threadcso._
-import ox.net.SocketOptions.IPv4
+import ox.net.SocketOptions.{IPv4, IPv6}
 
 import java.io._
-import java.net.{InetSocketAddress, ProtocolFamily, SocketAddress}
+import java.net._
 import java.nio.channels.{ServerSocketChannel, SocketChannel}
 
 
@@ -14,7 +14,11 @@ object TCPChannel {
     *   Construct a synchronous network channel bound to the given socket address.
     *   This is NOT in general the way to open a local TCP channel for business.
     */
-  def bound[OUT, IN](address: SocketAddress, factory: TypedChannelFactory[OUT, IN], family: ProtocolFamily = IPv4): TypedTCPChannel[OUT, IN] = {
+  def bound[OUT, IN](address: InetSocketAddress, factory: TypedChannelFactory[OUT, IN]): TypedTCPChannel[OUT, IN] = {
+    val family = address.getAddress match {
+      case _: Inet4Address => IPv4
+      case _: Inet6Address => IPv6
+    }
     val socket = SocketChannel.open(family)
     val channel = factory.newChannel(socket) // (SocketChannel.open)
     channel.property("family") = family
@@ -26,7 +30,7 @@ object TCPChannel {
   /**
     *  Construct a synchronous network channel connected to the given socket address
     */
-  def connected[OUT, IN](address: SocketAddress, factory: TypedChannelFactory[OUT, IN]): TypedTCPChannel[OUT, IN] = {
+  def connected[OUT, IN](address: InetSocketAddress, factory: TypedChannelFactory[OUT, IN]): TypedTCPChannel[OUT, IN] = {
     val socket = SocketChannel.open
     val channel = factory.newChannel(socket)
     println(s"connected pre connect: $socket")
@@ -34,8 +38,6 @@ object TCPChannel {
     println(s"connected post connect: $socket")
     channel
   }
-
-
 
 
   /**
