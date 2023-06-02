@@ -49,7 +49,7 @@ object SSLChannel extends ox.logging.Log("SSL") {
         val keyManagers = KeyManagerFactory.getInstance("SunX509")
         keyStore.load(new FileInputStream(keyStoreFile), passPhrase.toCharArray)
         keyManagers.init(keyStore, passPhrase.toCharArray)
-        finest(s"${keyManagers.getKeyManagers()}")
+        if (logging) finest(s"${keyManagers.getKeyManagers()}")
         context.init(keyManagers.getKeyManagers(), null, null)
         context.getServerSocketFactory()
     }
@@ -69,7 +69,7 @@ object SSLChannel extends ox.logging.Log("SSL") {
         val keyManagers = KeyManagerFactory.getInstance("SunX509")
         keyStore.load(new FileInputStream(keyStoreFile), passPhrase.toCharArray)
         keyManagers.init(keyStore, passPhrase.toCharArray)
-        finest(s"${keyManagers.getKeyManagers()}")
+        if (logging) finest(s"${keyManagers.getKeyManagers()}")
         context.init(keyManagers.getKeyManagers(), null, null)
         context.getSocketFactory()
     }
@@ -110,13 +110,13 @@ object SSLChannel extends ox.logging.Log("SSL") {
       case _ : TLSCredential    => clientSocketFactory(credential)
       case TCPCredential        => javax.net.SocketFactory.getDefault()
     }
-    val socket        = socketFactory.createSocket(host, port)
+    val socket = socketFactory.createSocket(host, port)
     socket match {
       case socket: SSLSocket => socket.startHandshake()
       case _                 =>
     }
     val channel       = factory.newChannel(socket)
-    fine(s"Client socket $socket")
+    if (logging) fine(s"Client socket $socket")
     channel
   }
 
