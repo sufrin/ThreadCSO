@@ -28,7 +28,7 @@ programs (will) appear elsewhere on GitHub.
 
 The advent of virtual threads removes the need for using the rather 
 inefficient asynchronous networking proovided by `java.nio`. We have 
-therefore developed an alternative, and more systematic collection
+therefore developed an alternative, more coherent, collection
 of low-level networking components. These appear here as `ox.net`,
 and supersed the overcomplicated (and unrefined) `eieio` that emerged
 when asynchronous, event-driven, external I/O seemed to be
