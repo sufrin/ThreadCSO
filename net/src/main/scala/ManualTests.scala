@@ -1,4 +1,4 @@
-package ox.net
++package ox.net
 
 import app.OPT._
 import io.threadcso._
@@ -665,7 +665,7 @@ object interfaces extends ManualTest("interfaces -- list multicast interfaces") 
       while (e.hasMoreElements) {
         val i = e.nextElement()
         def t(f: java.net.NetworkInterface => Boolean, s: String): String =  if (f(i)) s else ""
-        println(f"${i.getName}%-10s ${t(_.supportsMulticast, "multicast.")}%s${t(_.isVirtual, "virtual.")}%s${t(_.isLoopback, "loopback.")}%s${t(_.isUp, "up.")}%s${t(_.isPointToPoint, "p2p.")}%s ")
+        println(f"${i.getName}%-10s (${i.getMTU}%d) ${t(_.supportsMulticast, "multicast.")}%s${t(_.isVirtual, "virtual.")}%s${t(_.isLoopback, "loopback.")}%s${t(_.isUp, "up.")}%s${t(_.isPointToPoint, "p2p.")}%s ")
       }
       exit()
   }
