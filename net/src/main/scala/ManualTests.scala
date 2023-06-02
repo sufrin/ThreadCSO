@@ -658,3 +658,16 @@ object multilisten extends ManualTest("multilisten -- listen to a multicast chan
   }
 }
 
+object interfaces extends ManualTest("interfaces -- list multicast interfaces") {
+  def Test(): Unit = {
+      import java.net.NetworkInterface._
+      val e = getNetworkInterfaces
+      while (e.hasMoreElements) {
+        val i = e.nextElement()
+        def t(f: java.net.NetworkInterface => Boolean, s: String): String =  if (f(i)) s else ""
+        println(f"${i.getName}%-10s ${t(_.supportsMulticast, "multicast.")}%s${t(_.isVirtual, "virtual.")}%s${t(_.isLoopback, "loopback.")}%s${t(_.isUp, "up.")}%s${t(_.isPointToPoint, "p2p.")}%s ")
+      }
+      exit()
+  }
+}
+
