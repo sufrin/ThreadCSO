@@ -129,7 +129,7 @@ object UDPChannel extends
       val networkInterface = NetworkInterface.getByName("lo0") // TODO
       val membershipKey    = socket.join(address.getAddress, networkInterface)
       channel.setOption(SO_REUSEADDR, value = true)
-      log.fine(s"MultiConnect hi=$networkInterface, key=$membershipKey")
+      log.fine(s"MultiConnect ni=$networkInterface, key=$membershipKey")
     }
     socket.bind(address)
     channel
@@ -145,7 +145,7 @@ object UDPChannel extends
     val socket = DatagramChannel.open(family)
     val channel = new UDPChannel[OUT, IN](socket, factory)
     val networkInterface = NetworkInterface.getByName("lo0") // TODO
-    log.fine(s"getByAddress($)")
+    log.fine(s"getByAddress($address)=${NetworkInterface.getByInetAddress(address.getAddress)}")
     channel.setOption(IP_MULTICAST_IF, networkInterface)
     channel.setOption(SO_REUSEADDR, value = true)
     channel.property("family") = family
