@@ -1,5 +1,6 @@
 # ThreadCSO
 ## CSP/OCCAM-style channel-based concurrency on the JVM
+#### May 2023
 
 
 **ThreadCSO** is the second substantive implementation of the *Communicating
@@ -23,6 +24,15 @@ an up-to-date introductory paper based on the 2007 paper, and
 the slides for the (relevant) lectures given in 2018. Examples of larger
 programs (will) appear elsewhere on GitHub.
 
+### NEWS: May 2023 Early access to ox.net
+
+The advent of virtual threads removes the need for using the rather 
+inefficient asynchronous networking proovided by `java.nio`. We have 
+therefore developed an alternative, and more systematic collection
+of low-level networking components. These appear here as `ox.net`,
+and supersed the overcomplicated (and unrefined) `eieio` that emerged
+when asynchronous, event-driven, external I/O seemed to be
+important.
 
 ### NEWS: February/March 2023 Early access to virtual threads 
 
@@ -433,13 +443,10 @@ Several other solutions will appear in due course.
         }
 
 
-### EIEIO
-In due course we will publish the **EIEIO**  (Extended Interface
-to External I/O) library that provides implementations of cross-host
-channels that can be used to build multi-host applications and
-provides an (extensible) variety  of wire protocols.
+### EIEIO 
+As remarked above, this has been replaced by `ox.net`.
 
-*Bernard Sufrin, July 2021, and March 2023*
+*Bernard Sufrin: July 2021, March and May 2023*
 
 
 
