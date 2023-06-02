@@ -38,6 +38,7 @@ abstract class ManualTest(doc: String) extends App {
   def idleNS       = seconds(idle)
   var inBufSize, outBufSize = 16 // K
   var bbSize       = 32*1024     // Units, used only for reflect
+  var multicastIP  = "224.14.51.6"
 
   val Command: String = doc
   val Options: List[Opt] = List(
@@ -45,7 +46,7 @@ abstract class ManualTest(doc: String) extends App {
     OPT("-datagram", datagram, "Send/receive/reflect datagrams as appropriate"),
     OPT("-crlf", { factory = CRLFChannelFactory }, "Use crlf string protocol"),
     OPT("-utf",  { factory = UTF8ChannelFactory }, "Use utf8 string protocol"),
-    OPT("peer://.+:[0-9]+", { case s"peer://$h:$p" => peerAddr = Some(new InetSocketAddress(h, p.toInt) ) }, "Set peer host and port"),
+    OPT("peer://.+:[0-9]+", { case s"peer://$h:$p" => peerAddr = Some(new InetSocketAddress(h, p.toInt) ) }, "Set peer host and port (for p2p)"),
     OPT("//.+:[0-9]+",   { case s"//$h:$p" => host = h; port=p.toInt; () }, "Set host and port"),
     OPT("//.+",          { case s"//$h" => host = h; () }, "Set host"),
     OPT("-auth",         { clientauth = !clientauth}, "authenticate client for an SSL channel (experiment)"),
@@ -60,6 +61,7 @@ abstract class ManualTest(doc: String) extends App {
     OPT("-is=", inBufSize,    "<int>k set input buffer size on channelfactory"),
     OPT("-os=", outBufSize,   "<int>k set output buffer size on channelfactory"),
     OPT("-bb=", bbSize,       "<int> set buffer size for reflect"),
+    OPT("-multicast=", multicastIP,  "<multicast-ip-address"),
 
   )
 
@@ -619,11 +621,20 @@ object reflection extends ManualTest("reflection -- a trivial server that reflec
 
 object timecast extends ManualTest("timecast -- multicast date/time periodically") {
   def Test(): Unit = {
-  val addr      = new InetSocketAddress(InetAddress.getByName("224.14.51.6"), 5555)
+  val addr      = new InetSocketAddress(InetAddress.getByName(multicastIP), port)
   val multicast = UDPChannel.multiBind(addr, CRLFChannelFactory)
     log.info(s"multicast=$multicast, addr=$addr")
     val timeStamps = OneOne[UDP[String]](name="timeStamps")
+    val answers    = OneOne[UDP[String]](name="answers")
     val toNet      = multicast.CopyToNet(timeStamps).fork
+    val fromNet    = multicast.CopyFromNet(answers).fork
+    fork {
+      proc ("answers") {
+        repeat {
+          answers ? { case Datagram(value, addr) => println(s"ANS: $value from $addr"); case udp => println(udp) }
+        }
+      }
+    }
     repeat {
       val now = new java.util.Date(milliTime)
       timeStamps ! Datagram(s"${now}", addr)
@@ -634,7 +645,7 @@ object timecast extends ManualTest("timecast -- multicast date/time periodically
 
 object multilisten extends ManualTest("multilisten -- listen to a multicast channel") {
   def Test(): Unit = {
-    val multicast = UDPChannel.multiConnect("224.14.51.6", 5555, CRLFChannelFactory)
+    val multicast = UDPChannel.multiConnect(multicastIP, port, CRLFChannelFactory)
     val net = OneOne[UDP[String]](name="net")
     val fromNet = multicast.CopyFromNet(net).fork
     serve ( net =?=> {

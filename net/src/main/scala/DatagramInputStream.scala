@@ -1,12 +1,13 @@
 package ox.net
 
-import ox.net.UDPChannel.{finest, logging}
 
 import java.net.SocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.DatagramChannel
 
-object DatagramInputStream extends ox.logging.Log("DatagramOutputStream") {
+object DatagramInputStream {
+  val log = ox.logging.Logging.Log("DatagramOutputStream")
+  val logging = log.logging
   def apply(channel: DatagramChannel, size: Int): DatagramInputStream =
     new DatagramInputStream(channel, size)
 }
@@ -15,7 +16,7 @@ object DatagramInputStream extends ox.logging.Log("DatagramOutputStream") {
   *   An input stream view of a `DatagramChannel` with a buffer of the given `size`.
   */
 class DatagramInputStream(val channel: DatagramChannel, size: Int) extends ByteBufferInputStream(size) {
-
+  import DatagramInputStream._
   /**
     * Receive the next datagram on the associated `channel`, and return the address
     * from which it was sent.
@@ -42,7 +43,7 @@ class DatagramInputStream(val channel: DatagramChannel, size: Int) extends ByteB
   @inline private def receive(buffer: ByteBuffer): SocketAddress = {
       buffer.clear
       val sourceAddress = channel.receive(buffer)
-      if (logging) finest(s"received $buffer from $sourceAddress")
+      if (logging) log.finest(s"received $buffer from $sourceAddress")
       buffer.flip
       sourceAddress
   }

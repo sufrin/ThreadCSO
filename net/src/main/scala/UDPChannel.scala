@@ -11,6 +11,7 @@ import java.nio.channels._
 
 object UDPChannel extends
 { val log = ox.logging.Logging.Log("UDPChannel")
+  val logging = log.logging
 
   sealed trait UDP[T] {
     val address: SocketAddress
@@ -135,12 +136,16 @@ object UDPChannel extends
   }
 
   /**
-    * Return a channel that multicasts to a multicast IP address/port
+    * Return a channel that multicasts to a multicast IP address/port. The address
+    * must denote a multicast address. The port from which the multicasts emanate
+    * (on the host on which the channel is constructed) can be used to send reply
+    * datagrams.
     */
   def multiBind[OUT, IN](address: InetSocketAddress, factory: TypedChannelFactory[OUT, IN], family: ProtocolFamily = IPv4): UDPChannel[OUT, IN] = {
     val socket = DatagramChannel.open(family)
     val channel = new UDPChannel[OUT, IN](socket, factory)
     val networkInterface = NetworkInterface.getByName("lo0") // TODO
+    log.fine(s"getByAddress($)")
     channel.setOption(IP_MULTICAST_IF, networkInterface)
     channel.setOption(SO_REUSEADDR, value = true)
     channel.property("family") = family
@@ -150,7 +155,9 @@ object UDPChannel extends
   }
 
   /**
-    * Return a channel that multicasts to a multicast IP address/port
+    * Return a channel that multicasts to a multicast IP address/port. The port from which the multicasts emanate
+    * (on the host on which the channel is constructed) can be used to send reply
+    * datagrams.
     */
   def multiBind[OUT, IN](host: String, port: Int, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT, IN] = {
     val address = InetAddress.getByName(host)
@@ -209,7 +216,7 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
   def connect(addr: InetSocketAddress): Unit = {
     if (channel.isConnected) channel.disconnect()
     channel.connect(addr)
-    if (logging) finest(s"connected: $this to $addr")
+    if (logging) log.finest(s"connected: $this to $addr")
   }
 
   val output: DatagramOutputStream    = new DatagramOutputStream(channel, ChannelOptions.outSize)
@@ -223,12 +230,12 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
     * as results of arriving datagrams that cannot be decoded.
     */
   def encode(packet: UDP[OUT]): Unit = {
-    if (logging) finest(s"before encode(#{$packet.value.size}) [${output.buffer}]")
+    if (logging) log.finest(s"before encode(#{$packet.value.size}) [${output.buffer}]")
     packet match {
       case Datagram(value, addr) =>
         output.newDatagram(addr)
         codec.encode (value)
-        if (logging) finest (s"after encode($packet) [${output.buffer}]")
+        if (logging) log.finest (s"after encode($packet) [${output.buffer}]")
       case Malformed(addr) =>
     }
     ()
@@ -251,19 +258,19 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
    def decode(): UDP[IN] = {
      try {
        val sourceAddress = input.receive()
-       if (logging) finest(s"decoding ${input})")
+       if (logging) log.finest(s"decoding ${input})")
        try {
          val value: IN = codec.decode()
          input.clear()
          val result = Datagram(value, sourceAddress)
-         if (logging) finest(s"decoded (${input})=$result")
+         if (logging) log.finest(s"decoded (${input})=$result")
          result
        } catch {
          case exn: EOFException =>
-           warning(s"datagram decode failed (abbreviated) (${exn}) [$input]")
+           log.warning(s"datagram decode failed (abbreviated) (${exn}) [$input]")
            Malformed(sourceAddress)
          case exn: UTFDataFormatException =>
-           warning(s"datagram decode failed (UTF8 data malformed) (${exn}) [$input]")
+           log.warning(s"datagram decode failed (UTF8 data malformed) (${exn}) [$input]")
            Malformed(sourceAddress)
        }
      } catch {
@@ -298,32 +305,3 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
 
 
 }
-
-/*
-class NetMulticastChannel(_channel:  DatagramChannel) extends
-  NetDatagramChannel(_channel) with MulticastConnector
-{
-  /** Join the multicast group at `address` */
-  def join(group: InetAddress): MembershipKey =
-  { channel.join(group, ni)
-  }
-
-  def join(group: InetAddress, source: InetAddress): MembershipKey =
-  { channel.join(group, ni, source)
-  }
-
-  /** The network interface */
-  private
-  var ni: NetworkInterface = null.asInstanceOf[NetworkInterface]
-
-  def setNI(interface: NetworkInterface): Unit =
-  { ni = interface
-    channel.setOption[NetworkInterface](IP_MULTICAST_IF, ni)
-  }
-
-  def getNI: NetworkInterface = ni
-
-  override
-  def toString: String = "NetMulticastChannel(%s) (%s, NI: %s)".format(channel.toString, options, ni)
-}
-*/
