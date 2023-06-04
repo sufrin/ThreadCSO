@@ -1,6 +1,6 @@
 package ox.net.codec
 
-import ox.net.codec.VarInt.{VarInt, readVarInt, writeVarInt}
+import ox.net.codec.VarInt._
 
 
 /**
@@ -29,6 +29,11 @@ object DataStreamEncoding {
 
     /** Stream the next datum from the `in` stream */
     def decode(in: DataInputStream): T
+  }
+
+  trait UnionStream[T] extends Stream[T] {
+    /** True only if this stream has an encoding for `t` */
+    def canEncode(t: T): Boolean
   }
 
   object Primitive {
@@ -95,7 +100,7 @@ object DataStreamEncoding {
 
 
   /**
-    *   Case classes are encoded as tuples; the associated streams require appropriate injections/projections to be supplied:
+    *   Multi-parameter case classes are encoded as tuples; the associated streams require appropriate injections/projections to be supplied:
     *   For example given the definition:
     *   {{{
     *     case class Record(name: String, age: Int)
@@ -106,36 +111,84 @@ object DataStreamEncoding {
     *      implicit object RStream extends `2cons`[Record, String, Int](Record.apply, Record.unapply)
     *   }}}
     *
+    *   A single-parameter case class dispenses with the tupling.
+    *
     *   In due course the advent of coherent macros will permit some of the associated boilerplate
     *   to be removed; but I'm not holding my breath.
     *
     */
-  class `2cons`[K, T: Stream, U: Stream](apply: (T,U)=>K, unapply: K=>Option[(T,U)]) extends Stream[K] {
-    val encoding = new `2tuple`[T,U]
+
+  class `1cons`[K, T](apply: T=>K, unapply: K=>Option[T])(implicit encoding: Stream[T]) extends UnionStream[K] {
     def encode(out: DataOutputStream, t: K): Unit = encoding.encode(out, unapply(t).get)
-    def decode(in: DataInputStream): K = apply.tupled(encoding.decode(in)) // { val (t,u) = encoding.decode(in); apply(t,u) }
+    def decode(in: DataInputStream): K = apply(encoding.decode(in))
+    def canEncode(t: K): Boolean = unapply(t).nonEmpty
   }
 
+  class `2cons`[K, T: Stream, U: Stream](apply: (T,U)=>K, unapply: K=>Option[(T,U)]) extends UnionStream[K] {
+      val encoding = new `2tuple`[T,U]
+      def encode(out: DataOutputStream, t: K): Unit = encoding.encode(out, unapply(t).get)
+      def decode(in: DataInputStream): K = apply.tupled(encoding.decode(in)) // { val (t,u) = encoding.decode(in); apply(t,u) }
+      def canEncode(t: K): Boolean = unapply(t).nonEmpty
+    }
+
   /** Case classes are encoded as tuples; the associated streams require appropriate injections/projections to be supplied  */
-  class `3cons`[K, T: Stream, U: Stream, V: Stream](apply: (T, U, V) => K, unapply: K => Option[(T, U, V)]) extends Stream[K] {
+  class `3cons`[K, T: Stream, U: Stream, V: Stream](apply: (T, U, V) => K, unapply: K => Option[(T, U, V)]) extends UnionStream[K] {
     val encoding = new `3tuple`[T, U, V]
     def encode(out: DataOutputStream, t: K): Unit = encoding.encode(out, unapply(t).get)
     def decode(in: DataInputStream): K = apply.tupled(encoding.decode(in))
+    def canEncode(t: K): Boolean = unapply(t).nonEmpty
   }
 
   /** Case classes are encoded as tuples; the associated streams require appropriate injections/projections to be supplied */
-  class `4cons`[K, T: Stream, U: Stream, V: Stream, W: Stream](apply: (T, U, V, W) => K, unapply: K => Option[(T, U, V, W)]) extends Stream[K] {
+  class `4cons`[K, T: Stream, U: Stream, V: Stream, W: Stream](apply: (T, U, V, W) => K, unapply: K => Option[(T, U, V, W)]) extends UnionStream[K] {
     val encoding = new `4tuple`[T, U, V, W]
     def encode(out: DataOutputStream, t: K): Unit = encoding.encode(out, unapply(t).get)
     def decode(in: DataInputStream): K = apply.tupled(encoding.decode(in))
+    def canEncode(t: K): Boolean = unapply(t).nonEmpty
   }
 
   /** Case classes are encoded as tuples; the associated streams require appropriate injections/projections to be supplied */
   class `5cons`[K, T: Stream, U: Stream, V: Stream, W: Stream, X: Stream](apply: (T, U, V, W, X) => K, unapply: K => Option[(T, U, V, W, X)])
-    extends Stream[K] {
+    extends UnionStream[K] {
     val encoding = new `5tuple`[T, U, V, W, X]
     def encode(out: DataOutputStream, t: K): Unit = encoding.encode(out, unapply(t).get)
     def decode(in: DataInputStream): K = apply.tupled(encoding.decode(in))
+    def canEncode(t: K): Boolean = unapply(t).nonEmpty
+  }
+
+  class `2union`[K, T, U] (asT: PartialFunction[K,T], fromT: T=>K)
+                          (asU: PartialFunction[K,U], fromU: U=>K)
+                          (implicit tenc: Stream[T], uenc: Stream[U]) extends Stream[K] {
+    def encode(out: DataOutputStream, k: K): Unit = {
+      (asT.andThen { t => out.writeByte(0); tenc.encode(out, t) }) orElse
+      (asU.andThen { u => out.writeByte(1); uenc.encode(out, u) })
+    }
+    def decode(in: DataInputStream): K = {
+      in.readByte() match {
+        case 0 => fromT(tenc.decode(in))
+        case 1 => fromU(uenc.decode(in))
+      }
+    }
+  }
+
+  class `3union`[K, T, U, V](asT: PartialFunction[K, T], fromT: T => K)
+                            (asU: PartialFunction[K, U], fromU: U => K)
+                            (asV: PartialFunction[K, V], fromV: V => K)
+                            (implicit tenc: Stream[T], uenc: Stream[U], venc: Stream[V]) extends Stream[K] {
+
+    def encode(out: DataOutputStream, k: K): Unit = {
+      (asT.andThen { t => out.writeByte(0); tenc.encode(out, t) }) orElse
+        (asU.andThen { u => out.writeByte(1); uenc.encode(out, u) })
+      (asV.andThen { v => out.writeByte(2); venc.encode(out, v) })
+    }
+
+    def decode(in: DataInputStream): K = {
+      in.readByte() match {
+        case 0 => fromT(tenc.decode(in))
+        case 1 => fromU(uenc.decode(in))
+        case 2 => fromV(venc.decode(in))
+      }
+    }
   }
 
   class `2tuple`[T, U](implicit enc1: Stream[T], enc2: Stream[U]) extends Stream[(T, U)] {
@@ -217,5 +270,14 @@ object StreamEncodingInferenceTests {
   implicit object StringSequence    extends Sequence[String]
   implicit object RecSequence       extends Sequence[Record]
 
+
+  trait K
+  case class B1(n:Int, s: String) extends K
+  case class B2(n:Int, s: String) extends K
+
+  implicit object BB1 extends `2cons`[B1,Int, String](B1.apply, B1.unapply)
+  implicit object BB2 extends `2cons`[B2,Int, String](B2.apply, B2.unapply)
+  implicit object KK extends  `2union`[K, B1, B2](_.asInstanceOf[B1], _.asInstanceOf[K])(_.asInstanceOf[B2], _.asInstanceOf[K])
+  
 }
 
