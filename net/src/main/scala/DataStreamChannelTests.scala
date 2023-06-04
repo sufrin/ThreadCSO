@@ -17,14 +17,21 @@ object dskbd extends ManualTest("dskbd -- sends sequences of records ") {
   import ox.net.codec.DataStreamEncoding.Primitive._
   import ox.net.codec.DataStreamEncoding._
 
-  case class Record(name: String, value: Seq[Span])
+  trait Record
+  case class Record1(name: String, value: Seq[Span]) extends Record
+  case class Record2(name: String, size: Int) extends Record
   case class Span(low: Int, high: Int)
 
-  // implicit evidence of data stream encodings
+  // implicit data stream encodings: you try naming them!
   implicit object `Span*`       extends `2cons`[Span, Int, Int](Span.apply, Span.unapply)
   implicit object `SpanSeq*`    extends Sequence[Span]
-  implicit object `Record*`     extends `2cons`[Record, String, Seq[Span]](Record.apply, Record.unapply)
+  implicit object `Record1*`    extends `2cons`[Record1, String, Seq[Span]](Record1.apply, Record1.unapply)
+  implicit object `Record2*`    extends `2cons`[Record2, String, Int](Record2.apply, Record2.unapply)
+  implicit object `Record*`
+           extends `2union`[Record, Record1, Record2](_.asInstanceOf[Record1], _.asInstanceOf[Record])(_.asInstanceOf[Record2], _.asInstanceOf[Record])
   implicit object `RecordSeq*`  extends Sequence[Record]
+
+
 
 
   type Ty = Seq[Record]
@@ -65,7 +72,10 @@ object dskbd extends ManualTest("dskbd -- sends sequences of records ") {
             last = line
         }
         log.fine(s"toHost ! $last * $times")
-        toHost ! ( for { i<-0 until times } yield Record(last, List(Span(i, i+10))))
+        toHost !( for { i<-0 until times } yield
+               { val r: Record = if (times % 2==0) Record1(last, List(Span(i, i+10))) else Record2(last, times)
+                 r
+               })
       }
       toHost.close()
       toNet.interrupt()

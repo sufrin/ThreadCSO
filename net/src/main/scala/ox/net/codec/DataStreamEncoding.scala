@@ -156,12 +156,17 @@ object DataStreamEncoding {
     def canEncode(t: K): Boolean = unapply(t).nonEmpty
   }
 
-  class `2union`[K, T, U] (asT: PartialFunction[K,T], fromT: T=>K)
-                          (asU: PartialFunction[K,U], fromU: U=>K)
+
+  // TODO: an algebra that extends partial functions to include (failing) coercions
+  class `2union`[K, T, U] (toT: K=>T, fromT: T=>K)
+                          (toU: K=>U, fromU: U=>K)
                           (implicit tenc: Stream[T], uenc: Stream[U]) extends Stream[K] {
     def encode(out: DataOutputStream, k: K): Unit = {
-      (asT.andThen { t => out.writeByte(0); tenc.encode(out, t) }) orElse
-      (asU.andThen { u => out.writeByte(1); uenc.encode(out, u) })
+          try (toT.andThen { t => out.writeByte(0); tenc.encode(out, t) }) (k)
+          catch {
+            case exn: ClassCastException =>
+              (toU.andThen { u => out.writeByte(1); uenc.encode(out, u) }) (k)
+          }
     }
     def decode(in: DataInputStream): K = {
       in.readByte() match {
@@ -171,15 +176,21 @@ object DataStreamEncoding {
     }
   }
 
-  class `3union`[K, T, U, V](asT: PartialFunction[K, T], fromT: T => K)
-                            (asU: PartialFunction[K, U], fromU: U => K)
-                            (asV: PartialFunction[K, V], fromV: V => K)
+  class `3union`[K, T, U, V](toT: K=>T, fromT: T => K)
+                            (toU: K=>U, fromU: U => K)
+                            (toV: K=>V, fromV: V => K)
                             (implicit tenc: Stream[T], uenc: Stream[U], venc: Stream[V]) extends Stream[K] {
 
     def encode(out: DataOutputStream, k: K): Unit = {
-      (asT.andThen { t => out.writeByte(0); tenc.encode(out, t) }) orElse
-        (asU.andThen { u => out.writeByte(1); uenc.encode(out, u) })
-      (asV.andThen { v => out.writeByte(2); venc.encode(out, v) })
+      try (toT.andThen { t => out.writeByte(0); tenc.encode(out, t) })(k)
+      catch {
+        case exn: ClassCastException =>
+          try (toU.andThen { u => out.writeByte(1); uenc.encode(out, u) })(k)
+          catch {
+            case exn: ClassCastException =>
+              (toV.andThen { v => out.writeByte(2); venc.encode(out, v) })(k)
+          }
+      }
     }
 
     def decode(in: DataInputStream): K = {
