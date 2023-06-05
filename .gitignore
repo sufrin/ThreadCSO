@@ -9,3 +9,4 @@ metal.sbt
 core/src/test/scala/LISTING.pdf
 LISTING.pdf
 primchan/primchan.jar
+.idea/
