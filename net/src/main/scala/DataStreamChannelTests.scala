@@ -7,9 +7,16 @@ import ox.net.channelfactory.DataStreamChannelFactory
 
 
 /**
-  * A very cursory test of sending and receiving messages encoded using `DataStreamEncoding` codecs.
+  * A cursory test for the sending and receiving of messages encoded using `DataStreamEncoding`
+  * codecs.
   *
-  * Run this concurrently with `ox.net.reflect`  to test the total-trip correctness
+  * `times` is the number of times each message is replicated. It can be set from the keyboard
+  * by typing `*`digits or digits`*`.
+  *
+  * Any other line typed at the keyboard is sent as a sequence of length `times` recorss. If
+  * `times` is even the records are of type `Record1`, else the records are of type `Record2`.
+  *
+  * Run this concurrently with `ox.net.reflect`  to test total-trip correctness.
   */
 
 object dskbd extends ManualTest("dskbd -- sends sequences of records ") {
@@ -21,32 +28,28 @@ object dskbd extends ManualTest("dskbd -- sends sequences of records ") {
   case class Record1(name: String, value: Seq[Span]) extends Record
   case class Record2(name: String, size: Int) extends Record
   case class Span(low: Int, high: Int)
+  type RecordSeq = Seq[Record]
+
 
   // implicit data stream encodings: you try naming them!
-  implicit object `Span*`       extends `2cons`[Span, Int, Int](Span.apply, Span.unapply)
-  implicit object `SpanSeq*`    extends Sequence[Span]
-  implicit object `Record1*`    extends `2cons`[Record1, String, Seq[Span]](Record1.apply, Record1.unapply)
-  implicit object `Record2*`    extends `2cons`[Record2, String, Int](Record2.apply, Record2.unapply)
-  implicit object `Record*`
-           extends `2union`[Record, Record1, Record2](_.asInstanceOf[Record1], _.asInstanceOf[Record])(_.asInstanceOf[Record2], _.asInstanceOf[Record])
-  implicit object `RecordSeq*`  extends Sequence[Record]
-
-
-
-
-  type Ty = Seq[Record]
+  implicit object `Span*`       extends `2case*`[Span, Int, Int](Span.apply, Span.unapply)
+  implicit object `SpanSeq*`    extends `Seq*`[Span]
+  implicit object `Record1*`    extends `2case*`[Record1, String, Seq[Span]](Record1.apply, Record1.unapply)
+  implicit object `Record2*`    extends `2case*`[Record2, String, Int](Record2.apply, Record2.unapply)
+  implicit object `Record*`     extends `2union*`[Record, Record1, Record2](_.asInstanceOf[Record1], _.asInstanceOf[Record2])
+  implicit object `RecordSeq*`  extends `Seq*`[Record]
 
   def Test() = {
-    val channel: TypedTCPChannel[Ty, Ty] = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024)
+    val channel: TypedTCPChannel[RecordSeq, RecordSeq] = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024)
     {
-       TCPChannel.connected(new java.net.InetSocketAddress(host, port), new DataStreamChannelFactory[Ty]() )
+       TCPChannel.connected(new java.net.InetSocketAddress(host, port), new DataStreamChannelFactory[RecordSeq]())
     }
 
     if (SND>0) channel.setOption(SO_SNDBUF, SND)
     if (RCV>0) channel.setOption(SO_RCVBUF, RCV)
     val kbd      = OneOne[String]("kbd")
-    val fromHost = OneOneBuf[Ty](50, name = "fromHost") // A synchronized channel causes deadlock under load
-    val toHost   = OneOneBuf[Ty](50, name = "toHost") // A synchronized channel causes deadlock under load
+    val fromHost = OneOneBuf[RecordSeq](50, name = "fromHost")
+    val toHost   = OneOneBuf[RecordSeq](50, name = "toHost")
 
     // Bootstrap the channel processes
     val toNet        = channel.CopyToNet(toHost).fork

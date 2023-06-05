@@ -171,9 +171,9 @@ object kbd extends ManualTest("kbd1 -- sends keyboard messages, receives respons
 object kbdx extends ManualTest("kbdx -- sends multiple keyboard messages, receives responses") {
   type StringArray = Seq[String]
   def Test() = {
-    import ox.net.codec.DataStreamEncoding.{Sequence, Stream}
+    import ox.net.codec.DataStreamEncoding.{`Seq*`, Stream}
     import ox.net.codec.DataStreamEncoding.Primitive._
-    implicit object StringSeq extends Sequence[String]
+    implicit object StringSeq extends `Seq*`[String]
     object CF extends DataStreamChannelFactory[Seq[String]]
     val channel: TypedTCPChannel[StringArray, StringArray] = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024)
     { TCPChannel.connected(new java.net.InetSocketAddress(host, port), CF) }
