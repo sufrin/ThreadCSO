@@ -2,13 +2,15 @@ package ox.net.codec
 
 import ox.net.codec.VarInt._
 
+import java.math.{BigInteger=>BigJavaInteger,BigDecimal=>BigJavaDecimal}
+
 
 /**
   *  Machinery to help roll-your-own stream encodings for use on
   *  cross-network transport or for "pickling" values for
   *  persistent storage.
   *
-  *  Here, by convention, stream encodings are given names that end
+  *  Here, by convention, stream encodings for non-simple types are given names that end
   *  in `*`. This convention is helpful when constructing implicit objects
   *  that define encodings for composite classes.
   *
@@ -85,7 +87,58 @@ object DataStreamEncoding {
       def decode(in: DataInputStream): Float = in.readFloat()
     }
 
-  }
+    implicit object BigJavaDecimalStream extends Stream[BigJavaDecimal] {
+      def encode(out: DataOutputStream, t: BigJavaDecimal) = {
+        out.writeInt(t.scale)
+        val rep = t.unscaledValue.toByteArray
+        out.writeInt(rep.length)
+        for { b <- rep } out.writeByte(b)
+      }
+
+      def decode(in: DataInputStream): BigDecimal = {
+          val scale = in.readInt()
+          val length = in.readInt()
+          val rep = Array.ofDim[Byte](length)
+          for { i<-0 until length } rep(i) = in.readByte().toByte
+          new BigJavaDecimal(new BigJavaInteger(rep), scale)
+      }
+    }
+
+    implicit object BigJavaIntegerStream extends Stream[BigJavaInteger] {
+      def encode(out: DataOutputStream, t: BigJavaInteger) = {
+        val rep = t.toByteArray
+        out.writeInt(rep.length)
+        for {b <- rep} out.writeByte(b)
+      }
+
+      def decode(in: DataInputStream): BigJavaInteger = {
+        val length = in.readInt()
+        val rep: Array[Byte] = Array.ofDim[Byte](length)
+        for {i <- 0 until length} rep(i) = in.readByte().toByte
+        new BigJavaInteger(rep)
+      }
+    }
+
+    implicit object BigIntStream extends Stream[BigInt] {
+      def encode(out: DataOutputStream, t: BigInt) = {
+        BigJavaIntegerStream.encode(out, t.underlying())
+      }
+
+      def decode(in: DataInputStream): BigInt = {
+          BigInt(BigJavaIntegerStream.decode(in))
+      }
+    }
+
+
+    implicit object BigDecimalStream extends Stream[BigDecimal] {
+      def encode(out: DataOutputStream, t: BigDecimal) = {
+        BigJavaDecimalStream.encode(out, t.underlying())
+      }
+
+      def decode(in: DataInputStream): BigDecimal = {
+        BigJavaDecimalStream.decode(in)
+      }
+    }
 
   class `Seq*`[T](implicit encoding: Stream[T]) extends Stream[Seq[T]]
   {
@@ -100,6 +153,7 @@ object DataStreamEncoding {
       result
     }
   }
+
 
 
   /**
@@ -203,9 +257,27 @@ object DataStreamEncoding {
     */
   class `Enum*`[E](decode: Int => E, code: E => Int) extends Stream[E] {
     def encode(out: DataOutputStream, k: E) = out.writeInt(code(k))
-
     def decode(in: DataInputStream): E = decode(in.readInt())
   }
+
+
+  /**
+    *  Wire encoding for values of the type `T` to be encoded as values of the type
+    *  `CODE`, that must itself have a wire encoding.
+    *
+    *  Supply an injection `encode:T=>CODE` with corresponding inverse `decode:CODE=>T`
+    * {{{
+    *    decode(encode(t)) == t
+    * }}}
+    */
+  class `EncodedAs*`[T,CODE](decode: CODE=>T, code: T=>CODE)  (implicit uenc: Stream[CODE]) extends Stream[T] {
+    def encode(out: DataOutputStream, k: T) = uenc.encode(out, code(k))
+    def decode(in: DataInputStream): T = decode(uenc.decode(in))
+  }
+
+  class `Set*`[T](implicit encoding: Stream[Seq[T]]) extends `EncodedAs*`[Set[T], Seq[T]](_.toSet, _.toSeq)
+
+    // Notice that class `Enum*`[E] (decode: Int => E, code: E => Int) == (E `EncodedAs*` Int)(decode, code)
 
 
   /**
