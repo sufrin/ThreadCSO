@@ -3,11 +3,15 @@ package org.velvia.msgpack
 import java.io.{DataInputStream => DIS, DataOutputStream}
 import scala.collection.{Map => CMap}
 
+/**
+  *  Codec names changed to be somewhat lighter than those of the original `org.velvia.msgpack`,
+  *  but the logic is identical. I gratefully acknowledge the work of velvia.
+  */
 object CollectionCodecs {
   import Format._
 
   // NOTE: Arrays automatically get converted to Seqs via WrappedArray
-  class SeqCodec[T: Codec] extends Codec[Seq[T]] {
+  class `Seq*`[T: Codec] extends Codec[Seq[T]] {
     def pack(out: DataOutputStream, s: Seq[T]): Unit = { packSeq(s, out) }
 
     val unpackFuncMap = FastByteMap[UnpackFunc](
@@ -18,7 +22,7 @@ object CollectionCodecs {
     }
   }
 
-  class MapCodec[K: Codec, V: Codec] extends Codec[Map[K, V]] {
+  class `Map*`[K: Codec, V: Codec] extends Codec[Map[K, V]] {
     private val keyCodec = implicitly[Codec[K]]
     private val valCodec = implicitly[Codec[V]]
 
@@ -32,7 +36,7 @@ object CollectionCodecs {
     }
   }
 
-  class CMapCodec[K: Codec, V: Codec] extends Codec[CMap[K, V]] {
+  class `CMap*`[K: Codec, V: Codec] extends Codec[CMap[K, V]] {
     private val keyCodec = implicitly[Codec[K]]
     private val valCodec = implicitly[Codec[V]]
 
@@ -47,8 +51,8 @@ object CollectionCodecs {
     }
   }
 
-  class SetCodec[T: Codec] extends Codec[Set[T]] {
-    private val seqCodec = new SeqCodec[T]
+  class `Set*`[T: Codec] extends Codec[Set[T]] {
+    private val seqCodec = new `Seq*`[T]
     def pack(out: DataOutputStream, s: Set[T]): Unit = {
       seqCodec.pack(out, s.toSeq)
     }

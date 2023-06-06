@@ -3,6 +3,10 @@ package org.velvia.msgpack
 import java.io.{DataInputStream => DIS, DataOutputStream}
 import java.math.{BigDecimal, BigInteger}
 
+/**
+  *  Codec names changed to be somewhat lighter than those of the original `org.velvia.msgpack`,
+  *  but the logic is identical. I gratefully acknowledge the work of velvia.
+  */
 object ExtraCodecs {
   import Format._
   import SimpleCodecs._

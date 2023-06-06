@@ -17,7 +17,9 @@ object MessagePack {
    * Warning: this does not do any recursion checks. If you pass a cyclic object,
    * you will run in an infinite loop until you run out of memory.
    *
-   * NOTE: Please do not use this method for performance sensitive apps, but use the streaming
+   * === NOTE:
+   *
+   * Do not use this method for performance sensitive apps, but use the streaming
    * API instead.  ByteArrayOutputStream is known to be very slow.  Anyways if you care about
    * lots of data you would be streaming, right?  right?  :)
    *

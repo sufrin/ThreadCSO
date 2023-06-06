@@ -23,7 +23,7 @@ object kbdy extends ManualTest("kbdy -- sends multiple keyboard messages (using 
   import TupleCodecs._
 
     type Ty = (Int, Int)
-    implicit object TyCodec extends TupleCodec2[Int,Int]
+    implicit object TyCodec extends `2-Tuple*`[Int,Int]
 
     def Test() = {
       val channel: TypedTCPChannel[Ty, Ty] = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024)
@@ -89,7 +89,7 @@ object kbdz extends ManualTest("kbdz -- sends multiple keyboard messages (as pai
 
   type Ty = (Int, String)
 
-  implicit object TyCodec extends TupleCodec2[Int, String]
+  implicit object TyCodec extends `2-Tuple*`[Int, String]
 
   def Test() = {
     val channel: TypedTCPChannel[Ty, Ty] = ChannelOptions.withOptions(inSize = inBufSize * 1024, outSize = outBufSize * 1024) {
@@ -158,7 +158,7 @@ object kbdq extends ManualTest("kbdq -- sends multiple keyboard messages wrapped
   import SimpleCodecs._
 
   case class Ty(times: Int, string: String)
-  implicit object TyCodec extends CaseClassCodec2[Ty, Int, String](Ty.apply, Ty.unapply)
+  implicit object TyCodec extends `2-Case*`[Ty, Int, String](Ty.apply, Ty.unapply)
 
   def Test() = {
     val channel: TypedTCPChannel[Ty, Ty] = ChannelOptions.withOptions(inSize = inBufSize * 1024, outSize = outBufSize * 1024) {

@@ -2,7 +2,9 @@ package ox.net.codec
 
 import ox.net.codec.VarInt._
 
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 import java.math.{BigDecimal => BigJavaDecimal, BigInteger => BigJavaInteger}
+import scala.reflect.ClassTag
 
 
 /**
@@ -21,7 +23,7 @@ import java.math.{BigDecimal => BigJavaDecimal, BigInteger => BigJavaInteger}
   *
   *  The `msgpack` machinery delivers considerably more compact streams -- albeit at some
   *  cost in complexity, and in computing the compressed representation. But its killer
-  *  advantage is interoperability there are many language bindings for `msgpack`.
+  *  advantage is interoperability because there are many language bindings for `msgpack`.
   *
   * @see ox.net.VelviaChannelFactory, org.velvia.MessagePack
   */
@@ -151,6 +153,10 @@ object DataStreamEncoding {
     }
   }
 
+  /** Seq* can't be evidence for a List: I don't know why yet*/
+  class `List*`[T](implicit encoding: Stream[Seq[T]]) extends `Encode*`[List[T], Seq[T]] (_.toList, _.toSeq)
+  /** Array evidence needs the type to have a class tag */
+  class `Array*`[T: ClassTag](implicit encoding: Stream[Seq[T]]) extends `Encode*`[Array[T], Seq[T]] (_.toArray, _.toSeq)
 
 
   /**
@@ -477,9 +483,59 @@ object DataStreamEncoding {
       (t, u, v, w, x)
     }
   }
+
+  class `6-Tuple*`[T1: Stream, T2: Stream, T3: Stream, T4: Stream, T5: Stream, T6: Stream]
+    extends Stream[(T1, T2, T3, T4, T5, T6)] {
+    val enc1 = implicitly[Stream[T1]]
+    val enc2 = implicitly[Stream[T2]]
+    val enc3 = implicitly[Stream[T3]]
+    val enc4 = implicitly[Stream[T4]]
+    val enc5 = implicitly[Stream[T5]]
+    val enc6 = implicitly[Stream[T6]]
+
+    def encode(out: DataOutputStream, v: (T1, T2, T3, T4, T5, T6)): Unit = {
+      enc1.encode(out, v._1)
+      enc2.encode(out, v._2)
+      enc3.encode(out, v._3)
+      enc4.encode(out, v._4)
+      enc5.encode(out, v._5)
+      enc6.encode(out, v._6)
+    }
+
+    def decode(in: DataInputStream): (T1, T2, T3, T4, T5, T6) = {
+      val t1 = enc1.decode(in)
+      val t2 = enc2.decode(in)
+      val t3 = enc3.decode(in)
+      val t4 = enc4.decode(in)
+      val t5 = enc5.decode(in)
+      val t6 = enc6.decode(in)
+      (t1, t2, t3, t4, t5, t6)
+    }
+  }
+
 }
 
-object StreamEncodingInferenceTests {
+object DataStreamEncodingTest {
+  import ox.net.codec.DataStreamEncoding._
+
+  def test[T](value: T)(implicit enc: Stream[T]): Unit = {
+      val bytes = new ByteArrayOutputStream()
+      val out   = new DataOutputStream(bytes)
+      enc.encode(out, value)
+      val streamed = bytes.toByteArray
+      print(s"Encoded ${value.toString.take(60)}... Size: ${streamed.size}")
+      val in      = new DataInputStream(new ByteArrayInputStream(streamed))
+      val decoded = enc.decode(in)
+      if (value == decoded) println(" Decoded OK") else (value, decoded) match
+      { case (v: Array[Any], d: Array[Any]) if v.toList == d.toList => println(s" Decoded as an equal array ${d.toList.mkString("Array(", ", ", ")")}")
+        case (v: Array[Any], d: Array[Any]) if v.toList != d.toList => println(s" Decoded as a distinct array ${d.toList.mkString("Array(", ", ", ")")}")
+        case (_, _) => println(s"Failed, because !=\nValue: $value \nDecoded: $decoded")
+      }
+  }
+}
+
+object StreamEncodingShortTests {
+  import DataStreamEncodingTest._
 
   case class Record(name: String, value: Int)
   import ox.net.codec.DataStreamEncoding._
@@ -488,20 +544,56 @@ object StreamEncodingInferenceTests {
   implicit object IntSequence       extends `Seq*`[Int]
   implicit object StringIntSequence extends `Seq*`[(String,Int)]
   implicit object StringSequence    extends `Seq*`[String]
+  implicit object StringList        extends `List*`[String]
+  implicit object StringArray       extends `Array*`[String]
   implicit object RecSeq            extends `Seq*`[Record]
+  implicit object SixTuple          extends `6-Tuple*`[Int, Int, Record, Double, Seq[String], Seq[Int]]
+  implicit object FiveTuple         extends `5-Tuple*`[Int, Int, Record, Double, Seq[String]]
+  implicit object FiveTupleL        extends `5-Tuple*`[Int, Int, Record, Double, List[String]]
+  implicit object FiveTupleA        extends `5-Tuple*`[Int, Int, Record, Double, Array[String]]
 
 
   trait K
   case class B1(n:Int, s: String) extends K
   case class B2(n:Int, s: String) extends K
 
-  object E extends Enumeration { val v1, v2, v3 = Value }
-  type E = E.Value
+  object Day extends Enumeration { val Mon, Tue, Wed = Value }
+  type Day = Day.Value
 
   implicit object `B1*` extends `2-Case*`[B1,Int, String](B1.apply, B1.unapply)
   implicit object `B2*` extends `2-Case*`[B2,Int, String](B2.apply, B2.unapply)
   implicit object `K*` extends  `2-Union*`[K, B1, B2](_.asInstanceOf[B1], _.asInstanceOf[B2])
-  implicit object `E*` extends  `Enum*`[E](E.apply, _.id)
+  implicit object `KSeq*` extends  `Seq*`[K]
+  implicit object `Day*` extends  `Enum*`[Day](Day.apply, _.id)
+  implicit object `DaySeq*` extends `Seq*`[Day]
+  implicit object `DaySet*` extends `Set*`[Day]
+
+  def main(args: Array[String]): Unit =
+    {
+      test(1)
+      val v = (1, 2, Record("foo", 42), 3.2, Seq("A String", "Another String"))
+      test(v)
+      test((1, 2, Record("foo", 42), 3.2, Seq("A String", "Another String")))
+      val l = List("A String", "Another String")
+      test((1, 2, Record("foo", 42), 3.2, l))
+      test(Record("foo", 34))
+      test(Record("foo", 34))
+      test(Array("What do you think", "Mr Apocalypse"))
+      test(Seq(Day.Mon, Day.Tue, Day.Wed))
+      test(Set(Day.Mon, Day.Tue, Day.Wed, Day.Mon, Day.Tue))
+      test(B2(3, "b2"))
+      test(B1(3, "b1"))
+      // Limitation of union encoding: the inferred types of the undecorated sequences are
+      // Seq[Product with K with java.io.Serializable] = List(B1(1,B1), B2(2,B2))
+      // Something to get to grips with....
+      val ll: Seq[K] = Seq(B2(2, "b2"), B1(1, "b1"))
+      test(ll)
+      test(Seq(B2(2, "b2"), B1(1, "b1")).asInstanceOf [Seq[K]])
+      //
+      println("A few (expected) failures or near-misses (with arrays)")
+      test(Array("What do you think", "Mr Apocalypse"))
+      test((1, 2, Record("Expected inequality", 42), 3.2, Array("What do you think", "Mr Apocalypse")))
+    }
 
 }
 

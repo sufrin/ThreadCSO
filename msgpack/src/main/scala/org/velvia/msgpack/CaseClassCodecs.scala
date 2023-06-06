@@ -1,12 +1,14 @@
 package org.velvia.msgpack
-
 import java.io.{DataInputStream => DIS, DataOutputStream}
+import org.velvia.msgpack.TupleCodecs.{`4-Tuple*`, `3-Tuple*`, `2-Tuple*`}
 
-import org.velvia.msgpack.TupleCodecs.{TupleCodec4, TupleCodec3, TupleCodec2}
-
+/**
+  *  Codec names changed to be somewhat lighter than those of the original `org.velvia.msgpack`,
+  *  but the logic is identical. I gratefully acknowledge the work of velvia.
+  */
 object CaseClassCodecs {
 
-  class CaseClassCodec1[T, A](
+  class `1-Case*`[T, A](
     apply: A => T,
     unapply: T => Option[A]
   )(implicit K: Codec[A]) extends Codec[T] {
@@ -26,14 +28,15 @@ object CaseClassCodecs {
   }
 
 
-  class CaseClassCodec2[T, A1, A2](
+  class `2-Case*`[T, A1, A2](
     apply: (A1, A2) => T,
     unapply: T => Option[(A1, A2)]
   )(
     implicit K1: Codec[A1],
     K2: Codec[A2]
+
   ) extends Codec[T] {
-    val codec = new TupleCodec2[A1, A2]
+    val codec = new `2-Tuple*`[A1, A2]
     val _apply: ((A1, A2)) => T = Function.tupled(apply)
 
     override def pack(out: DataOutputStream, item: T): Unit = {
@@ -42,7 +45,7 @@ object CaseClassCodecs {
     val unpackFuncMap = codec.unpackFuncMap.mapValues(_.andThen(_apply))
   }
 
-  class CaseClassCodec3[T, A1, A2, A3](
+  class `3-Case*`[T, A1, A2, A3](
     apply: (A1, A2, A3) => T,
     unapply: T => Option[(A1, A2, A3)]
   )(
@@ -50,7 +53,7 @@ object CaseClassCodecs {
     K2: Codec[A2],
     K3: Codec[A3]
   ) extends Codec[T] {
-    val codec = new TupleCodec3[A1, A2, A3]
+    val codec = new `3-Tuple*`[A1, A2, A3]
     val _apply = Function.tupled(apply)
 
     override def pack(out: DataOutputStream, item: T): Unit = {
@@ -59,7 +62,7 @@ object CaseClassCodecs {
     val unpackFuncMap = codec.unpackFuncMap.mapValues(_.andThen(_apply))
   }
 
-  class CaseClassCodec4[T, A1, A2, A3, A4](
+  class `4-Case*`[T, A1, A2, A3, A4](
     apply: (A1, A2, A3, A4) => T,
     unapply: T => Option[(A1, A2, A3, A4)]
   )(
@@ -68,7 +71,7 @@ object CaseClassCodecs {
     K3: Codec[A3],
     K4: Codec[A4]
   ) extends Codec[T] {
-    val codec = new TupleCodec4[A1, A2, A3, A4]
+    val codec = new `4-Tuple*`[A1, A2, A3, A4]
     val _apply = Function.tupled(apply)
 
     override def pack(out: DataOutputStream, item: T): Unit = {

@@ -192,8 +192,8 @@ object AnyCodecs {
     def compatibilityMode: Boolean
     implicit def keyCodec: Codec[K]
     implicit def valCodec: Codec[V]
-    val seqCodec = new SeqCodec[V]
-    val mapCodec = new MapCodec[K, V]
+    val seqCodec = new `Seq*`[V]
+    val mapCodec = new `Map*`[K, V]
 
     def pack(out: DataOutputStream, item: Any): Unit = {
       item match {

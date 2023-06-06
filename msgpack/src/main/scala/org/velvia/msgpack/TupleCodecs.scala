@@ -2,8 +2,12 @@ package org.velvia.msgpack
 
 import java.io.{DataInputStream => DIS, DataOutputStream}
 
+/**
+  *  Codec names changed to be somewhat lighter than those of the original `org.velvia.msgpack`,
+  *  but the logic is identical. I gratefully acknowledge the work of velvia.
+  */
 object TupleCodecs {
-  class TupleCodec2[A1: Codec, A2: Codec] extends Codec[(A1, A2)] {
+  class `2-Tuple*`[A1: Codec, A2: Codec] extends Codec[(A1, A2)] {
 
     private val codec1 = implicitly[Codec[A1]]
     private val codec2 = implicitly[Codec[A2]]
@@ -23,7 +27,7 @@ object TupleCodecs {
     )
   }
 
-  class TupleCodec3[A1: Codec, A2: Codec, A3: Codec]
+  class `3-Tuple*`[A1: Codec, A2: Codec, A3: Codec]
     extends Codec[(A1, A2, A3)] {
 
     private val codec1 = implicitly[Codec[A1]]
@@ -47,7 +51,7 @@ object TupleCodecs {
     )
   }
 
-  class TupleCodec4[A1: Codec, A2: Codec, A3: Codec, A4: Codec]
+  class `4-Tuple*`[A1: Codec, A2: Codec, A3: Codec, A4: Codec]
     extends Codec[(A1, A2, A3, A4)] {
 
     private val codec1 = implicitly[Codec[A1]]
@@ -74,5 +78,4 @@ object TupleCodecs {
     )
   }
 
-  // TODO: add TupleCodec5, TupleCodec6 ... and so on
 }
