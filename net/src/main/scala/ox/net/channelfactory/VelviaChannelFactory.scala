@@ -28,8 +28,7 @@ import java.nio.channels.SocketChannel
   *    implicit object TyCodec extends TupleCodec2[Int,Int]
   *    implicit object TyCodec extends TupleCodec2[Int, String]
   *    implicit object TyCodec extends
-  *       CaseClassCodec2[Ty, Int, String]
-  *       ( Ty, { case Ty(t, s) => Some(t, s)})
+  *       CaseClassCodec2[Ty, Int, String]( Ty, Ty.unapply )
   * }}}
   *
   * Though I'd have preferred to copy-and-paste

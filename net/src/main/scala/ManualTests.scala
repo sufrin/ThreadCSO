@@ -2,11 +2,9 @@ package ox.net
 
 import app.OPT._
 import io.threadcso._
-import org.velvia.msgpack.CollectionCodecs.SeqCodec
 import ox.logging.{Log, Logging => LOGGING}
 import ox.net.SSLChannel.{TLSCredential, TLSWithoutCredential, client}
-import ox.net.channelfactory.{CRLFChannelFactory, DataStreamChannelFactory, UTF8ChannelFactory, VelviaChannelFactory}
-import ox.net.httpclient.{factory, host, port}
+import ox.net.channelfactory.{CRLFChannelFactory, DataStreamChannelFactory, UTF8ChannelFactory}
 import ox.net.SocketOptions._
 import ox.net.UDPChannel.{Datagram, Malformed, UDP}
 
@@ -76,12 +74,18 @@ abstract class ManualTest(doc: String) extends App {
   def Test(): Unit
 }
 
-object reflect extends ManualTest("reflect - a server that reflects all TCP packets without interpretation.") {
-  /**
-    *  A server whose sessions reflect all packets they receive. Buffers can be of arbitrily small
-    *  (positive) sizes; and this might be helpful in investigating problems with codecs that could be
-    *  caused by packet fragmentation.
-    */
+/**
+  * A server whose sessions reflect all packets they receive. Buffers can be of arbitrily small
+  * (positive) sizes; and this might be helpful in investigating problems with codecs that could be
+  * caused by packet fragmentation.
+  *
+  * This app is intended to test the "total trip" correctness of codecs by being run "opposite" the apps:
+  * {{{
+  *   kbd,
+  * }}}
+  */
+object reflect extends ManualTest("reflect - a server that reflects all TCP client packets without interpretation.") {
+
   def Test(): Unit = {
     def session(channel: SocketChannel): Unit = {
       log.info(s"Accepted: ${channel.getRemoteAddress()}")
@@ -105,7 +109,7 @@ object reflect extends ManualTest("reflect - a server that reflects all TCP pack
   }
 }
 
-object kbd extends ManualTest("kbd1 -- sends keyboard messages, receives responses") {
+object kbd extends ManualTest("kbd1 -- sends keyboard messages. Run opposite reflect.") {
   def Test() = {
     val channel: TypedTCPChannel[String, String] = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024)
     { TCPChannel.connected(new java.net.InetSocketAddress(host, port), factory) }
@@ -168,11 +172,10 @@ object kbd extends ManualTest("kbd1 -- sends keyboard messages, receives respons
   }
 }
 
-object kbdx extends ManualTest("kbdx -- sends multiple keyboard messages, receives responses") {
+object kbdx extends ManualTest("kbdx -- sends multiple keyboard messages encoded as a datastream of sequences. Run opposite reflect.") {
   type StringArray = Seq[String]
   def Test() = {
-    import ox.net.codec.DataStreamEncoding.{`Seq*`, Stream}
-    import ox.net.codec.DataStreamEncoding.Primitive._
+    import ox.net.codec.DataStreamEncoding._
     implicit object StringSeq extends `Seq*`[String]
     object CF extends DataStreamChannelFactory[Seq[String]]
     val channel: TypedTCPChannel[StringArray, StringArray] = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024)
@@ -433,7 +436,7 @@ object p2p extends ManualTest("p2p -- exchanges datagrams with another p2p") {
 /**
   * A trivial https client that sends a `GET / ` and echoes the response to the terminal
   */
-object httpclient extends ManualTest("httpclient -- GETs from a (secure) server then outputs the response line-by-line") {
+object httpsclient extends ManualTest("httpclient -- GETs from a (secure) server then outputs the response line-by-line") {
   def Test() = {
     val credential = if (clientauth) TLSCredential("xyzzyxyzzy", new File("/Users/sufrin/.keystore"))  else TLSWithoutCredential
     val channel = SSLChannel.client(credential, host, port, factory)
@@ -488,9 +491,11 @@ object httpclient extends ManualTest("httpclient -- GETs from a (secure) server 
 }
 
 /**
-  *  A trivial secure http server that echoes clients' requests to them as text.
+  *  A trivial secure http server that echoes clients' requests back to them as chunk-encoded html text.
+  *  The server counts the number of client connections, as well as the number requests made as part of
+  *  an individual session before it times-out.
   */
-object httpserver extends ManualTest("httpserver -- core of an https server") {
+object httpsserver extends ManualTest("httpsserver -- an https server that echoes clients' requests (as html)") {
 
   def Test() = {
     val serverProcess = SSLChannel.server(SSLChannel.TLSCredential("xyzzyxyzzy", new File("/Users/sufrin/.keystore")), port, factory, clientSession, sync=true, clientAuth=clientauth)
@@ -578,13 +583,10 @@ object httpserver extends ManualTest("httpserver -- core of an https server") {
       } else
         while (running)
           alt {
-            (fromClient =?=> { line =>
-              processRequestLine(line)
-            }
-              | after(idleNS) ==> {
-              if (logging) log.fine(s"Client $clientCount went idle")
-              running = false
-            }
+            ( fromClient    =?=> { line => processRequestLine(line) }
+            | after(idleNS) ==>  { if (logging) log.fine(s"Client $clientCount went idle")
+                                   running = false
+                                 }
               )
           }
 
@@ -603,7 +605,6 @@ object httpserver extends ManualTest("httpserver -- core of an https server") {
 }
 
 object reflection extends ManualTest("reflection -- a trivial server that reflects strings sent by its clients") {
-
     def Test(): Unit = {
     val reflectServer: PROC = TCPChannel.server(port, 0, factory) {
       case channel: TypedTCPChannel[String, String] =>
@@ -621,7 +622,7 @@ object reflection extends ManualTest("reflection -- a trivial server that reflec
   }
 }
 
-object timecast extends ManualTest("timecast -- multicast date/time periodically") {
+object timecast extends ManualTest("timecast -- multicast date/time as CRLF text periodically. Run opposite multilisten") {
   def Test(): Unit = {
   val addr      = new InetSocketAddress(InetAddress.getByName(multicastIP), port)
   val multicast = UDPChannel.multicastsTo(interfaceName, addr, CRLFChannelFactory)
@@ -645,7 +646,7 @@ object timecast extends ManualTest("timecast -- multicast date/time periodically
   }
 }
 
-object multilisten extends ManualTest("multilisten -- listen to a multicast channel") {
+object multilisten extends ManualTest("multilisten -- listen to a multicast channel speaking CRLF. Run opposite timecast") {
   def Test(): Unit = {
     val multicast = UDPChannel.multicastsFrom(interfaceName, multicastIP, port, CRLFChannelFactory)
     val net = OneOne[UDP[String]](name="net")

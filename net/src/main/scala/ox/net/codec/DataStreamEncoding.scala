@@ -2,7 +2,7 @@ package ox.net.codec
 
 import ox.net.codec.VarInt._
 
-import java.math.{BigInteger=>BigJavaInteger,BigDecimal=>BigJavaDecimal}
+import java.math.{BigDecimal => BigJavaDecimal, BigInteger => BigJavaInteger}
 
 
 /**
@@ -38,56 +38,53 @@ object DataStreamEncoding {
     def decode(in: DataInputStream): T
   }
 
- 
 
-  object Primitive {
-
-    implicit object IntStream extends Stream[Int] {
+    implicit object `Int*` extends Stream[Int] {
       def encode(out: DataOutputStream, t: Int) = out.writeInt(t)
       def decode(in: DataInputStream): Int = in.readInt()
     }
 
-    implicit object LongStream extends Stream[Long] {
+    implicit object `Long*` extends Stream[Long] {
       def encode(out: DataOutputStream, t: Long) = out.writeLong(t)
       def decode(in: DataInputStream): Long = in.readInt()
     }
 
-    implicit object VarIntStream extends Stream[VarInt] {
+    implicit object `VarInt*` extends Stream[VarInt] {
       def encode(out: DataOutputStream, t: VarInt) = ox.net.codec.VarInt.writeVarInt(out, t)
       def decode(in: DataInputStream): VarInt = ox.net.codec.VarInt.readVarInt(in)
     }
 
-    implicit object CharStream extends Stream[Char] {
+    implicit object `Char*` extends Stream[Char] {
       def encode(out: DataOutputStream, t: Char) = out.writeChar(t)
       def decode(in: DataInputStream): Char      = in.readChar()
     }
 
-    implicit object ByteStream extends Stream[Byte] {
+    implicit object `Byte*` extends Stream[Byte] {
       def encode(out: DataOutputStream, t: Byte) = out.writeByte(t)
       def decode(in: DataInputStream): Byte = in.readByte()
     }
 
-    implicit object ShortStream extends Stream[Short] {
+    implicit object `Short*` extends Stream[Short] {
       def encode(out: DataOutputStream, t: Short) = out.writeShort(t)
       def decode(in: DataInputStream): Short = in.readShort()
     }
 
-    implicit object StringStream extends Stream[String] {
+    implicit object `String*` extends Stream[String] {
       def encode(out: DataOutputStream, t: String) = out.writeUTF(t)
       def decode(in: DataInputStream): String = in.readUTF()
     }
 
-    implicit object DoubleStream extends Stream[Double] {
+    implicit object `Double*` extends Stream[Double] {
       def encode(out: DataOutputStream, t: Double) = out.writeDouble(t)
       def decode(in: DataInputStream): Double = in.readDouble()
     }
 
-    implicit object FloatStream extends Stream[Float] {
+    implicit object `Float*` extends Stream[Float] {
       def encode(out: DataOutputStream, t: Float) = out.writeFloat(t)
       def decode(in: DataInputStream): Float = in.readFloat()
     }
 
-    implicit object BigJavaDecimalStream extends Stream[BigJavaDecimal] {
+    implicit object `BigJavaDecimal*` extends Stream[BigJavaDecimal] {
       def encode(out: DataOutputStream, t: BigJavaDecimal) = {
         out.writeInt(t.scale)
         val rep = t.unscaledValue.toByteArray
@@ -95,7 +92,7 @@ object DataStreamEncoding {
         for { b <- rep } out.writeByte(b)
       }
 
-      def decode(in: DataInputStream): BigDecimal = {
+      def decode(in: DataInputStream): BigJavaDecimal = {
           val scale = in.readInt()
           val length = in.readInt()
           val rep = Array.ofDim[Byte](length)
@@ -104,7 +101,7 @@ object DataStreamEncoding {
       }
     }
 
-    implicit object BigJavaIntegerStream extends Stream[BigJavaInteger] {
+    implicit object `BigJavaInteger*` extends Stream[BigJavaInteger] {
       def encode(out: DataOutputStream, t: BigJavaInteger) = {
         val rep = t.toByteArray
         out.writeInt(rep.length)
@@ -119,24 +116,24 @@ object DataStreamEncoding {
       }
     }
 
-    implicit object BigIntStream extends Stream[BigInt] {
+    implicit object `BigInt*` extends Stream[BigInt] {
       def encode(out: DataOutputStream, t: BigInt) = {
-        BigJavaIntegerStream.encode(out, t.underlying())
+        `BigJavaInteger*`.encode(out, t.underlying())
       }
 
       def decode(in: DataInputStream): BigInt = {
-          BigInt(BigJavaIntegerStream.decode(in))
+          BigInt(`BigJavaInteger*`.decode(in))
       }
     }
 
 
-    implicit object BigDecimalStream extends Stream[BigDecimal] {
+    implicit object `BigDecimal*` extends Stream[BigDecimal] {
       def encode(out: DataOutputStream, t: BigDecimal) = {
-        BigJavaDecimalStream.encode(out, t.underlying())
+        `BigJavaDecimal*`.encode(out, t.underlying())
       }
 
       def decode(in: DataInputStream): BigDecimal = {
-        BigJavaDecimalStream.decode(in)
+        `BigJavaDecimal*`.decode(in)
       }
     }
 
@@ -186,44 +183,44 @@ object DataStreamEncoding {
 
 
 
-  class `1case*`[K, T](apply: T=>K, unapply: K=>Option[T])(implicit encoding: Stream[T]) extends Stream[K] {
+  class `1-Case*`[K, T](apply: T=>K, unapply: K=>Option[T])(implicit encoding: Stream[T]) extends Stream[K] {
     def encode(out: DataOutputStream, t: K): Unit = encoding.encode(out, unapply(t).get)
     def decode(in: DataInputStream): K = apply(encoding.decode(in))
   }
 
-  class `2case*`[K, T: Stream, U: Stream](apply: (T,U)=>K, unapply: K=>Option[(T,U)]) extends Stream[K] {
-      val encoding = new `2tuple*`[T,U]
+  class `2-Case*`[K, T: Stream, U: Stream](apply: (T,U)=>K, unapply: K=>Option[(T,U)]) extends Stream[K] {
+      val encoding = new `2-Tuple*`[T,U]
       def encode(out: DataOutputStream, t: K): Unit = encoding.encode(out, unapply(t).get)
       def decode(in: DataInputStream): K = apply.tupled(encoding.decode(in))
     }
 
   /** Case classes are encoded as tuples; the associated streams require appropriate injections/projections to be supplied  */
-  class `3case*`[K, T: Stream, U: Stream, V: Stream](apply: (T, U, V) => K, unapply: K => Option[(T, U, V)]) extends Stream[K] {
+  class `3-Case*`[K, T: Stream, U: Stream, V: Stream](apply: (T, U, V) => K, unapply: K => Option[(T, U, V)]) extends Stream[K] {
     val encoding = new `3tuple*`[T, U, V]
     def encode(out: DataOutputStream, t: K): Unit = encoding.encode(out, unapply(t).get)
     def decode(in: DataInputStream): K = apply.tupled(encoding.decode(in))
   }
 
   /** Case classes are encoded as tuples; the associated streams require appropriate injections/projections to be supplied */
-  class `4case*`[K, T: Stream, U: Stream, V: Stream, W: Stream](apply: (T, U, V, W) => K, unapply: K => Option[(T, U, V, W)]) extends Stream[K] {
-    val encoding = new `4tuple*`[T, U, V, W]
+  class `4-Case*`[K, T: Stream, U: Stream, V: Stream, W: Stream](apply: (T, U, V, W) => K, unapply: K => Option[(T, U, V, W)]) extends Stream[K] {
+    val encoding = new `4-Tuple*`[T, U, V, W]
     def encode(out: DataOutputStream, t: K): Unit = encoding.encode(out, unapply(t).get)
     def decode(in: DataInputStream): K = apply.tupled(encoding.decode(in))
   }
 
   /** Case classes are encoded as tuples; the associated streams require appropriate injections/projections to be supplied */
-  class `5case*`[K, T: Stream, U: Stream, V: Stream, W: Stream, X: Stream](apply: (T, U, V, W, X) => K, unapply: K => Option[(T, U, V, W, X)])
+  class `5-Case*`[K, T: Stream, U: Stream, V: Stream, W: Stream, X: Stream](apply: (T, U, V, W, X) => K, unapply: K => Option[(T, U, V, W, X)])
     extends Stream[K] {
-    val encoding = new `5tuple*`[T, U, V, W, X]
+    val encoding = new `5-Tuple*`[T, U, V, W, X]
     def encode(out: DataOutputStream, t: K): Unit = encoding.encode(out, unapply(t).get)
     def decode(in: DataInputStream): K = apply.tupled(encoding.decode(in))
   }
 
   /**
-    *   A case object is encoded as a `0case*`, and is wire-encoded as a single zero byte. It requires no
+    *   A case object is wire-encoded as a single zero byte. It requires no
     *   injection/projection.
     */
-  class `0case*`[K](it: K) extends Stream[K] {
+  class `Case*`[K](it: K) extends Stream[K] {
     def encode(out: DataOutputStream, t: K): Unit = out.writeByte(0)
 
     def decode(in: DataInputStream): K = {
@@ -233,49 +230,61 @@ object DataStreamEncoding {
   }
 
   /**
-    * Enumerations, and, indeed, any types whose individuals are
-    * representable as integers are wire-encoded as the integer
-    * that is their representation. The injection (decoding from `Int` to
-    * the type, and projection (encoding from the type to `Int`) must be given
-    * explicitly when constructing a stream encoding for such types.
+    * Enumerations, indeed, any types whose individuals are
+    * representable as integers, are wire-encoded as the integer
+    * that is their representation. The projection (decoding from `Int` to
+    * the type, and injection (encoding from the type to `Int`) must be given
+    * explicitly when constructing a stream encoding for such types (and must be
+    * mutual inverses).
     *
     * For example, an implicit stream-encoding for the enumeration class defined (scala 2.12) by
     *
     * {{{
-    * object E extends Enumeration {
-    *    type Type = Value
-    *    val v1, v2, ... = Value
-    * }
+    *         object E extends Enumeration { val v1, v2, ... = Value }
     * }}}
-    *
     * is constructed by
-    *
     * {{{
-    *   implicit object `E*` extends `Enum*`[E.Type](E, _.id)
+    *         implicit object `E*` extends `Enum*`[E.Value](E, _.id)
     * }}}
+    *
+    * It is quite normal to name the type (`Value`) constructed by an `Enumeration` object, so the following
+    * will also suffice:
+    * {{{
+    *         object E extends Enumeration { val v1, v2, ... = Value }
+    *         type E = E.Value
+  *           implicit object `E*` extends `Enum*`[E](E, _.id)
+    * }}}
+    *
     *
     */
-  class `Enum*`[E](decode: Int => E, code: E => Int) extends Stream[E] {
-    def encode(out: DataOutputStream, k: E) = out.writeInt(code(k))
-    def decode(in: DataInputStream): E = decode(in.readInt())
+  class `Enum*`[E](decoding: Int => E, encoding: E => Int) extends Stream[E] {
+    def encode(out: DataOutputStream, k: E) = out.writeInt(encoding(k))
+    def decode(in: DataInputStream): E = decoding(in.readInt())
   }
-
 
   /**
-    *  Wire encoding for values of the type `T` to be encoded as values of the type
-    *  `CODE`, that must itself have a wire encoding.
+    *  Values of type `T` may be be wire-encoded as values of type
+    *  `CODE` -- which must itself have a wire encoding. Simply
+    *  supply an injection `encoding:T=>CODE` and the corresponding inverse
+    *  `decoding:CODE=>T`.
     *
-    *  Supply an injection `encode:T=>CODE` with corresponding inverse `decode:CODE=>T`
-    * {{{
-    *    decode(encode(t)) == t
-    * }}}
+    * === Remark
+    *
+    * In fact the following are operationally equivalent
+    * {{{`Enum*`[E] (decoding: Int => E, encoding: E => Int)}}}
+    * and
+    * {{{`Encode*`[E,Int](decoding, encoding)}}}
     */
-  class `EncodedAs*`[T,CODE](decode: CODE=>T, code: T=>CODE)  (implicit uenc: Stream[CODE]) extends Stream[T] {
-    def encode(out: DataOutputStream, k: T) = uenc.encode(out, code(k))
-    def decode(in: DataInputStream): T = decode(uenc.decode(in))
+  class `Encode*`[T,CODE](decoding: CODE=>T, encoding: T=>CODE)(implicit uenc: Stream[CODE]) extends Stream[T] {
+    def encode(out: DataOutputStream, k: T) = uenc.encode(out, encoding(k))
+    def decode(in: DataInputStream): T = decoding(uenc.decode(in))
   }
 
-  class `Set*`[T](implicit encoding: Stream[Seq[T]]) extends `EncodedAs*`[Set[T], Seq[T]](_.toSet, _.toSeq)
+  /** Sets encoded as sequences */
+  class `Set*`[T](implicit encoding: Stream[Seq[T]]) extends `Encode*`[Set[T], Seq[T]](_.toSet, _.toSeq)
+
+  /** Maps encoded as 2-tuple sequences */
+  class `Map*`[K,V](implicit encoding: Stream[Seq[(K,V)]]) extends `Encode*`[Map[K,V], Seq[(K,V)]](_.toMap, _.toSeq)
 
     // Notice that class `Enum*`[E] (decode: Int => E, code: E => Int) == (E `EncodedAs*` Int)(decode, code)
 
@@ -303,15 +312,16 @@ object DataStreamEncoding {
     * Usually, though not invariably, the coercions will be given as
     * `_.asInstanceOf[T]`, and `_.asInstanceOf[U]`. I think the compiler itself
     * ought to be able to infer these just from the types `K`, `T`, `U` but
-    * my experiment (see below) fails at runtime.
+    * my experiment (see below) fails at runtime, as do similar ones that also
+    * compile without complaint.
     *
-    * class `2union**`[K: ClassTag, T : ClassTag, U : ClassTag]
-    *                 (implicit tenc: Stream[T], uenc: Stream[U])
-    *                 extends `2union*`[K,T,U] (_.asInstanceOf[T], _.asInstanceOf[U])
+    * class `2-Union**`[K: ClassTag, T : ClassTag, U : ClassTag]
+    *                  (implicit tenc: Stream[T], uenc: Stream[U])
+    *                  extends `2union*`[K,T,U] (_.asInstanceOf[T], _.asInstanceOf[U])
     *
     */
-  class `2union*`[K, T, U](toT: K=>T, toU: K=>U)
-                          (implicit tenc: Stream[T], uenc: Stream[U]) extends Stream[K] {
+  class `2-Union*`[K, T, U](toT: K=>T, toU: K=>U)
+                           (implicit tenc: Stream[T], uenc: Stream[U]) extends Stream[K] {
 
     def encode(out: DataOutputStream, k: K): Unit = {
       val enc =
@@ -329,8 +339,8 @@ object DataStreamEncoding {
   }
 
 
-  /** @see `2union*` */
-  class `3union*`[K, T, U, V](toT: K=>T, toU: K=>U)(toV: K=>V)
+  /** @see `2-Union*` */
+  class `3-Union*`[K, T, U, V](toT: K=>T, toU: K=>U)(toV: K=>V)
                              (implicit tenc: Stream[T], uenc: Stream[U], venc: Stream[V]) extends Stream[K] {
 
     def encode(out: DataOutputStream, k: K): Unit = {
@@ -350,8 +360,8 @@ object DataStreamEncoding {
     }
   }
 
-  /** @see `2union*` */
-  class `4union*`[K, T, U, V, W](toT: K => T, toU: K => U, toV: K => V, toW: K => W)
+  /** @see `2-Union*` */
+  class `4-Union*`[K, T, U, V, W](toT: K => T, toU: K => U, toV: K => V, toW: K => W)
                                 (implicit tenc: Stream[T], uenc: Stream[U], venc: Stream[V], wenc: Stream[W]) extends Stream[K] {
 
     def encode(out: DataOutputStream, k: K): Unit = {
@@ -373,8 +383,8 @@ object DataStreamEncoding {
     }
   }
 
-  /** @see `2union*` */
-  class `5union*`[K, T, U, V, W, X](toT: K => T, toU: K => U, toV: K => V, toW: K => W, toX: K=>X)
+  /** @see `2-Union*` */
+  class `5-Union*`[K, T, U, V, W, X](toT: K => T, toU: K => U, toV: K => V, toW: K => W, toX: K=>X)
                                    (implicit tenc: Stream[T], uenc: Stream[U], venc: Stream[V], wenc: Stream[W], xenc: Stream[X]) extends Stream[K] {
 
     def encode(out: DataOutputStream, k: K): Unit = {
@@ -399,7 +409,7 @@ object DataStreamEncoding {
   }
 
   /** Encode a 2-tuple as the catenation of its component encodings */
-  class `2tuple*`[T, U](implicit enc1: Stream[T], enc2: Stream[U]) extends Stream[(T, U)] {
+  class `2-Tuple*`[T, U](implicit enc1: Stream[T], enc2: Stream[U]) extends Stream[(T, U)] {
     def encode(out: DataOutputStream, v: (T, U)): Unit = {
       enc1.encode(out, v._1)
       enc2.encode(out, v._2)
@@ -429,7 +439,7 @@ object DataStreamEncoding {
   }
 
   /** Encode a 4-tuple as the catenation of its component encodings */
-  class `4tuple*`[T, U, V, W](implicit enc1: Stream[T], enc2: Stream[U], enc3: Stream[V], enc4: Stream[W])
+  class `4-Tuple*`[T, U, V, W](implicit enc1: Stream[T], enc2: Stream[U], enc3: Stream[V], enc4: Stream[W])
     extends Stream[(T, U, V, W)] {
     def encode(out: DataOutputStream, v: (T, U, V, W)): Unit = {
       enc1.encode(out, v._1)
@@ -448,7 +458,7 @@ object DataStreamEncoding {
   }
 
   /** Encode a 5-tuple as the catenation of its component encodings */
-  class `5tuple*`[T, U, V, W, X] (implicit enc1: Stream[T], enc2: Stream[U], enc3: Stream[V], enc4: Stream[W], enc5: Stream[X])
+  class `5-Tuple*`[T, U, V, W, X](implicit enc1: Stream[T], enc2: Stream[U], enc3: Stream[V], enc4: Stream[W], enc5: Stream[X])
     extends Stream[(T, U, V, W, X)] {
     def encode(out: DataOutputStream, v: (T, U, V, W, X)): Unit = {
       enc1.encode(out, v._1)
@@ -472,10 +482,9 @@ object DataStreamEncoding {
 object StreamEncodingInferenceTests {
 
   case class Record(name: String, value: Int)
-  import ox.net.codec.DataStreamEncoding.Primitive._
   import ox.net.codec.DataStreamEncoding._
-  implicit object Tuple2SI          extends `2tuple*`[String, Int] with Stream[(String,Int)]
-  implicit object RecordStream      extends `2case*`[Record, String, Int](Record.apply, Record.unapply) with Stream[Record]
+  implicit object Tuple2SI          extends `2-Tuple*`[String, Int] with Stream[(String,Int)]
+  implicit object RecordStream      extends `2-Case*`[Record, String, Int](Record.apply, Record.unapply) with Stream[Record]
   implicit object IntSequence       extends `Seq*`[Int]
   implicit object StringIntSequence extends `Seq*`[(String,Int)]
   implicit object StringSequence    extends `Seq*`[String]
@@ -486,15 +495,13 @@ object StreamEncodingInferenceTests {
   case class B1(n:Int, s: String) extends K
   case class B2(n:Int, s: String) extends K
 
-  object E extends Enumeration {
-    val v1, v2, v3 = Value
-    type Type = Value
-  }
+  object E extends Enumeration { val v1, v2, v3 = Value }
+  type E = E.Value
 
-  implicit object `B1*` extends `2case*`[B1,Int, String](B1.apply, B1.unapply)
-  implicit object `B2*` extends `2case*`[B2,Int, String](B2.apply, B2.unapply)
-  implicit object `K*` extends  `2union*`[K, B1, B2](_.asInstanceOf[B1], _.asInstanceOf[B2])
-  implicit object `E*` extends  `Enum*`[E.Type](E.apply, _.id)
+  implicit object `B1*` extends `2-Case*`[B1,Int, String](B1.apply, B1.unapply)
+  implicit object `B2*` extends `2-Case*`[B2,Int, String](B2.apply, B2.unapply)
+  implicit object `K*` extends  `2-Union*`[K, B1, B2](_.asInstanceOf[B1], _.asInstanceOf[B2])
+  implicit object `E*` extends  `Enum*`[E](E.apply, _.id)
 
 }
 

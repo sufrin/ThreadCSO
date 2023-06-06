@@ -21,7 +21,6 @@ import ox.net.channelfactory.DataStreamChannelFactory
 
 object dskbd extends ManualTest("dskbd -- sends sequences of records ") {
 
-  import ox.net.codec.DataStreamEncoding.Primitive._
   import ox.net.codec.DataStreamEncoding._
 
   trait Record
@@ -32,11 +31,11 @@ object dskbd extends ManualTest("dskbd -- sends sequences of records ") {
 
 
   // implicit data stream encodings: you try naming them!
-  implicit object `Span*`       extends `2case*`[Span, Int, Int](Span.apply, Span.unapply)
+  implicit object `Span*`       extends `2-Case*`[Span, Int, Int](Span.apply, Span.unapply)
   implicit object `SpanSeq*`    extends `Seq*`[Span]
-  implicit object `Record1*`    extends `2case*`[Record1, String, Seq[Span]](Record1.apply, Record1.unapply)
-  implicit object `Record2*`    extends `2case*`[Record2, String, Int](Record2.apply, Record2.unapply)
-  implicit object `Record*`     extends `2union*`[Record, Record1, Record2](_.asInstanceOf[Record1], _.asInstanceOf[Record2])
+  implicit object `Record1*`    extends `2-Case*`[Record1, String, Seq[Span]](Record1.apply, Record1.unapply)
+  implicit object `Record2*`    extends `2-Case*`[Record2, String, Int](Record2.apply, Record2.unapply)
+  implicit object `Record*`     extends `2-Union*`[Record, Record1, Record2](_.asInstanceOf[Record1], _.asInstanceOf[Record2])
   implicit object `RecordSeq*`  extends `Seq*`[Record]
 
   def Test() = {
