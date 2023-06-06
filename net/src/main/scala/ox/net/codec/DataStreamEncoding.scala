@@ -2,7 +2,7 @@ package ox.net.codec
 
 import ox.net.codec.VarInt._
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.math.{BigDecimal => BigJavaDecimal, BigInteger => BigJavaInteger}
 import scala.reflect.ClassTag
 
@@ -17,11 +17,13 @@ import scala.reflect.ClassTag
   *  that define encodings for composite classes.
   *
   *  The definitions here exemplify how to make a systematic and straightforward
-  *  encoding that doesn't rely too much on the typeclass machinery.
+  *  stream encoding that doesn't rely too much on the typeclass machinery.
+  *
+  * @see StreamEncodingShortTests for several examples of the use of these constructions.
   *
   *  === Warning/Advertisement:
   *
-  *  The `msgpack` machinery delivers considerably more compact streams -- albeit at some
+  *  The `msgpack` machinery delivers more compact streams -- albeit at some
   *  cost in complexity, and in computing the compressed representation. But its killer
   *  advantage is interoperability because there are many language bindings for `msgpack`.
   *
@@ -39,7 +41,6 @@ object DataStreamEncoding {
     /** Stream the next datum from the `in` stream */
     def decode(in: DataInputStream): T
   }
-
 
     implicit object `Int*` extends Stream[Int] {
       def encode(out: DataOutputStream, t: Int) = out.writeInt(t)
@@ -139,24 +140,68 @@ object DataStreamEncoding {
       }
     }
 
-  class `Seq*`[T](implicit encoding: Stream[T]) extends Stream[Seq[T]]
+  class `Seq*`[T](implicit enc: Stream[T]) extends Stream[Seq[T]]
   {
     def encode(out: DataOutputStream, t: Seq[T]): Unit = {
       writeVarInt(out, t.length)
-      for {e <- t} encoding.encode(out, e)
+      for {e <- t} enc.encode(out, e)
     }
 
     def decode(in: DataInputStream): Seq[T] = {
       val length = readVarInt(in).toInt
-      val result = Vector.fill[T](length){ encoding.decode(in) }
+      val result = Vector.fill[T](length){ enc.decode(in) }
       result
     }
   }
 
-  /** Seq* can't be evidence for a List: I don't know why yet*/
-  class `List*`[T](implicit encoding: Stream[Seq[T]]) extends `Encode*`[List[T], Seq[T]] (_.toList, _.toSeq)
+  class `Option*`[T](implicit enc: Stream[T]) extends Stream[Option[T]] {
+    def encode(out: DataOutputStream, t: Option[T]): Unit = {
+      t match {
+        case None    => out.writeBoolean(false)
+        case Some(t) =>
+          out.writeBoolean(true)
+          enc.encode(out, t)
+      }
+    }
+
+    def decode(in: DataInputStream): Option[T] = {
+      in.readBoolean() match {
+        case false => None
+        case true  =>  Some(enc.decode(in))
+      }
+    }
+  }
+
+  class `List*`[T](implicit enc: Stream[T]) extends Stream[List[T]] {
+    def encode(out: DataOutputStream, t: List[T]): Unit = {
+      writeVarInt(out, t.length)
+      for {e <- t} enc.encode(out, e)
+    }
+
+    def decode(in: DataInputStream): List[T] = {
+      val length = readVarInt(in).toInt
+      val result = Vector.fill[T](length) {
+        enc.decode(in)
+      }
+      result.toList
+    }
+  }
+
   /** Array evidence needs the type to have a class tag */
-  class `Array*`[T: ClassTag](implicit encoding: Stream[Seq[T]]) extends `Encode*`[Array[T], Seq[T]] (_.toArray, _.toSeq)
+  class `Array*`[T: ClassTag](implicit enc: Stream[T]) extends Stream[scala.Array[T]] {
+    def encode(out: DataOutputStream, t: scala.Array[T]): Unit = {
+      writeVarInt(out, t.length)
+      for {e <- t} enc.encode(out, e)
+    }
+
+    def decode(in: DataInputStream): scala.Array[T] = {
+      val length = readVarInt(in).toInt
+      val result = scala.Array.ofDim[T](length)
+          for  { i<-0 until length } result(i) = enc.decode(in)
+      result
+    }
+
+  }
 
 
   /**
@@ -185,41 +230,42 @@ object DataStreamEncoding {
     *   === Observation
     *
     *   Of course *any* class whose individuals objects are representable as such `N`tuples can be wire-encoded this way.
+    *
     */
 
 
 
-  class `1-Case*`[K, T](apply: T=>K, unapply: K=>Option[T])(implicit encoding: Stream[T]) extends Stream[K] {
-    def encode(out: DataOutputStream, t: K): Unit = encoding.encode(out, unapply(t).get)
-    def decode(in: DataInputStream): K = apply(encoding.decode(in))
+  class `1-Case*`[K, T](apply: T=>K, unapply: K=>Option[T])(implicit enc: Stream[T]) extends Stream[K] {
+    def encode(out: DataOutputStream, t: K): Unit = enc.encode(out, unapply(t).get)
+    def decode(in: DataInputStream): K = apply(enc.decode(in))
   }
 
   class `2-Case*`[K, T: Stream, U: Stream](apply: (T,U)=>K, unapply: K=>Option[(T,U)]) extends Stream[K] {
-      val encoding = new `2-Tuple*`[T,U]
-      def encode(out: DataOutputStream, t: K): Unit = encoding.encode(out, unapply(t).get)
-      def decode(in: DataInputStream): K = apply.tupled(encoding.decode(in))
+      val enc = new `2-Tuple*`[T,U]
+      def encode(out: DataOutputStream, t: K): Unit = enc.encode(out, unapply(t).get)
+      def decode(in: DataInputStream): K = apply.tupled(enc.decode(in))
     }
 
   /** Case classes are encoded as tuples; the associated streams require appropriate injections/projections to be supplied  */
   class `3-Case*`[K, T: Stream, U: Stream, V: Stream](apply: (T, U, V) => K, unapply: K => Option[(T, U, V)]) extends Stream[K] {
-    val encoding = new `3tuple*`[T, U, V]
-    def encode(out: DataOutputStream, t: K): Unit = encoding.encode(out, unapply(t).get)
-    def decode(in: DataInputStream): K = apply.tupled(encoding.decode(in))
+    val enc = new `3tuple*`[T, U, V]
+    def encode(out: DataOutputStream, t: K): Unit = enc.encode(out, unapply(t).get)
+    def decode(in: DataInputStream): K = apply.tupled(enc.decode(in))
   }
 
   /** Case classes are encoded as tuples; the associated streams require appropriate injections/projections to be supplied */
   class `4-Case*`[K, T: Stream, U: Stream, V: Stream, W: Stream](apply: (T, U, V, W) => K, unapply: K => Option[(T, U, V, W)]) extends Stream[K] {
-    val encoding = new `4-Tuple*`[T, U, V, W]
-    def encode(out: DataOutputStream, t: K): Unit = encoding.encode(out, unapply(t).get)
-    def decode(in: DataInputStream): K = apply.tupled(encoding.decode(in))
+    val enc = new `4-Tuple*`[T, U, V, W]
+    def encode(out: DataOutputStream, t: K): Unit = enc.encode(out, unapply(t).get)
+    def decode(in: DataInputStream): K = apply.tupled(enc.decode(in))
   }
 
   /** Case classes are encoded as tuples; the associated streams require appropriate injections/projections to be supplied */
   class `5-Case*`[K, T: Stream, U: Stream, V: Stream, W: Stream, X: Stream](apply: (T, U, V, W, X) => K, unapply: K => Option[(T, U, V, W, X)])
     extends Stream[K] {
-    val encoding = new `5-Tuple*`[T, U, V, W, X]
-    def encode(out: DataOutputStream, t: K): Unit = encoding.encode(out, unapply(t).get)
-    def decode(in: DataInputStream): K = apply.tupled(encoding.decode(in))
+    val enc = new `5-Tuple*`[T, U, V, W, X]
+    def encode(out: DataOutputStream, t: K): Unit = enc.encode(out, unapply(t).get)
+    def decode(in: DataInputStream): K = apply.tupled(enc.decode(in))
   }
 
   /**
@@ -230,7 +276,7 @@ object DataStreamEncoding {
     def encode(out: DataOutputStream, t: K): Unit = out.writeByte(0)
 
     def decode(in: DataInputStream): K = {
-      assert(in.readByte()==0, "Malformed case object encoding")
+      assert(in.readByte()==0, "Malformed case object enc")
       it
     }
   }
@@ -239,11 +285,11 @@ object DataStreamEncoding {
     * Enumerations, indeed, any types whose individuals are
     * representable as integers, are wire-encoded as the integer
     * that is their representation. The projection (decoding from `Int` to
-    * the type, and injection (encoding from the type to `Int`) must be given
-    * explicitly when constructing a stream encoding for such types (and must be
+    * the type, and injection (enc from the type to `Int`) must be given
+    * explicitly when constructing a stream enc for such types (and must be
     * mutual inverses).
     *
-    * For example, an implicit stream-encoding for the enumeration class defined (scala 2.12) by
+    * For example, an implicit stream-enc for the enumeration class defined (scala 2.12) by
     *
     * {{{
     *         object E extends Enumeration { val v1, v2, ... = Value }
@@ -270,27 +316,27 @@ object DataStreamEncoding {
 
   /**
     *  Values of type `T` may be be wire-encoded as values of type
-    *  `CODE` -- which must itself have a wire encoding. Simply
-    *  supply an injection `encoding:T=>CODE` and the corresponding inverse
+    *  `CODE` -- which must itself have a wire enc. Simply
+    *  supply an injection `enc:T=>CODE` and the corresponding inverse
     *  `decoding:CODE=>T`.
     *
     * === Remark
     *
     * In fact the following are operationally equivalent
-    * {{{`Enum*`[E] (decoding: Int => E, encoding: E => Int)}}}
+    * {{{`Enum*`[E] (decoding: Int => E, enc: E => Int)}}}
     * and
-    * {{{`Encode*`[E,Int](decoding, encoding)}}}
+    * {{{`Encode*`[E,Int](decoding, enc)}}}
     */
-  class `Encode*`[T,CODE](decoding: CODE=>T, encoding: T=>CODE)(implicit uenc: Stream[CODE]) extends Stream[T] {
-    def encode(out: DataOutputStream, k: T) = uenc.encode(out, encoding(k))
-    def decode(in: DataInputStream): T = decoding(uenc.decode(in))
+  class `Encode*`[T,CODE](decoding: CODE=>T, encoding: T=>CODE)(implicit CODEEnc: Stream[CODE]) extends Stream[T] {
+    def encode(out: DataOutputStream, k: T) = CODEEnc.encode(out, encoding(k))
+    def decode(in: DataInputStream): T = decoding(CODEEnc.decode(in))
   }
 
   /** Sets encoded as sequences */
-  class `Set*`[T](implicit encoding: Stream[Seq[T]]) extends `Encode*`[Set[T], Seq[T]](_.toSet, _.toSeq)
+  class `Set*`[T](implicit enc: Stream[Seq[T]]) extends `Encode*`[Set[T], Seq[T]](_.toSet, _.toSeq)
 
   /** Maps encoded as 2-tuple sequences */
-  class `Map*`[K,V](implicit encoding: Stream[Seq[(K,V)]]) extends `Encode*`[Map[K,V], Seq[(K,V)]](_.toMap, _.toSeq)
+  class `Map*`[K,V](implicit enc: Stream[Seq[(K,V)]]) extends `Encode*`[Map[K,V], Seq[(K,V)]](_.toMap, _.toSeq)
 
     // Notice that class `Enum*`[E] (decode: Int => E, code: E => Int) == (E `EncodedAs*` Int)(decode, code)
 
@@ -303,9 +349,15 @@ object DataStreamEncoding {
     def apply(k: K): TT = { coerce(k) }
     def followedBy(g: TT=>Unit): K=>Unit = { k => g(coerce(k)) }
     def orElse[UU](that: Coercion[K,UU]): K=>Unit = {
-      case k => try coerce(k) catch { case _: ClassCastException => that(k) }
+      case k => try coerce(k) catch {
+        case _: ClassCastException => that(k)
+        case _: MatchError         => that(k) // caused by an identity coercion on a case object
+      }
     }
   }
+
+  /** A "case object" cast for use in unions */
+  def asObject[K,T](b:T): (K=>T) = { case k:K @unchecked if k==b => b}
 
   /**
     * Encoder for a union type `K` where `T` and U` both extend `K`.
@@ -346,7 +398,7 @@ object DataStreamEncoding {
 
 
   /** @see `2-Union*` */
-  class `3-Union*`[K, T, U, V](toT: K=>T, toU: K=>U)(toV: K=>V)
+  class `3-Union*`[K, T, U, V](toT: K=>T, toU: K=>U, toV: K=>V)
                              (implicit tenc: Stream[T], uenc: Stream[U], venc: Stream[V]) extends Stream[K] {
 
     def encode(out: DataOutputStream, k: K): Unit = {
@@ -463,7 +515,7 @@ object DataStreamEncoding {
     }
   }
 
-  /** Encode a 5-tuple as the catenation of its component encodings */
+  /** Encode a 5-tuple as the catenation of its component encodings
   class `5-Tuple*`[T, U, V, W, X](implicit enc1: Stream[T], enc2: Stream[U], enc3: Stream[V], enc4: Stream[W], enc5: Stream[X])
     extends Stream[(T, U, V, W, X)] {
     def encode(out: DataOutputStream, v: (T, U, V, W, X)): Unit = {
@@ -483,6 +535,7 @@ object DataStreamEncoding {
       (t, u, v, w, x)
     }
   }
+  */
 
   class `6-Tuple*`[T1: Stream, T2: Stream, T3: Stream, T4: Stream, T5: Stream, T6: Stream]
     extends Stream[(T1, T2, T3, T4, T5, T6)] {
@@ -513,87 +566,51 @@ object DataStreamEncoding {
     }
   }
 
-}
+  class `5-Tuple*`[T1: Stream, T2: Stream, T3: Stream, T4: Stream, T5: Stream]
+    extends Stream[(T1, T2, T3, T4, T5)] {
+    val enc1 = implicitly[Stream[T1]]
+    val enc2 = implicitly[Stream[T2]]
+    val enc3 = implicitly[Stream[T3]]
+    val enc4 = implicitly[Stream[T4]]
+    val enc5 = implicitly[Stream[T5]]
 
-object DataStreamEncodingTest {
-  import ox.net.codec.DataStreamEncoding._
+    def encode(out: DataOutputStream, v: (T1, T2, T3, T4, T5)): Unit = {
+      enc1.encode(out, v._1)
+      enc2.encode(out, v._2)
+      enc3.encode(out, v._3)
+      enc4.encode(out, v._4)
+      enc5.encode(out, v._5)
+    }
 
-  def test[T](value: T)(implicit enc: Stream[T]): Unit = {
-      val bytes = new ByteArrayOutputStream()
-      val out   = new DataOutputStream(bytes)
-      enc.encode(out, value)
-      val streamed = bytes.toByteArray
-      print(s"Encoded ${value.toString.take(60)}... Size: ${streamed.size}")
-      val in      = new DataInputStream(new ByteArrayInputStream(streamed))
-      val decoded = enc.decode(in)
-      if (value == decoded) println(" Decoded OK") else (value, decoded) match
-      { case (v: Array[Any], d: Array[Any]) if v.toList == d.toList => println(s" Decoded as an equal array ${d.toList.mkString("Array(", ", ", ")")}")
-        case (v: Array[Any], d: Array[Any]) if v.toList != d.toList => println(s" Decoded as a distinct array ${d.toList.mkString("Array(", ", ", ")")}")
-        case (_, _) => println(s"Failed, because !=\nValue: $value \nDecoded: $decoded")
-      }
+    def decode(in: DataInputStream): (T1, T2, T3, T4, T5) = {
+      val t1 = enc1.decode(in)
+      val t2 = enc2.decode(in)
+      val t3 = enc3.decode(in)
+      val t4 = enc4.decode(in)
+      val t5 = enc5.decode(in)
+      (t1, t2, t3, t4, t5)
+    }
+  }
+
+  /**
+    * Use the implicit stream encoding/decoding for `T` to round-trip `value: T`,
+    * and check that the decoded result is `value`.
+    */
+  def encodingTest[T](value: T)(implicit enc: Stream[T]): Unit = {
+    val bytes = new ByteArrayOutputStream()
+    val out = new DataOutputStream(bytes)
+    enc.encode(out, value)
+    val streamed = bytes.toByteArray
+    val in = new DataInputStream(new ByteArrayInputStream(streamed))
+    val decoded = enc.decode(in)
+    (value, decoded) match {
+      case (v: Array[Any], d: Array[Any]) if v.toList == d.toList => println(s"OK ${v.toList.mkString("Array(", ", ", ")")} as an equal array. (${streamed.length} bytes)")
+      case (_, _) if value==decoded => println(s"OK ${value.toString.take(70)}... (${streamed.length} bytes)")
+      case (_, _) => println(s"**** Roundtrip failure\n**** Encoded: $value\n**** Decoded: $decoded")
+    }
   }
 }
 
-object StreamEncodingShortTests {
-  import DataStreamEncodingTest._
-
-  case class Record(name: String, value: Int)
-  import ox.net.codec.DataStreamEncoding._
-  implicit object Tuple2SI          extends `2-Tuple*`[String, Int] with Stream[(String,Int)]
-  implicit object RecordStream      extends `2-Case*`[Record, String, Int](Record.apply, Record.unapply) with Stream[Record]
-  implicit object IntSequence       extends `Seq*`[Int]
-  implicit object StringIntSequence extends `Seq*`[(String,Int)]
-  implicit object StringSequence    extends `Seq*`[String]
-  implicit object StringList        extends `List*`[String]
-  implicit object StringArray       extends `Array*`[String]
-  implicit object RecSeq            extends `Seq*`[Record]
-  implicit object SixTuple          extends `6-Tuple*`[Int, Int, Record, Double, Seq[String], Seq[Int]]
-  implicit object FiveTuple         extends `5-Tuple*`[Int, Int, Record, Double, Seq[String]]
-  implicit object FiveTupleL        extends `5-Tuple*`[Int, Int, Record, Double, List[String]]
-  implicit object FiveTupleA        extends `5-Tuple*`[Int, Int, Record, Double, Array[String]]
 
 
-  trait K
-  case class B1(n:Int, s: String) extends K
-  case class B2(n:Int, s: String) extends K
-
-  object Day extends Enumeration { val Mon, Tue, Wed = Value }
-  type Day = Day.Value
-
-  implicit object `B1*` extends `2-Case*`[B1,Int, String](B1.apply, B1.unapply)
-  implicit object `B2*` extends `2-Case*`[B2,Int, String](B2.apply, B2.unapply)
-  implicit object `K*` extends  `2-Union*`[K, B1, B2](_.asInstanceOf[B1], _.asInstanceOf[B2])
-  implicit object `KSeq*` extends  `Seq*`[K]
-  implicit object `Day*` extends  `Enum*`[Day](Day.apply, _.id)
-  implicit object `DaySeq*` extends `Seq*`[Day]
-  implicit object `DaySet*` extends `Set*`[Day]
-
-  def main(args: Array[String]): Unit =
-    {
-      test(1)
-      val v = (1, 2, Record("foo", 42), 3.2, Seq("A String", "Another String"))
-      test(v)
-      test((1, 2, Record("foo", 42), 3.2, Seq("A String", "Another String")))
-      val l = List("A String", "Another String")
-      test((1, 2, Record("foo", 42), 3.2, l))
-      test(Record("foo", 34))
-      test(Record("foo", 34))
-      test(Array("What do you think", "Mr Apocalypse"))
-      test(Seq(Day.Mon, Day.Tue, Day.Wed))
-      test(Set(Day.Mon, Day.Tue, Day.Wed, Day.Mon, Day.Tue))
-      test(B2(3, "b2"))
-      test(B1(3, "b1"))
-      // Limitation of union encoding: the inferred types of the undecorated sequences are
-      // Seq[Product with K with java.io.Serializable] = List(B1(1,B1), B2(2,B2))
-      // Something to get to grips with....
-      val ll: Seq[K] = Seq(B2(2, "b2"), B1(1, "b1"))
-      test(ll)
-      test(Seq(B2(2, "b2"), B1(1, "b1")).asInstanceOf [Seq[K]])
-      //
-      println("A few (expected) failures or near-misses (with arrays)")
-      test(Array("What do you think", "Mr Apocalypse"))
-      test((1, 2, Record("Expected inequality", 42), 3.2, Array("What do you think", "Mr Apocalypse")))
-    }
-
-}
 
