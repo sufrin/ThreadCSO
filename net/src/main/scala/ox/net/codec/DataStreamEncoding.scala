@@ -2,7 +2,7 @@ package ox.net.codec
 
 import ox.net.codec.VarInt._
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream, ObjectStreamConstants, StreamCorruptedException}
 import java.math.{BigDecimal => BigJavaDecimal, BigInteger => BigJavaInteger}
 import scala.reflect.ClassTag
 
@@ -129,7 +129,6 @@ object DataStreamEncoding {
       }
     }
 
-
     implicit object `BigDecimal*` extends Stream[BigDecimal] {
       def encode(out: DataOutputStream, t: BigDecimal) = {
         `BigJavaDecimal*`.encode(out, t.underlying())
@@ -140,8 +139,7 @@ object DataStreamEncoding {
       }
     }
 
-  class `Seq*`[T](implicit enc: Stream[T]) extends Stream[Seq[T]]
-  {
+  class `Seq*`[T](implicit enc: Stream[T]) extends Stream[Seq[T]]  {
     def encode(out: DataOutputStream, t: Seq[T]): Unit = {
       writeVarInt(out, t.length)
       for {e <- t} enc.encode(out, e)
@@ -246,12 +244,15 @@ object DataStreamEncoding {
       def decode(in: DataInputStream): K = apply.tupled(enc.decode(in))
     }
 
+
+
   /** Case classes are encoded as tuples; the associated streams require appropriate injections/projections to be supplied  */
   class `3-Case*`[K, T: Stream, U: Stream, V: Stream](apply: (T, U, V) => K, unapply: K => Option[(T, U, V)]) extends Stream[K] {
     val enc = new `3tuple*`[T, U, V]
     def encode(out: DataOutputStream, t: K): Unit = enc.encode(out, unapply(t).get)
     def decode(in: DataInputStream): K = apply.tupled(enc.decode(in))
   }
+
 
   /** Case classes are encoded as tuples; the associated streams require appropriate injections/projections to be supplied */
   class `4-Case*`[K, T: Stream, U: Stream, V: Stream, W: Stream](apply: (T, U, V, W) => K, unapply: K => Option[(T, U, V, W)]) extends Stream[K] {
@@ -267,6 +268,86 @@ object DataStreamEncoding {
     def encode(out: DataOutputStream, t: K): Unit = enc.encode(out, unapply(t).get)
     def decode(in: DataInputStream): K = apply.tupled(enc.decode(in))
   }
+
+
+  /** 2-Case with explicit encodings: for when one of the component types is K */
+  class `2-Case-Rec*`[K, T, U](apply: (T, U) => K, unapply: K => Option[(T, U)])(tenc: => Stream[T], uenc: => Stream[U]) extends Stream[K] {
+
+    def encode(out: DataOutputStream, t: K): Unit = {
+      val Some((tt, uu)) = unapply(t)
+      tenc.encode(out, tt)
+      uenc.encode(out, uu)
+    }
+
+    def decode(in: DataInputStream): K = {
+      val tt = tenc.decode(in)
+      val uu = uenc.decode(in)
+      apply(tt, uu)
+    }
+  }
+
+  /** 3-Case with explicit encodings: for when one of the component types is K */
+  class `3-Case-Rec*`[K, T, U, V](apply: (T, U, V) => K, unapply: K => Option[(T, U, V)])(tenc: => Stream[T], uenc: => Stream[U], venc: => Stream[V]) extends Stream[K] {
+
+    def encode(out: DataOutputStream, t: K): Unit = {
+      val Some((tt, uu, vv)) = unapply(t)
+      tenc.encode(out, tt)
+      uenc.encode(out, uu)
+      venc.encode(out, vv)
+    }
+
+    def decode(in: DataInputStream): K = {
+      val tt = tenc.decode(in)
+      val uu = uenc.decode(in)
+      val vv = venc.decode(in)
+      apply(tt, uu, vv)
+    }
+  }
+
+  /** 4-Case with explicit encodings: for when one of the component types is K */
+  class `4-Case-Rec*`[K, T, U, V, W](apply: (T, U, V, W) => K, unapply: K => Option[(T, U, V, W)])
+                                 (tenc: => Stream[T], uenc: => Stream[U], venc: => Stream[V], wenc: => Stream[W]) extends Stream[K] {
+
+    def encode(out: DataOutputStream, t: K): Unit = {
+      val Some((tt, uu, vv, ww)) = unapply(t)
+      tenc.encode(out, tt)
+      uenc.encode(out, uu)
+      venc.encode(out, vv)
+      wenc.encode(out, ww)
+    }
+
+    def decode(in: DataInputStream): K = {
+      val tt = tenc.decode(in)
+      val uu = uenc.decode(in)
+      val vv = venc.decode(in)
+      val ww = wenc.decode(in)
+      apply(tt, uu, vv, ww)
+    }
+  }
+
+  /** 5-Case with explicit encodings: for when one of the component types is K */
+  class `5-Case-Rec*`[K, T, U, V, W, X](apply: (T, U, V, W, X) => K, unapply: K => Option[(T, U, V, W, X)])
+                                       (tenc: => Stream[T], uenc: => Stream[U], venc: => Stream[V], wenc: => Stream[W], xenc: => Stream[X]) extends Stream[K] {
+
+    def encode(out: DataOutputStream, t: K): Unit = {
+      val Some((tt, uu, vv, ww, xx)) = unapply(t)
+      tenc.encode(out, tt)
+      uenc.encode(out, uu)
+      venc.encode(out, vv)
+      wenc.encode(out, ww)
+      xenc.encode(out, xx)
+    }
+
+    def decode(in: DataInputStream): K = {
+      val tt = tenc.decode(in)
+      val uu = uenc.decode(in)
+      val vv = venc.decode(in)
+      val ww = wenc.decode(in)
+      val xx = xenc.decode(in)
+      apply(tt, uu, vv, ww, xx)
+    }
+  }
+
 
   /**
     *   A case object is wire-encoded as a single zero byte. It requires no
@@ -312,6 +393,17 @@ object DataStreamEncoding {
   class `Enum*`[E](decoding: Int => E, encoding: E => Int) extends Stream[E] {
     def encode(out: DataOutputStream, k: E) = out.writeInt(encoding(k))
     def decode(in: DataInputStream): E = decoding(in.readInt())
+  }
+
+  implicit object `Null*` extends Stream[Null] {
+    def encode(out: DataOutputStream, t: Null): Unit = {
+      out.writeBoolean(false)
+    }
+
+    def decode(in: DataInputStream): Null = {
+      in.readBoolean()
+      null
+    }
   }
 
   /**
@@ -442,8 +534,13 @@ object DataStreamEncoding {
   }
 
   /** @see `2-Union*` */
-  class `5-Union*`[K, T, U, V, W, X](toT: K => T, toU: K => U, toV: K => V, toW: K => W, toX: K=>X)
-                                   (implicit tenc: Stream[T], uenc: Stream[U], venc: Stream[V], wenc: Stream[W], xenc: Stream[X]) extends Stream[K] {
+  class `5-Union*`[K, T, U, V, W, X](toT: K => T, toU: K => U, toV: K => V, toW: K => W, toX: K => X)
+                                    (implicit tenc: Stream[T], uenc: Stream[U], venc: Stream[V], wenc: Stream[W], xenc: Stream[X]) extends
+                                    `5-Union**`[K,T,U,V,W,X](toT, toU, toV, toW, toX)(tenc, uenc, venc, wenc, xenc)
+
+
+  class `5-Union**`[K, T, U, V, W, X](toT: K => T, toU: K => U, toV: K => V, toW: K => W, toX: K => X)
+                                    (tenc: Stream[T], uenc: Stream[U], venc: Stream[V], wenc: Stream[W], xenc: Stream[X]) extends Stream[K] {
 
     def encode(out: DataOutputStream, k: K): Unit = {
       val enc =
@@ -515,7 +612,7 @@ object DataStreamEncoding {
     }
   }
 
-  /** Encode a 5-tuple as the catenation of its component encodings
+/*
   class `5-Tuple*`[T, U, V, W, X](implicit enc1: Stream[T], enc2: Stream[U], enc3: Stream[V], enc4: Stream[W], enc5: Stream[X])
     extends Stream[(T, U, V, W, X)] {
     def encode(out: DataOutputStream, v: (T, U, V, W, X)): Unit = {
@@ -534,8 +631,7 @@ object DataStreamEncoding {
       val x = enc5.decode(in)
       (t, u, v, w, x)
     }
-  }
-  */
+  } */
 
   class `6-Tuple*`[T1: Stream, T2: Stream, T3: Stream, T4: Stream, T5: Stream, T6: Stream]
     extends Stream[(T1, T2, T3, T4, T5, T6)] {
@@ -592,23 +688,64 @@ object DataStreamEncoding {
     }
   }
 
-  /**
-    * Use the implicit stream encoding/decoding for `T` to round-trip `value: T`,
-    * and check that the decoded result is `value`.
-    */
-  def encodingTest[T](value: T)(implicit enc: Stream[T]): Unit = {
-    val bytes = new ByteArrayOutputStream()
-    val out = new DataOutputStream(bytes)
-    enc.encode(out, value)
-    val streamed = bytes.toByteArray
-    val in = new DataInputStream(new ByteArrayInputStream(streamed))
-    val decoded = enc.decode(in)
-    (value, decoded) match {
-      case (v: Array[Any], d: Array[Any]) if v.toList == d.toList => println(s"OK ${v.toList.mkString("Array(", ", ", ")")} as an equal array. (${streamed.length} bytes)")
-      case (_, _) if value==decoded => println(s"OK ${value.toString.take(70)}... (${streamed.length} bytes)")
-      case (_, _) => println(s"**** Roundtrip failure\n**** Encoded: $value\n**** Decoded: $decoded")
+  /** Any `Serializable` type, using object I/O (which can be slow) */
+  class `Serializable*`[T <: Serializable] extends Stream[T] {
+    def encode(out: DataOutputStream, t: T): Unit = {
+      val byteStream = new ByteArrayOutputStream(1024)
+      val objOut = new ObjectOutputStream(byteStream)
+      objOut.useProtocolVersion(ObjectStreamConstants.PROTOCOL_VERSION_2)
+      objOut.writeObject(t)
+      objOut.flush()
+      val rep = byteStream.toByteArray
+      out.writeInt(rep.length)
+      out.write(rep)
+    }
+
+    def decode(in: DataInputStream): T = {
+      val length = in.readInt()
+      val rep = new Array[Byte](length)
+      if (length<in.read(rep)) throw new StreamCorruptedException("Decoding object input (stream too short)")
+      val objIn = new ObjectInputStream(new ByteArrayInputStream(rep))
+      objIn.readObject().asInstanceOf[T]
     }
   }
+
+
+  /**
+    * Maps `value` to its encoding as an `Array[Byte]`.
+    */
+  def toByteArray[T: Stream](value: T): Array[Byte] = {
+    val bytes = new ByteArrayOutputStream()
+    val enc = implicitly[Stream[T]]
+    val out = new DataOutputStream(bytes)
+    enc.encode(out, value)
+    bytes.toByteArray
+  }
+
+  /**
+    * Maps `encoded` to a `value: T` such that `toByteArray[T](value)==encoded`.
+    */
+  def fromByteArray[T: Stream](encoded: Array[Byte]): T = {
+    val enc = implicitly[Stream[T]]
+    val in = new DataInputStream(new ByteArrayInputStream(encoded))
+    enc.decode(in)
+  }
+
+  /**
+    * Check that a roundtrip encoding/decoding of `value` yields an equivalent `T`.
+    * Failure should be expected for structures that have embedded arrays in them
+    * and for which there is no defined equality.
+    */
+  def encodingTest[T: Stream](value: T): Unit = {
+    val encoded = toByteArray[T](value)
+    val decoded = fromByteArray[T](encoded)
+    (value, decoded) match {
+      case (v: Array[Any], d: Array[Any]) if v.toList == d.toList => println(s"OK ${v.toList.mkString("Array(", ", ", ")")} as an equal array. (${encoded.length} bytes)")
+      case (_, _) if value==decoded => println(s"OK ${value.toString.take(70)}... (${encoded.length} bytes)")
+      case (_, _) => println(s"**** Roundtrip failure (${encoded.length} bytes)\n**** Encoded: $value\n**** Decoded: $decoded")
+    }
+  }
+
 }
 
 
