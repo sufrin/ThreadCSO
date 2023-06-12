@@ -5,13 +5,14 @@ import java.nio.ByteBuffer
 
 
 /**
-  *  An extensible output stream that writes to a `ByteBuffer`. The buffer enlarges
-  *  when necessary to accomodate all that is written.
+  *  An extensible output stream that writes to a `ByteBuffer`. Mostly intended for use
+  *  when writing datagrams. The buffer enlarges when necessary to accommodate
+  *  all that is written.
   *
   *  Enlargement is done straightforwardly on the grounds
   *  that if the original estimated size is too small for the largest datagram
   *  to be sent, then the buffer will not take many enlargements before it gets
-  *  large enough. A more sophisticated strategy could avoid copying at
+  *  large enough. A more sophisticated strategy would avoid copying at
   *  the expense of complexity.
   *
   *  For the moment we avoid directly-allocated (off-heap) buffers, because there

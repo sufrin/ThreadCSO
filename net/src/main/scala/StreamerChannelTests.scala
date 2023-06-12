@@ -41,7 +41,7 @@ object dskbd extends ManualTest("dskbd -- sends sequences of records ") {
   def Test() = {
     val channel: TypedTCPChannel[RecordSeq, RecordSeq] = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024)
     {
-       TCPChannel.connected(new java.net.InetSocketAddress(host, port), new StreamerChannelFactory[RecordSeq]())
+       TCPChannel.connected(new java.net.InetSocketAddress(host, port), new StreamerChannelFactory[RecordSeq, RecordSeq]())
     }
 
     if (SND>0) channel.setOption(SO_SNDBUF, SND)

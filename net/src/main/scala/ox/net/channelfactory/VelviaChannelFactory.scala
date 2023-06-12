@@ -11,34 +11,13 @@ import java.net.Socket
 import java.nio.channels.SocketChannel
 
 /**
-  * A class which can be specialized as a builder of type-specific channels for serializable types for which (implicit)
-  * {{{org.velvia.msgpack.Codecs}}} can be synthesized or directly constructed. Although it can be a little tedious to
-  * synthesize the `Codec`s, the language machinery is more or less acceptable. This class is structurally almost the same as
+  * An abstract `ChannelFactory` for a pair of types, `[OUT,IN]` each with an  `ImplicitCodec` stream-encoding that can be synthesised or
+  * inferred (for example by using the tools of `org.velcia.msgpack`). This class is structurally almost the same as
   * `StreamerChannelFactory`.
-  *
-  * Cases in point (of the tedium) are those in `MessagePackTests` in which `Ty` is defined respectively by:
-  * {{{
-  *   type Ty = (Int, Int)
-  *   type Ty = (Int, String)
-  *   case class Ty(times: Int, string: String)
-  * }}}
-  *
-  * The derivations are (respectively)
-  * {{{
-  *    implicit object TyCodec extends TupleCodec2[Int,Int]
-  *    implicit object TyCodec extends TupleCodec2[Int, String]
-  *    implicit object TyCodec extends
-  *       CaseClassCodec2[Ty, Int, String]( Ty, Ty.unapply )
-  * }}}
-  *
-  * Though I'd have preferred to copy-and-paste
-  * {{{
-  *   implicit object TyCodec extends Codec[Ty]
-  * }}}
   */
 
-class VelviaChannelFactory[T : ImplicitCodec] extends ox.logging.Log("VelviaChannelFactory") with TypedChannelFactory[T, T] {
-  def newChannel(theChannel: SocketChannel): TypedTCPChannel[T,T] = new TypedTCPChannel[T,T] with Mixin {
+class VelviaChannelFactory[OUT : ImplicitCodec, IN: ImplicitCodec] extends ox.logging.Log("VelviaChannelFactory") with TypedChannelFactory[OUT, IN] {
+  def newChannel(theChannel: SocketChannel): TypedTCPChannel[OUT,IN] = new TypedTCPChannel[OUT, IN] with Mixin {
     val channel = theChannel
     val output = new DataOutputStream(new BufferedOutputStream(java.nio.channels.Channels.newOutputStream(channel)))
     val input = new DataInputStream(new BufferedInputStream(java.nio.channels.Channels.newInputStream(channel)))
@@ -48,7 +27,7 @@ class VelviaChannelFactory[T : ImplicitCodec] extends ox.logging.Log("VelviaChan
     * Build a `NetProxy`` from the given `Socket`
     * Expected to be used only for SSL/TLS Sockets.
     */
-  def newChannel(theSocket: Socket): TypedSSLChannel[T,T] = new TypedSSLChannel[T,T] with Mixin {
+  def newChannel(theSocket: Socket): TypedSSLChannel[OUT, IN] = new TypedSSLChannel[OUT, IN] with Mixin {
     val socket = theSocket
     val output = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream))
     val input = new DataInputStream(new BufferedInputStream(socket.getInputStream))
@@ -57,7 +36,7 @@ class VelviaChannelFactory[T : ImplicitCodec] extends ox.logging.Log("VelviaChan
   /**
     * Build a `Codec` from the given `input` and `output` streams.
     */
-  def newCodec(_output: OutputStream, _input: InputStream): ox.net.codec.Codec[T,T] = new ox.net.codec.Codec[T,T] with Mixin {
+  def newCodec(_output: OutputStream, _input: InputStream): ox.net.codec.Codec[OUT, IN] = new ox.net.codec.Codec[OUT,IN] with Mixin {
     val output = new DataOutputStream(new BufferedOutputStream(_output))
     val input = new DataInputStream(new BufferedInputStream(_input))
   }
@@ -68,8 +47,8 @@ class VelviaChannelFactory[T : ImplicitCodec] extends ox.logging.Log("VelviaChan
     var inOpen, outOpen = true
     def sync: Boolean
 
-    def decode(): T = try {
-      org.velvia.MessagePack.unpack(input)
+    def decode(): IN = try {
+      org.velvia.MessagePack.unpack(input)(implicitly[ImplicitCodec[IN]])
     } catch {
       case exn: InvalidMsgPackDataException => inOpen = false; throw new ox.net.codec.EndOfInputStream(input)
       case exn: UTFDataFormatException => inOpen = false; throw new ox.net.codec.EndOfInputStream(input)
@@ -93,7 +72,7 @@ class VelviaChannelFactory[T : ImplicitCodec] extends ox.logging.Log("VelviaChan
       * Encode `output` and transmit its representation to
       * the associated network stream
       */
-    def encode(value: T): Unit = {
+    def encode(value: OUT): Unit = {
       org.velvia.MessagePack.pack(value, output)
       if (sync) output.flush()
     }

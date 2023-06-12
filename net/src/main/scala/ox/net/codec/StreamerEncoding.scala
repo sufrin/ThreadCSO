@@ -7,7 +7,7 @@ import java.math.{BigDecimal => BigJavaDecimal, BigInteger => BigJavaInteger}
 import scala.reflect.ClassTag
 
 /**
-  *  A stream encoding is an injective mapping between values of type `T` and the sequence of
+  *  A stream(er) encoding is an injective mapping between values of type `T` and the sequence of
   *  bytes that is used to represent values of that type.
   *
   *  Here we provide stream encodings for use on cross-network transport or

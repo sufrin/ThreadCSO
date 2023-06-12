@@ -173,18 +173,18 @@ object kbd extends ManualTest("kbd1 -- sends keyboard messages. Run opposite ref
 }
 
 object kbdx extends ManualTest("kbdx -- sends multiple keyboard messages encoded as a datastream of sequences. Run opposite reflect.") {
-  type StringArray = Seq[String]
+  type Ty = Seq[String]
   def Test() = {
     import ox.net.codec.StreamerEncoding._
-    implicit object StringSeq extends `Seq*`[String]
-    object CF extends StreamerChannelFactory[Seq[String]]
-    val channel: TypedTCPChannel[StringArray, StringArray] = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024)
+    implicit object `Seq[String]*` extends `Seq*`[String]
+    object CF extends StreamerChannelFactory[Seq[String], Seq[String]]
+    val channel: TypedTCPChannel[Ty, Ty] = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024)
     { TCPChannel.connected(new java.net.InetSocketAddress(host, port), CF) }
     if (SND>0) channel.setOption(SO_SNDBUF, SND)
     if (RCV>0) channel.setOption(SO_RCVBUF, RCV)
     val kbd      = OneOne[String]("kbd")
-    val fromHost = OneOneBuf[StringArray](50, name = "fromHost") // A synchronized channel causes deadlock under load
-    val toHost   = OneOneBuf[StringArray](50, name = "toHost") // A synchronized channel causes deadlock under load
+    val fromHost = OneOneBuf[Ty](50, name = "fromHost") // A synchronized channel causes deadlock under load
+    val toHost   = OneOneBuf[Ty](50, name = "toHost") // A synchronized channel causes deadlock under load
 
     // Bootstrap the channel processes
     val toNet        = channel.CopyToNet(toHost).fork

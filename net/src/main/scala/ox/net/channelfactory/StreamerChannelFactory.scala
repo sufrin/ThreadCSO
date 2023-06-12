@@ -9,20 +9,17 @@ import java.net.Socket
 import java.nio.channels.SocketChannel
 
 /**
-  * An abstract `ChannelFactory` for a type that has a `StreamerEncoding` that can be synthesised or
-  * inferred (for example by using the tools of `StreamerEncoding`)
+  * An abstract `ChannelFactory` for a pair of types, `[OUT,IN]` each with a  `Streamer` stream-encoding that can be synthesised or
+  * inferred (for example by using the tools of `StreamerEncoding`).
   *
-  * For efficiency we also provide `VelviaChannelFactory`, for direct use with encodings made
-  * from encodings originating with `org.velvia.MessagePack`. These encodings are in general
-  * very much more concise than those originating with `StreamerEncoding`. They have the
-  * added (killer) virtue of having many language bindings to them and facilitating interworking.
-    *
+  * @see  VelviaChannelFactory, CRLFChannelFactory, UTF8ChannelFactory for factories that use other (families of) encoding.
   */
-class StreamerChannelFactory[T : Streamer]
+class StreamerChannelFactory[OUT : Streamer, IN: Streamer]
        extends ox.logging.Log("StreamerChannelFactory")
-       with TypedChannelFactory[T,T] {
+       with TypedChannelFactory[OUT, IN] {
 
-  private val streamer = implicitly[Streamer[T]]
+  private val tenc = implicitly[Streamer[OUT]]
+  private val uenc = implicitly[Streamer[IN]]
 
   /**
     * This mixin requires `input` and `output` datastreams, and a `sync`
@@ -39,8 +36,8 @@ class StreamerChannelFactory[T : Streamer]
     /**
       * Decode the next encoded item on the associated network stream
       */
-    def decode(): T = try {
-      streamer.fromStream(input)
+    def decode(): IN = try {
+      uenc.fromStream(input)
     } catch {
       case exn: UTFDataFormatException => inOpen = false; throw new EndOfInputStream(input)
       case exn: EOFException => inOpen = false; throw new EndOfInputStream(input)
@@ -63,8 +60,8 @@ class StreamerChannelFactory[T : Streamer]
       * Encode `output` and transmit its representation to
       * the associated network stream
       */
-    def encode(t: T): Unit = {
-      streamer.toStream(output, t)
+    def encode(t: OUT): Unit = {
+      tenc.toStream(output, t)
       if (sync) output.flush()
     }
 
@@ -76,7 +73,7 @@ class StreamerChannelFactory[T : Streamer]
   }
 
   /** Build a `NetProxy`` from the given `SocketChannel` */
-  def newChannel(theChannel: SocketChannel): TypedTCPChannel[T,T] = new TypedTCPChannel[T,T] with Mixin {
+  def newChannel(theChannel: SocketChannel): TypedTCPChannel[OUT,IN] = new TypedTCPChannel[OUT,IN] with Mixin {
     val channel = theChannel
     val output = new DataOutputStream(new BufferedOutputStream(java.nio.channels.Channels.newOutputStream(channel)))
     val input = new DataInputStream(new BufferedInputStream(java.nio.channels.Channels.newInputStream(channel)))
@@ -85,7 +82,7 @@ class StreamerChannelFactory[T : Streamer]
   /**
     * Build a `NetProxy`` from the given `Socket`. Intended for use only for SSL/TLS Sockets.
     */
-  def newChannel(theSocket: Socket): TypedSSLChannel[T,T] = new TypedSSLChannel[T, T] with Mixin {
+  def newChannel(theSocket: Socket): TypedSSLChannel[OUT,IN] = new TypedSSLChannel[OUT,IN] with Mixin {
     val socket = theSocket
     val output = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream))
     val input  = new DataInputStream(new BufferedInputStream(socket.getInputStream))
@@ -94,7 +91,7 @@ class StreamerChannelFactory[T : Streamer]
   /**
     * Build a `Codec` from the given `input` and `output` streams.
     */
-  def newCodec(_output: OutputStream, _input: InputStream): Codec[T, T] = new Codec[T,T]  with Mixin {
+  def newCodec(_output: OutputStream, _input: InputStream): Codec[OUT, IN] = new Codec[OUT,IN]  with Mixin {
     val output = new DataOutputStream(new BufferedOutputStream(_output))
     val input = new DataInputStream(new BufferedInputStream(_input))
   }
