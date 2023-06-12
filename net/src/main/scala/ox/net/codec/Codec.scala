@@ -20,9 +20,9 @@ trait Encoder[-O] {
     */
   def encode(output: O): Unit
 
-  /** The most recent `encode` was successful if true; else the associated stream closed or the encode failed */
+  /** The most recent `toStream` was successful if true; else the associated stream closed or the toStream failed */
 
-  /** When `sync` is true of an encoder, its associated stream must be flushed after an `encode`. */
+  /** When `sync` is true of an encoder, its associated stream must be flushed after an `toStream`. */
   def sync: Boolean = _sync
 
   /**
@@ -53,8 +53,8 @@ trait Decoder[+I] {
   def decode(): I
 
   /**
-    * The most recent `decode` yielded a valid result if true;
-    * else the associated stream closed or the decode failed.
+    * The most recent `fromStream` yielded a valid result if true;
+    * else the associated stream closed or the fromStream failed.
     */
   def canDecode: Boolean
 

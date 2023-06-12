@@ -3,11 +3,11 @@ package ox.net
 
 import io.threadcso.{OneOne, OneOneBuf, component, exit, proc, repeat, run, stop}
 import ox.net.SocketOptions.{SO_RCVBUF, SO_SNDBUF}
-import ox.net.channelfactory.DataStreamChannelFactory
+import ox.net.channelfactory.StreamerChannelFactory
 
 
 /**
-  * A cursory test for the sending and receiving of messages encoded using `DataStreamEncoding`
+  * A cursory test for the sending and receiving of messages encoded using `StreamerEncoding`
   * codecs.
   *
   * `times` is the number of times each message is replicated. It can be set from the keyboard
@@ -21,7 +21,7 @@ import ox.net.channelfactory.DataStreamChannelFactory
 
 object dskbd extends ManualTest("dskbd -- sends sequences of records ") {
 
-  import ox.net.codec.DataStreamEncoding._
+  import ox.net.codec.StreamerEncoding._
 
   trait Record
   case class Record1(name: String, value: Seq[Span]) extends Record
@@ -41,7 +41,7 @@ object dskbd extends ManualTest("dskbd -- sends sequences of records ") {
   def Test() = {
     val channel: TypedTCPChannel[RecordSeq, RecordSeq] = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024)
     {
-       TCPChannel.connected(new java.net.InetSocketAddress(host, port), new DataStreamChannelFactory[RecordSeq]())
+       TCPChannel.connected(new java.net.InetSocketAddress(host, port), new StreamerChannelFactory[RecordSeq]())
     }
 
     if (SND>0) channel.setOption(SO_SNDBUF, SND)

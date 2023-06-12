@@ -4,7 +4,7 @@ import app.OPT._
 import io.threadcso._
 import ox.logging.{Log, Logging => LOGGING}
 import ox.net.SSLChannel.{TLSCredential, TLSWithoutCredential, client}
-import ox.net.channelfactory.{CRLFChannelFactory, DataStreamChannelFactory, UTF8ChannelFactory}
+import ox.net.channelfactory.{CRLFChannelFactory, StreamerChannelFactory, UTF8ChannelFactory}
 import ox.net.SocketOptions._
 import ox.net.UDPChannel.{Datagram, Malformed, UDP}
 
@@ -175,9 +175,9 @@ object kbd extends ManualTest("kbd1 -- sends keyboard messages. Run opposite ref
 object kbdx extends ManualTest("kbdx -- sends multiple keyboard messages encoded as a datastream of sequences. Run opposite reflect.") {
   type StringArray = Seq[String]
   def Test() = {
-    import ox.net.codec.DataStreamEncoding._
+    import ox.net.codec.StreamerEncoding._
     implicit object StringSeq extends `Seq*`[String]
-    object CF extends DataStreamChannelFactory[Seq[String]]
+    object CF extends StreamerChannelFactory[Seq[String]]
     val channel: TypedTCPChannel[StringArray, StringArray] = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024)
     { TCPChannel.connected(new java.net.InetSocketAddress(host, port), CF) }
     if (SND>0) channel.setOption(SO_SNDBUF, SND)

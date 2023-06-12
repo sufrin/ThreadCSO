@@ -15,7 +15,7 @@ trait NetOutputProxy[-O] extends Encoder[O] {
     try {
       repeat {
         val value = in ? ()
-        if (logging) NetProxy.finest(s"Copy to net encode($value)")
+        if (logging) NetProxy.finest(s"Copy to net toStream($value)")
         encode(value)
         if (logging) NetProxy.finest(s"Copy to net encoded()=")
       }

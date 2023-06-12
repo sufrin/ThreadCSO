@@ -1,5 +1,5 @@
   def streamToPort[T](in: java.io.InputStream, out: !![T], decoder: Decoder[T]): PROC = proc {
-      var decode: () => DecodeResult[T] = decoder.decode _
+      var fromStream: () => DecodeResult[T] = decoder.fromStream _
       val buffer = decoder.buffer
       repeat {
         try {
@@ -8,16 +8,16 @@
             buffer.put(in.read().asInstanceOf[Byte])
             while (in.available() > 0) buffer.put(in.read().asInstanceOf[Byte])
             buffer.flip()
-            decode() match {
+            fromStream() match {
               case types.Decoded(value: T @unchecked) =>
                 inPrefix = false
-                decode   = decoder.decode _
+                fromStream   = decoder.fromStream _
                 out ! value
               case types.ReadMore =>
                 // still in prefix
                 buffer.compact()
               case types.ReadThen(cont) =>
-                decode = cont
+                fromStream = cont
             }
           }
         } catch {
@@ -33,7 +33,7 @@
       in ? {
         t =>
           encoder.clear()
-          encoder.encode(t)
+          encoder.toStream(t)
       }
     }
     out.close()

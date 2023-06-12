@@ -1,6 +1,7 @@
 package ox.net.channelfactory
 
-import ox.net.codec.{Codec, EndOfInputStream, DataStreamEncoding}
+import ox.net.codec.StreamerEncoding.Streamer
+import ox.net.codec.{Codec, EndOfInputStream}
 import ox.net.{TypedChannelFactory, TypedSSLChannel, TypedTCPChannel}
 
 import java.io._
@@ -8,22 +9,26 @@ import java.net.Socket
 import java.nio.channels.SocketChannel
 
 /**
-  * An abstract `ChannelFactory` for a type that has a `DataStreamEncoding` that can be synthesised or
-  * inferred (for example by using the tools of `DataStreamEncoding`)
+  * An abstract `ChannelFactory` for a type that has a `StreamerEncoding` that can be synthesised or
+  * inferred (for example by using the tools of `StreamerEncoding`)
   *
   * For efficiency we also provide `VelviaChannelFactory`, for direct use with encodings made
   * from encodings originating with `org.velvia.MessagePack`. These encodings are in general
-  * very much more concise than those originating with `DataStreamEncoding`. They have the
+  * very much more concise than those originating with `StreamerEncoding`. They have the
   * added (killer) virtue of having many language bindings to them and facilitating interworking.
     *
   */
-class DataStreamChannelFactory[T](implicit encoding: DataStreamEncoding.Stream[T])
-       extends ox.logging.Log("DataStreamChannelFactory")
+class StreamerChannelFactory[T : Streamer]
+       extends ox.logging.Log("StreamerChannelFactory")
        with TypedChannelFactory[T,T] {
 
+  private val streamer = implicitly[Streamer[T]]
+
   /**
-    * This mixin requires `input` and `output` datastreams, and a `sync` in its
-    * host class.
+    * This mixin requires `input` and `output` datastreams, and a `sync`
+    * to be defined in its host class. It provides `encode(), `decode()`,
+    * `canEncode()`, `canDecode()`, etc. to be used in the construction of
+    * the typed channels/codecs to be provided by its enclosing `StreamerChannelFactory`.
     */
   trait Mixin {
     val input:  DataInputStream
@@ -35,7 +40,7 @@ class DataStreamChannelFactory[T](implicit encoding: DataStreamEncoding.Stream[T
       * Decode the next encoded item on the associated network stream
       */
     def decode(): T = try {
-      encoding.decode(input)
+      streamer.fromStream(input)
     } catch {
       case exn: UTFDataFormatException => inOpen = false; throw new EndOfInputStream(input)
       case exn: EOFException => inOpen = false; throw new EndOfInputStream(input)
@@ -43,8 +48,8 @@ class DataStreamChannelFactory[T](implicit encoding: DataStreamEncoding.Stream[T
     }
 
     /**
-      * The most recent `decode` yielded a valid result if true;
-      * else the associated stream closed or the decode failed.
+      * The most recent `fromStream` yielded a valid result if true;
+      * else the associated stream closed or the fromStream failed.
       */
     def canDecode: Boolean = inOpen
 
@@ -59,7 +64,7 @@ class DataStreamChannelFactory[T](implicit encoding: DataStreamEncoding.Stream[T
       * the associated network stream
       */
     def encode(t: T): Unit = {
-      encoding.encode(output, t)
+      streamer.toStream(output, t)
       if (sync) output.flush()
     }
 
@@ -78,8 +83,7 @@ class DataStreamChannelFactory[T](implicit encoding: DataStreamEncoding.Stream[T
   }
 
   /**
-    * Build a `NetProxy`` from the given `Socket`.
-    * Expected to be used only for SSL/TLS Sockets.
+    * Build a `NetProxy`` from the given `Socket`. Intended for use only for SSL/TLS Sockets.
     */
   def newChannel(theSocket: Socket): TypedSSLChannel[T,T] = new TypedSSLChannel[T, T] with Mixin {
     val socket = theSocket

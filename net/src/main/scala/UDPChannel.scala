@@ -20,7 +20,7 @@ object UDPChannel extends
   /**
     * Evidence of the arrival of an undecodeable packet that originated at the given address`. The
     * packet may well have been "silently truncated". There is no provision for
-    * trying again to decode the undecodeable payload, but a higher-level protocol may
+    * trying again to fromStream the undecodeable payload, but a higher-level protocol may
     * decide to send a "resend" notification.
     */
   case class Malformed[T](address: SocketAddress) extends UDP[T]
@@ -33,7 +33,7 @@ object UDPChannel extends
     * to the currently-connected remote address.
     *
     *
-    * @see UDPChannel.encode
+    * @see UDPChannel.toStream
     */
   case class Datagram[T](value: T, address: SocketAddress = null) extends UDP[T] {
     override def toString: String =
@@ -196,7 +196,7 @@ object UDPChannel extends
   *
   * It is therefore essential that adequately sized read-buffers be allocated; or that datagrams carry
   * an indication of their expected length early in their wire representation so that the "silent discarding"
-  * can be detected by the `Decoder.decode()` used to decode treceived packets.
+  * can be detected by the `Decoder.fromStream()` used to fromStream treceived packets.
   */
 class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFactory[OUT, IN])  extends
       TypedUDPChannel[UDP[OUT],UDP[IN]] {
@@ -230,19 +230,19 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
     * as results of arriving datagrams that cannot be decoded.
     */
   def encode(packet: UDP[OUT]): Unit = {
-    if (logging) log.finest(s"before encode(#{$packet.value.size}) [${output.buffer}]")
+    if (logging) log.finest(s"before toStream(#{$packet.value.size}) [${output.buffer}]")
     packet match {
       case Datagram(value, addr) =>
         output.newDatagram(addr)
         codec.encode (value)
-        if (logging) log.finest (s"after encode($packet) [${output.buffer}]")
+        if (logging) log.finest (s"after toStream($packet) [${output.buffer}]")
       case Malformed(addr) =>
     }
     ()
   }
 
   /**
-    * Await the next raw datagram packet on the channel then decode and
+    * Await the next raw datagram packet on the channel then fromStream and
     * return `Datagram(decoded-raw-data, sourceAddress)`.
     *
     * If the packet is malformed because of a decoding failure caused by
@@ -267,10 +267,10 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
          result
        } catch {
          case exn: EOFException =>
-           log.warning(s"datagram decode failed (abbreviated) (${exn}) [$input]")
+           log.warning(s"datagram fromStream failed (abbreviated) (${exn}) [$input]")
            Malformed(sourceAddress)
          case exn: UTFDataFormatException =>
-           log.warning(s"datagram decode failed (UTF8 data malformed) (${exn}) [$input]")
+           log.warning(s"datagram fromStream failed (UTF8 data malformed) (${exn}) [$input]")
            Malformed(sourceAddress)
        }
      } catch {
@@ -294,7 +294,7 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
    var inOpen = true
 
    /**
-     * The most recent `decode` yielded a valid result if true; else the associated channel closed/failed,
+     * The most recent `fromStream` yielded a valid result if true; else the associated channel closed/failed,
      * and `lastException` may explain why.
      */
    override def canDecode: Boolean = inOpen

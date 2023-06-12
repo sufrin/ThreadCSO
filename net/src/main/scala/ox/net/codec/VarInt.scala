@@ -9,7 +9,7 @@ package ox.net.codec
   * See `http://code.google.com/apis/protocolbuffers/docs/encoding.html`
   *
   * The unsigned `VarInt` representation of a `Long`
-  * consists of a sequence of bytes that encode a
+  * consists of a sequence of bytes that toStream a
   * radix-128 integer in littlendian order.  The most
   * significant bit of each byte (`bit7`) is set unless
   * the byte is the last of the sequence.

@@ -11,9 +11,9 @@ presents to an application as a pair of  proxy processes whose
 purpose is to copy data from and to the application itself:
 
     trait   NetProxy[-OUT,+IN] 
-            // encode data from `in` and write the encoded form to the net
+            // toStream data from `in` and write the encoded form to the net
             def CopyToNet  (in: ??[OUT]): PROC = ...
-            // read encoded data from the network, then decode and write it to `out`
+            // read encoded data from the network, then fromStream and write it to `out`
             def CopyFromNet(out: !![IN]): PROC = ...
 
 It is the application's responsibility to start the proxies before it gets down
@@ -74,8 +74,8 @@ Finally, the following constructs a UDP datagram channel that has a "bespoke"
 wire encoding for messages that consist of sequences of records. 
 The bespoke encoding is determined implicitly.
 
-    import ox.net.codec.DataStreamEncoding.Primitive._
-    import ox.net.codec.DataStreamEncoding._
+    import ox.net.codec.StreamerEncoding.Primitive._
+    import ox.net.codec.StreamerEncoding._
     case class Record(name: String, value: Seq[Int))
     type Type = Seq[Record]
     implicit object `IntSeq*`     extends Sequence[Int]
@@ -126,8 +126,8 @@ of a factory that builds a wire-encoding for `Seq[String]`, and its
 use to construct a UDP (Datagram) channel for that type.
 `````
   import ox.net.channelfactory.{DataStreamChannelFactory => Factory}
-  import ox.net.codec.DataStreamEncoding.{Sequence, Stream}
-  import ox.net.codec.DataStreamEncoding.Primitive._
+  import ox.net.codec.StreamerEncoding.{Sequence, Stream}
+  import ox.net.codec.StreamerEncoding.Primitive._
   implicit object StringSeq extends Sequence[String]
   val channel = ox.net.UDPChannel.bind(host, port, new Factory[Seq[String]])
 `````

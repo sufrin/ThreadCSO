@@ -2,17 +2,17 @@ package ox.net.codec
 
 
 /**
-  * Tests of the `Stream[T]`-encoding specification DSL.
+  * Tests of the `Streamer[T]`-encoding specification DSL.
   *
   * The implicit encodings specified below are named conventionally
-  * after the types they encode. This is not mandatory, but
+  * after the types they toStream. This is not mandatory, but
   * it helps to construct the encodings systematically, and
   * to see whether an existing corpus of encodings is complete.
   *
   */
-object StreamEncodingShortTests {
+object StreamerEncodingTests {
 
-  import DataStreamEncoding._
+  import StreamerEncoding._
 
   object Day extends Enumeration {
     val Mon, Tue, Wed, Thu, Fri, Sat, Sun = Value
@@ -186,7 +186,7 @@ object StreamEncodingShortTests {
   /////////////////////////////////////////////////////////////////////////
 
   def main(args: Array[String]): Unit = {
-    import DataStreamEncoding.{encodingTest => test}
+    import StreamerEncoding.{encodingTest => test}
     test(1)
     test("two")
     test(("three", 4))
@@ -250,6 +250,7 @@ object StreamEncodingShortTests {
       * valid encodings). Here `?Node[Int]*` is the stream encoding for a possibly-null `Node[Int]`, and
       * for test. Here `Node[Int]*` is the stream encoding for a `Node[Int]`. The difference in
       * size of the encoding is the extra byte used to denote the branch of the 2-union.
+      * The second cast is redundant, and can be replaced by the identity `(node=>node)`.
       */
     implicit object `?Node[Int]*` extends `2-Union*`[Node[Int], Null, Node[Int]](_.asInstanceOf[Null], _.asInstanceOf[Node[Int]])(`Null*`, `Node[Int]*`)
     implicit object `Node[Int]*`  extends `2-Case-Rec*`[Node[Int], Int, Node[Int]](Node.apply, Node.unapply)(`Int*`, `?Node[Int]*`)
@@ -264,7 +265,7 @@ object StreamEncodingShortTests {
         * the `Node` chain.
         *
         */
-      lazy val `Node[Int]WRONG`: Stream[Node[Int]] = new`2-Case-Rec*`[Node[Int], Int, Node[Int]](Node.apply, Node.unapply)(`Int*`, `Node[Int]WRONG`)
+      lazy val `Node[Int]WRONG`: Streamer[Node[Int]] = new`2-Case-Rec*`[Node[Int], Int, Node[Int]](Node.apply, Node.unapply)(`Int*`, `Node[Int]WRONG`)
       test(b)(`Node[Int]WRONG`)
     } catch {
       case exn: Throwable => println(s"**** Encoding failure as expected:\n**** Node.unapply(null) fails at the end of the chain:\n**** ${exn.toString}")
@@ -274,7 +275,7 @@ object StreamEncodingShortTests {
     println("--------------- Serialized -----------------")
     try {
       /**
-        * This specification succeeds, because `Serializable*` can encode arbitrary object graphs,
+        * This specification succeeds, because `Serializable*` can toStream arbitrary object graphs,
         * whether cycic or not.
         *
         * Notice the size of the encoding is between 15x and 20x the size of the straightforward encoding(s).
