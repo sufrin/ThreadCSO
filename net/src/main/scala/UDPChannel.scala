@@ -9,7 +9,7 @@ import java.io.{EOFException, UTFDataFormatException}
 import java.net._
 import java.nio.channels._
 
-object UDPChannel extends
+object UDPChannel
 { val log = ox.logging.Logging.Log("UDPChannel")
   val logging = log.logging
 
@@ -87,7 +87,6 @@ object UDPChannel extends
     socket.connect(address)
     channel
   }
-
 
 
   /**

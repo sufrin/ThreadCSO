@@ -7,9 +7,10 @@ import ox.net.SSLChannel.{TLSCredential, TLSWithoutCredential, client}
 import ox.net.channelfactory.{CRLFChannelFactory, StreamerChannelFactory, UTF8ChannelFactory}
 import ox.net.SocketOptions._
 import ox.net.UDPChannel.{Datagram, Malformed, UDP}
+import ox.net.codec.StreamerEncoding.Streamer
 
 import java.io.{File, InputStream, OutputStream}
-import java.net.{InetAddress, InetSocketAddress, Socket}
+import java.net.{InetAddress, InetSocketAddress, Socket, URL}
 import java.nio.ByteBuffer
 import java.nio.channels.SocketChannel
 
@@ -112,7 +113,7 @@ object reflect extends ManualTest("reflect - a server that reflects all TCP clie
 object kbd extends ManualTest("kbd1 -- sends keyboard messages. Run opposite reflect.") {
   def Test() = {
     val channel: TypedTCPChannel[String, String] = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024)
-    { TCPChannel.connected(new java.net.InetSocketAddress(host, port), factory) }
+                 { TCPChannel.connected(new java.net.InetSocketAddress(host, port), factory) }
     if (SND>0) channel.setOption(SO_SNDBUF, SND)
     if (RCV>0) channel.setOption(SO_RCVBUF, RCV)
     val kbd      = OneOne[String]("kbd")
@@ -442,13 +443,16 @@ object httpsclient extends ManualTest("httpclient -- GETs from a (secure) server
     val channel = SSLChannel.client(credential, host, port, factory)
     if (SND > 0) channel.setOption(SO_SNDBUF, SND)
     if (RCV > 0) channel.setOption(SO_RCVBUF, RCV)
-
-    val fromServer = OneOneBuf[String](50, name = "fromServer")
-    val toServer   = OneOneBuf[String](50, name = "toServer")
-
+    val connection = NetConnection(channel, 10, 10)
+    val fromServer = connection.in
+    val toServer   = connection.out
+    // Used to be as follows: now NetConnection does what's required
+    //val fromServer = OneOneBuf[String](50, name = "fromServer")
+    //val toServer   = OneOneBuf[String](50, name = "toServer")
     // Bootstrap the channel processes
-    val toNet        = channel.CopyToNet(toServer).fork
-    val fromNet      = channel.CopyFromNet(fromServer).fork
+    //val toNet        = channel.CopyToNet(toServer).fork
+    //val fromNet      = channel.CopyFromNet(fromServer).fork
+    val daemon = connection.fork
 
     val request = proc("request") {
       if (logging) log.fine("Starting request")
@@ -499,16 +503,21 @@ object httpsserver extends ManualTest("httpsserver -- an https server that echoe
 
   def Test() = {
     val serverProcess = SSLChannel.server(SSLChannel.TLSCredential("xyzzyxyzzy", new File("/Users/sufrin/.keystore")), port, factory, clientSession, sync=true, clientAuth=clientauth)
-    val theServer = fork(serverProcess)
+    run(serverProcess)
   }
 
   var _clientCount: Int = 0
 
   def clientSession(channel: TypedSSLChannel[String, String]): Unit = {
-    val fromClient = OneOneBuf[String](50, name = "fromClient")
-    val toClient = OneOneBuf[String](50, name = "toClient")
-    val toNet = channel.CopyToNet(toClient).fork
-    val fromNet = channel.CopyFromNet(fromClient).fork
+    val connection = NetConnection(channel, outSize=10, inSize=10)
+    val fromClient = connection.in
+    val toClient   = connection.out
+    // NetConnection now deals with the details
+    // OneOneBuf[String](50, name = "fromClient")
+    // OneOneBuf[String](50, name = "toClient")
+    // val toNet = channel.CopyToNet(toClient).fork
+    // val fromNet = channel.CopyFromNet(fromClient).fork
+    val daemon = connection.fork
     val sessionDate = new java.util.Date().toString
     val remote = channel.getRemoteAddress
 
@@ -627,10 +636,12 @@ object timecast extends ManualTest("timecast -- multicast date/time as CRLF text
   val addr      = new InetSocketAddress(InetAddress.getByName(multicastIP), port)
   val multicast = UDPChannel.multicastsTo(interfaceName, addr, CRLFChannelFactory)
     log.info(s"multicast=$multicast, addr=$addr")
-    val timeStamps = OneOne[UDP[String]](name="timeStamps")
-    val answers    = OneOne[UDP[String]](name="answers")
-    val toNet      = multicast.CopyToNet(timeStamps).fork
-    val fromNet    = multicast.CopyFromNet(answers).fork
+    val connection = NetConnection[UDP[String],UDP[String]](multicast)
+    val timeStamps = connection.out // OneOne[UDP[String]](name="timeStamps")
+    val answers    = connection.in // OneOne[UDP[String]](name="answers")
+    //val toNet      = multicast.CopyToNet(timeStamps).fork
+    //val fromNet    = multicast.CopyFromNet(answers).fork
+    val daemon = connection.fork
     fork {
       proc ("answers") {
         repeat {

@@ -27,22 +27,28 @@ object CRLFChannelFactory extends ox.logging.Log("CRLFChannelFactory") with Type
         val result            = new StringBuffer()
         var cr:      Boolean  = false
         var reading: Boolean  = true
-        while (reading) {
-          val c = input.read()
-          c match {
-            case -1 =>
-              if (logging) fine(s"crlf: fromStream: stream ended before string")
-              throw new EOFException()
-            case '\r' =>
-              cr = true
-            case '\n' =>
-              if (cr) reading = false else result.append(c.toChar)
-            case _ =>
-              cr = false
-              result.append(c.toChar)
+        try {
+          while (reading) {
+            val c = input.read()
+            c match {
+              case -1 =>
+                if (logging) fine(s"crlf: fromStream: stream ended before string")
+                throw new EOFException()
+              case '\r' =>
+                cr = true
+              case '\n' =>
+                if (cr) reading = false else result.append(c.toChar)
+              case _ =>
+                cr = false
+                result.append(c.toChar)
+            }
           }
+          result.toString
         }
-        result.toString
+        catch {
+          // a socket closed in flight
+          case exn: java.net.SocketException => throw new EOFException()
+        }
     }
 
     def encode(value: String): Unit = {
