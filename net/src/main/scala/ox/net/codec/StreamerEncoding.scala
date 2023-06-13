@@ -310,6 +310,8 @@ object StreamerEncoding {
 
   }
 
+  /** `Iterable[T]` encoded as a sequence, rebuilt (as an iterable) from the sequence by `build`. */
+  class `Iterable*`[T : Streamer] (build: Seq[T]=>Iterable[T]) extends `Encode*`[Iterable[T], Seq[T]](build(_), _.iterator.toSeq)(`Seq*`[T](implicitly[Streamer[T]]))
 
   /**
     *
@@ -499,7 +501,8 @@ object StreamerEncoding {
     def toStream(out: DataOutputStream, t: K): Unit = out.writeByte(0)
 
     def fromStream(in: DataInputStream): K = {
-      if (in.readByte()==0) it else
+      if (in.readByte()==0) it
+      else
       throw new StreamCorruptedException(s"Bad case object representation: $it expected")
     }
   }

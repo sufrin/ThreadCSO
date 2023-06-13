@@ -290,6 +290,7 @@ object StreamerEncodingTests {
            println("$exn during serializable roundtrip")
     }
 
+
     val f = new Foo("aFoo")
     test(f)
     test(new Foo("anotherFoo"))(new `Serializable*`[Foo])
