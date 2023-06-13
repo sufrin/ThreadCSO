@@ -110,7 +110,7 @@ object reflect extends ManualTest("reflect - a server that reflects all TCP clie
   }
 }
 
-object kbd extends ManualTest("kbd1 -- sends keyboard messages. Run opposite reflect.") {
+object kbd extends ManualTest("kbd -- sends keyboard messages. Run opposite reflect, or reflection, or reflectioncon.") {
   def Test() = {
     val channel: TypedTCPChannel[String, String] = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024)
                  { TCPChannel.connected(new java.net.InetSocketAddress(host, port), factory) }
@@ -125,7 +125,7 @@ object kbd extends ManualTest("kbd1 -- sends keyboard messages. Run opposite ref
     val fromNet      = channel.CopyFromNet(fromHost).fork
     val fromKeyboard = component.keyboard(kbd, "").fork
 
-    var last: String = ""
+    var last: String = "?"
     var times = 1
 
     run(proc("ui") {
@@ -135,6 +135,10 @@ object kbd extends ManualTest("kbd1 -- sends keyboard messages. Run opposite ref
             kbd.close()
             fromKeyboard.interrupt()
             stop
+          case s"$n*" if n matches ("[0-9]+") =>
+            times = n.toInt
+            if (logging) log.fine(s"toHost ! $last * $times")
+            toHost ! (last * times)
           case s"*$n" if n matches ("[0-9]+") =>
             times = n.toInt
             if (logging) log.fine(s"toHost ! $last * $times")
@@ -173,14 +177,14 @@ object kbd extends ManualTest("kbd1 -- sends keyboard messages. Run opposite ref
   }
 }
 
-object kbdx extends ManualTest("kbdx -- sends multiple keyboard messages encoded as a datastream of sequences. Run opposite reflect.") {
+object kbdd extends ManualTest("kbdd -- sends multiple keyboard messages encoded as a datastream of sequences. Run opposite reflect.") {
   type Ty = Seq[String]
   def Test() = {
     import ox.net.codec.StreamerEncoding._
     implicit object `Seq[String]*` extends `Seq*`[String]
     object CF extends StreamerChannelFactory[Seq[String], Seq[String]]
     val channel: TypedTCPChannel[Ty, Ty] = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024)
-    { TCPChannel.connected(new java.net.InetSocketAddress(host, port), CF) }
+                 { TCPChannel.connected(new java.net.InetSocketAddress(host, port), CF) }
     if (SND>0) channel.setOption(SO_SNDBUF, SND)
     if (RCV>0) channel.setOption(SO_RCVBUF, RCV)
     val kbd      = OneOne[String]("kbd")
@@ -234,6 +238,64 @@ object kbdx extends ManualTest("kbdx -- sends multiple keyboard messages encoded
     exit()
   }
 }
+
+object kbddcon extends ManualTest("kbddcon -- sends multiple keyboard messages encoded as a datastream of sequences. Run opposite reflect. This is kbdd using the connection API.") {
+  type Ty = Seq[String]
+  def Test() = {
+    import ox.net.codec.StreamerEncoding._
+    implicit object `Seq[String]*` extends `Seq*`[String]
+    object CF extends StreamerChannelFactory[Seq[String], Seq[String]]
+    val connection: NetConnection[Ty, Ty] = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024)
+    { TCPConnection.connected(new java.net.InetSocketAddress(host, port), CF, 50, 50, "TCPConnection") }
+
+    val kbd      = OneOne[String]("kbd")
+    val fromHost = connection.in // OneOneBuf[Ty](50, name = "fromHost") // A synchronized channel causes deadlock under load
+    val toHost   = connection.out // OneOneBuf[Ty](50, name = "toHost") // A synchronized channel causes deadlock under load
+    val daemon   = connection.fork
+    val fromKeyboard = component.keyboard(kbd, "").fork
+
+    var last: String = "?"
+    var times = 1
+
+    run(proc("ui") {
+      repeat {
+        kbd ? () match {
+          case "." =>
+            kbd.close()
+            fromKeyboard.interrupt()
+            stop
+          case s"*$n" if n matches ("[0-9]+") =>
+            times = n.toInt
+          case line =>
+            last = line
+        }
+        val out = (for { i<-0 until times } yield s"($i)=$last").toSeq
+        log.fine(s"toHost ! $last * $times")
+        toHost ! out
+      }
+      toHost.closeOut()
+      fromHost.closeIn()
+    }
+      || proc("fromHost") {
+      var n = 0
+      repeat {
+        n += 1
+        val decoded = fromHost ? ()
+        if (decoded.length==0)
+          println(s"$n: ${decoded.length}")
+        else
+          println(s"$n: ${decoded.toSeq.take(1)(0)}..${decoded.toSeq.drop(decoded.length-1)(0)}")
+      }
+      toHost.closeOut()
+      kbd.close()
+    }
+    )
+    kbd.close()
+    fromHost.closeIn()
+    exit()
+  }
+}
+
 
 object txgrams extends ManualTest("txgrams -- sends keyboard datagrams to rxgrams, receives reflected responses") {
   type StringPacket = UDP[String]
@@ -613,19 +675,34 @@ object httpsserver extends ManualTest("httpsserver -- an https server that echoe
   }
 }
 
-object reflection extends ManualTest("reflection -- a trivial server that reflects strings sent by its clients") {
+object reflection extends ManualTest("reflection -- a trivial server that reflects strings sent by its client (kbd)") {
     def Test(): Unit = {
     val reflectServer: PROC = TCPChannel.server(port, 0, factory) {
       case channel: TypedTCPChannel[String, String] =>
           val fromClient = OneOne[String](name = "fromClient")
-          val toClient = OneOne[String](name = "toClient")
-          val toNet = channel.CopyToNet(toClient).fork
-          val fromNet = channel.CopyFromNet(fromClient).fork
+          val toClient   = OneOne[String](name = "toClient")
+          val toNet      = channel.CopyToNet(toClient).fork
+          val fromNet    = channel.CopyFromNet(fromClient).fork
           fork (proc {
             repeat {
               fromClient ? { text => toClient ! text }
             }
           })
+    }
+    fork(reflectServer)
+  }
+}
+
+object reflectioncon extends ManualTest("reflectioncon -- a trivial server that reflects strings sent by its client (kbd). Uses the TCPConnection api") {
+  def Test(): Unit = {
+    val reflectServer: PROC = TCPConnection.server(port, 0, factory, 10, 10, "Client") {
+      case connection: NetConnection[String, String] =>
+        val daemon = connection.fork
+        fork (proc {
+          repeat {
+            connection.in ? { text => connection.out ! text }
+          }
+        })
     }
     fork(reflectServer)
   }

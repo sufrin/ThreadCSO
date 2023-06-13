@@ -80,5 +80,47 @@ object TCPChannel {
   }
 }
 
+/** A factory for connections using TCP as transport. */
+object TCPConnection {
+  /**
+    *  A connection using a synchronous network channel bound to the given address. This
+    *  is not the usual way to offer service at a given address.
+    */
+  def bound[OUT, IN](address: InetSocketAddress,
+                     factory: TypedChannelFactory[OUT, IN],
+                     outSize: Int = 0,
+                     inSize: Int = 0,
+                     name: String = ""): NetConnection[OUT, IN] = {
+    val channel = TCPChannel.bound[OUT, IN](address, factory)
+    NetConnection(channel, outSize, inSize, name)
+  }
+
+  /** A connection that is connected to the given address */
+  def connected[OUT, IN](address: InetSocketAddress,
+                         factory: TypedChannelFactory[OUT, IN],
+                         outSize: Int = 0,
+                         inSize: Int = 0,
+                         name: String = ""): NetConnection[OUT, IN] = {
+    val channel = TCPChannel.connected[OUT, IN](address, factory)
+    NetConnection(channel, outSize, inSize, name)
+  }
+
+  /**
+    *   Start a server offering service at the given port. In response to
+    *   a connection made (by `connected`) to the given port, apply the
+    *   given `session` with a suitable `NetConnection` as argument. The
+    *   session MUST run or fork its argument connection.
+    */
+  def server[OUT, IN](port: Int, backlog: Int, factory: TypedChannelFactory[OUT, IN],
+                      outSize: Int = 0,
+                      inSize: Int = 0,
+                      name: => String = ""
+                     ) (session: NetConnection[OUT, IN] => Unit): PROC =
+    TCPChannel.server(port, backlog, factory) {
+      case tcpChannel: TypedTCPChannel[OUT,IN] => session(NetConnection[OUT, IN](tcpChannel, outSize, inSize, name))
+    }
+
+}
+
 
 
