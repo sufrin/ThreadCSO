@@ -10,28 +10,45 @@ import scala.reflect.ClassTag
   *  A stream(er) encoding is an injective mapping between values of type `T` and the sequence of
   *  bytes that is used to represent values of that type.
   *
-  *  Here we provide stream encodings for use on cross-network transport or
+  *  Here we provide straightforward stream encodings for use on cross-network transport or
   *  for "pickling" values for persistent storage.
   *
-  *  By convention the predefined stream encodings have names that end
-  *  in `*`. This convention is helpful when constructing implicit objects
-  *  that define encodings for composite classes.
+  *  The resulting byte-sequences are not "self-describing": to decode a byte-sequence
+  *  encoded by  `enc.toStream...` it is necessary to use the corresponding `enc.fromStream`.
+  *
+  *  By convention the predefined stream encodings (and encoding combinators) have names that end
+  *  in `*`, and we advise the use of the same convention when
+  *  constructing objects that define encodings for composite classes. For example
+  *
+  *  {{{
+  *    implicit encoding `Seq[Int]*` extends `Seq*`[Int]
+  *    implicit encoding `Opt[Seq[Int]]*` extends `Opt*`[Seq[Int]]
+  *    implicit encoding `(Int, Seq[Int])*` extends
+  *             `2-Tuple`[(Int, Seq[Int])]
+  *  }}}
   *
   *  The definitions here exemplify a complete, and systematic collection of
-  *  stream encodings that is not overreliant Scala's machinery of implicits. They
-  *  rely for their soundness on the mutual invertibility of the java
+  *  stream encodings that is not overreliant Scala's machinery of implicits, and is independent of
+  *  any macro definitions. They rely for their soundness on the mutual invertibility of the java
   *  `Data(Output/Input)Streamer` representations of primitives, as loosely described
   *  in the java documentation for such streams.
   *
-  * @see StreamerEncodingTests for several examples of the use of these constructions.
+  *  See `ox.net.codec.StreamerEncodingTests` for several examples of the use of these
+  *  constructions, and `ox.net.ManualTests` for an example of how an encoding can
+  *  be used in an `ox.net`-based concurrent program.
   *
-  *  === Warning/Advertisement:
+  *  == Alternatives:
   *
-  *  The `msgpack` machinery delivers more compact encodings -- albeit at some
+  *  The `msgpack` machinery provided here delivers more compact encodings -- albeit at some
   *  cost in complexity, and in computing the compressed representation. But its real
   *  advantage is its interoperability and explicit bit-level specification -- which
   *  means there are already many language bindings for `msgpack`.
   *
+  *  The `borer` implementation of the `CBOR` standard (`https://www.rfc-editor.org/rfc/rfc8949.html`)
+  *  was designed and built in the same spirit, and seems more modern, and very versatile. Importantly,
+  *  it provides more-or-less automatic ways of deriving the code for stream-encodings.
+  *
+  * @see https://sirthias.github.io/borer/index.html
   * @see ox.net.VelviaChannelFactory, org.velvia.MessagePack
   */
 object StreamerEncoding {
@@ -187,7 +204,7 @@ object StreamerEncoding {
 
   /**
     *   An encoding for `Seq[T]` that requires the encoding for `T` to be made explicit
-    *   This is not strictly needed, but some derived encoding specifications can be
+    *   This is not strictly needed, but some derived encoding specifications turn into
     *   one-liners when it's used.
     */
   object `Seq*` {
@@ -208,10 +225,12 @@ object StreamerEncoding {
   }
 
   /** An encoding for `Option[T]` */
-  class `Option*`[T](implicit enc: Streamer[T]) extends Streamer[Option[T]] {
+  class `Option*`[T : Streamer] extends Streamer[Option[T]] {
+    val enc = implicitly[Streamer[T]]
     def toStream(out: DataOutputStream, t: Option[T]): Unit = {
       t match {
-        case None    => out.writeBoolean(false)
+        case None    =>
+          out.writeBoolean(false)
         case Some(t) =>
           out.writeBoolean(true)
           enc.toStream(out, t)
@@ -223,6 +242,31 @@ object StreamerEncoding {
         Some(enc.fromStream(in))
       } else {
         None
+      }
+    }
+  }
+
+  class `Either*`[L: Streamer, R: Streamer] extends Streamer[Either[L,R]] {
+    val encl = implicitly[Streamer[L]]
+    val encr = implicitly[Streamer[R]]
+    /**
+      * Append the encoding of `datum` to the `out` stream
+      */
+    def toStream(out: DataOutputStream, data: Either[L, R]): Unit = {
+      data match {
+        case Left(d) => out.writeByte(0);  encl.toStream(out, d)
+        case Right(d) => out.writeByte(1); encr.toStream(out, d)
+      }
+    }
+
+    /**
+      * Remove the encoding of a datum of type `T from the front of the `in` stream,
+      * and return the datum.
+      */
+    def fromStream(in: DataInputStream): Either[L, R] = {
+      in.readByte()  match {
+        case 0 => Left(encl.fromStream(in))
+        case 1 => Right(encr.fromStream(in))
       }
     }
   }
