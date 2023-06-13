@@ -12,7 +12,7 @@ import java.nio.channels.SocketChannel
 
 /**
   * An abstract `ChannelFactory` for a pair of types, `[OUT,IN]` each with an  `ImplicitCodec` stream-encoding that can be synthesised or
-  * inferred (for example by using the tools of `org.velcia.msgpack`). This class is structurally almost the same as
+  * inferred (for example by using the tools of `org.velvia.msgpack`). This class is structurally almost the same as
   * `StreamerChannelFactory`.
   */
 

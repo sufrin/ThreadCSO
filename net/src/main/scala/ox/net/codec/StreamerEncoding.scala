@@ -27,9 +27,7 @@ import scala.reflect.ClassTag
   *             `2-Tuple`[(Int, Seq[Int])]
   *  }}}
   *
-  *  The definitions here exemplify a complete, and systematic collection of
-  *  stream encodings that is not overreliant Scala's machinery of implicits, and is independent of
-  *  any macro definitions. They rely for their soundness on the mutual invertibility of the java
+  *  The encodings rely for their soundness on the mutual invertibility of the java
   *  `Data(Output/Input)Streamer` representations of primitives, as loosely described
   *  in the java documentation for such streams.
   *
@@ -37,15 +35,23 @@ import scala.reflect.ClassTag
   *  constructions, and `ox.net.ManualTests` for an example of how an encoding can
   *  be used in an `ox.net`-based concurrent program.
   *
-  *  == Alternatives:
+  *  == Hubris
   *
-  *  The `msgpack` machinery provided here delivers more compact encodings -- albeit at some
+  *  The definitions here provide the basis for a complete collection of
+  *  stream encodings that uses Scala's machinery of implicits, and is independent of
+  *  generic programming libraries such as `Shapeless`. This is a deliberate choice,
+  *  the cost of which is the appearance HERE of much boilerplate, and the benefit
+  *  of which is straghtforwardness.
+  *
+  *  == Alternatives
+  *
+  *  The `msgpack` machinery provided with `ox.net` delivers more compact encodings -- albeit at some
   *  cost in complexity, and in computing the compressed representation. But its real
   *  advantage is its interoperability and explicit bit-level specification -- which
   *  means there are already many language bindings for `msgpack`.
   *
   *  The `borer` implementation of the `CBOR` standard (`https://www.rfc-editor.org/rfc/rfc8949.html`)
-  *  was designed and built in the same spirit, and seems more modern, and very versatile. Importantly,
+  *  was designed and built in the same spirit as `msgpack`, and seems more modern, and very versatile. Importantly,
   *  it provides more-or-less automatic ways of deriving the code for stream-encodings.
   *
   * @see https://sirthias.github.io/borer/index.html
