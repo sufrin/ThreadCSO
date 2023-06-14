@@ -218,8 +218,8 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
     if (logging) log.finest(s"connected: $this to $addr")
   }
 
-  val output: DatagramOutputStream    = new DatagramOutputStream(channel, ChannelOptions.outSize)
-  val input:  DatagramInputStream     = DatagramInputStream(channel, ChannelOptions.inSize)
+  val output: DatagramOutputStream    = new DatagramOutputStream(channel, ChannelOptions.outBufSize)
+  val input:  DatagramInputStream     = DatagramInputStream(channel, ChannelOptions.inBufSize)
   val codec:  Codec[OUT,IN]           = factory.newCodec(output, input)
 
   /** Encode and send the packet using the channel, if it is a Datagram with an address.
@@ -302,5 +302,25 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
   override
   def toString: String = s"UDPChannel[$options] [LastException: $lastException])"
 
+
+}
+
+object UDPConnection {
+
+  /** A network connection bound to `address` that sends/receives `UDP[OUT]/UDP[IN]` */
+  def bind[OUT, IN](address: InetSocketAddress,
+                     factory: TypedChannelFactory[OUT, IN],
+                     name: String = ""): NetConnection[UDP[OUT], UDP[IN]] = {
+    val channel: TypedUDPChannel[UDP[OUT], UDP[IN]] = UDPChannel.bind[OUT, IN](address, factory)
+    NetConnection(channel, name)
+  }
+
+  /** A network connection connected to `address` that sends/receives `UDP[OUT]/UDP[IN]` */
+  def connect[OUT, IN](  address: InetSocketAddress,
+                         factory: TypedChannelFactory[OUT, IN],
+                         name: String = ""): NetConnection[UDP[OUT], UDP[IN]] = {
+    val channel: TypedUDPChannel[UDP[OUT], UDP[IN]] = UDPChannel.connect[OUT, IN](address, factory)
+    NetConnection(channel, name)
+  }
 
 }

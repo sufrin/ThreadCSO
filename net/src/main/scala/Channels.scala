@@ -1,7 +1,7 @@
 package ox.net
 
 import java.lang
-import java.net.{NetworkInterface, ProtocolFamily, Socket, SocketAddress}
+import java.net.{InetSocketAddress, NetworkInterface, ProtocolFamily, Socket, SocketAddress}
 import java.nio.channels.{DatagramChannel, SocketChannel}
 
 /**
@@ -52,19 +52,24 @@ object ChannelOptions {
   val IPv4: java.net.StandardProtocolFamily = java.net.StandardProtocolFamily.INET
   val IPv6: java.net.StandardProtocolFamily = java.net.StandardProtocolFamily.INET6
 
-  var inSize:  Int                    = 8*1024
-  var outSize: Int                    = 8*1024
+  var inBufSize:  Int                 = 8*1024
+  var outBufSize: Int                 = 8*1024
   var protocolFamily: ProtocolFamily  = IPv4
-  var sync: Boolean = true
+  var sync: Boolean                   = true
+
+  var inChanSize                       = 1
+  var outChanSize                      = 1
   /**
     * Define a selection of features while constructing a
     * channel (or, indeed, any value)
     *
-    * @param inSize size of preallocated input buffers. Affects efficiency, but not correctness.
+    * @param inBufSize size of preallocated input buffers. Affects efficiency, but not correctness.
     *               Experiments show that it can be as small as 1! But there is generally an expensive  switch of
     *               kernel context at each read.
-    * @param outSize size of preallocated output buffers. For the moment this should be no smaller than the size of the largest
+    * @param outBufSize size of preallocated output buffers. For the moment this should be no smaller than the size of the largest
     *                message to be sent on the channel. (TODO: apply the easy but non-urgent fix)
+    * @param inChanSize size (in items) of the buffered input channel used for a connection. 0 means synchronous.
+    * @param outChanSize size (in items) of the buffered output channel used for a connection. 0 means synchronous.
     * @param sync whether the channel is "synchronous", ie. intermediate streams are flushed immediately after writes.
     *             When false there may be a delay between the logical (CSO) write to a network channel, and its realization
     *             as a network write. The delay makes for more efficient use of buffers and network capacity, but is not
@@ -72,20 +77,28 @@ object ChannelOptions {
     * @param protocolFamily IPv4 or IPv6
     */
   def withOptions[T](protocolFamily: ProtocolFamily = this.protocolFamily,
-                     inSize:         Int=this.inSize,
-                     outSize:        Int=this.outSize,
-                     sync:           Boolean = this.sync)(makechannel: => T): T = synchronized {
-      val is = this.inSize
-      val os = this.outSize
+                     inBufSize:  Int  = this.inBufSize,
+                     outBufSize: Int  = this.outBufSize,
+                     inChanSize:  Int  = this.inChanSize,
+                     outChanSize: Int  = this.outChanSize,
+                     sync:       Boolean = this.sync)(makechannel: => T): T = synchronized {
+      val is = this.inBufSize
+      val os = this.outBufSize
+      val ics = this.inChanSize
+      val ocs = this.outChanSize
       val pf = this.protocolFamily
       val sy = this.sync
-      this.inSize         = inSize
-      this.outSize        = outSize
+      this.inBufSize      = inBufSize
+      this.outBufSize     = outBufSize
+      this.inChanSize      = inChanSize
+      this.outChanSize     = outChanSize
       this.protocolFamily = protocolFamily
       this.sync = sync
       try makechannel finally {
-        this.inSize         = is
-        this.outSize        = os
+        this.inBufSize      = is
+        this.outBufSize     = os
+        this.inBufSize      = ics
+        this.outBufSize     = ocs
         this.protocolFamily = pf
         this.sync           = sy
       }
@@ -172,7 +185,9 @@ trait SSLChannelInterface extends ChannelInterface {
 }
 
 trait TypedTCPChannel[-OUT,+IN] extends NetProxy[OUT,IN] with TCPChannelInterface
-trait TypedUDPChannel[-OUT,+IN] extends NetProxy[OUT,IN] with UDPChannelInterface
+trait TypedUDPChannel[-OUT,+IN] extends NetProxy[OUT,IN] with UDPChannelInterface {
+  def connect(addr: InetSocketAddress): Unit
+}
 trait TypedSSLChannel[-OUT,+IN] extends NetProxy[OUT,IN] with SSLChannelInterface
 
 

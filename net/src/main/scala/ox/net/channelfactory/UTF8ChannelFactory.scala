@@ -67,7 +67,7 @@ object UTF8ChannelFactory extends ox.logging.Log("UTF8ChannelFactory") with Type
 
   def newCodec(_output: OutputStream, _input: InputStream): Codec[String, String] =
     new Codec[String, String] with Mixin {
-      val output = new BufferedOutputStream(_output, ChannelOptions.outSize)
-      val input  = new BufferedInputStream(_input, ChannelOptions.inSize)
+      val output = new BufferedOutputStream(_output, ChannelOptions.outBufSize)
+      val input  = new BufferedInputStream(_input, ChannelOptions.inBufSize)
     }
 }

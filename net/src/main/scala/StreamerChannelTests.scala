@@ -39,7 +39,7 @@ object dskbd extends ManualTest("dskbd -- sends sequences of records ") {
   implicit object `RecordSeq*`  extends `Seq*`[Record]
 
   def Test() = {
-    val channel: TypedTCPChannel[RecordSeq, RecordSeq] = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024)
+    val channel: TypedTCPChannel[RecordSeq, RecordSeq] = ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024)
     {
        TCPChannel.connected(new java.net.InetSocketAddress(host, port), new StreamerChannelFactory[RecordSeq, RecordSeq]())
     }

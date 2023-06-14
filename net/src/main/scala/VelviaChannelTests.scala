@@ -26,8 +26,9 @@ object kbdy extends ManualTest("kbdy -- sends multiple keyboard messages (using 
     implicit object TyCodec extends `2-Tuple*`[Int,Int]
 
     def Test() = {
-      val channel: TypedTCPChannel[Ty, Ty] = ChannelOptions.withOptions(inSize=inBufSize*1024, outSize=outBufSize*1024)
-      { TCPChannel.connected(new java.net.InetSocketAddress(host, port), new VelviaChannelFactory[Ty, Ty]) }
+      val channel: TypedTCPChannel[Ty, Ty] = ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) {
+          TCPChannel.connected(new java.net.InetSocketAddress(host, port), new VelviaChannelFactory[Ty, Ty])
+      }
 
       if (SND>0) channel.setOption(SO_SNDBUF, SND)
       if (RCV>0) channel.setOption(SO_RCVBUF, RCV)
@@ -92,7 +93,7 @@ object kbdz extends ManualTest("kbdz -- sends multiple keyboard messages (as pai
   implicit object TyCodec extends `2-Tuple*`[Int, String]
 
   def Test() = {
-    val channel: TypedTCPChannel[Ty, Ty] = ChannelOptions.withOptions(inSize = inBufSize * 1024, outSize = outBufSize * 1024) {
+    val channel: TypedTCPChannel[Ty, Ty] = ChannelOptions.withOptions(inBufSize = inBufSize * 1024, outBufSize = outBufSize * 1024) {
       TCPChannel.connected(new java.net.InetSocketAddress(host, port), new VelviaChannelFactory[Ty, Ty])
     }
 
@@ -161,7 +162,7 @@ object kbdq extends ManualTest("kbdq -- sends multiple keyboard messages wrapped
   implicit object TyCodec extends `2-Case*`[Ty, Int, String](Ty.apply, Ty.unapply)
 
   def Test() = {
-    val channel: TypedTCPChannel[Ty, Ty] = ChannelOptions.withOptions(inSize = inBufSize * 1024, outSize = outBufSize * 1024) {
+    val channel: TypedTCPChannel[Ty, Ty] = ChannelOptions.withOptions(inBufSize = inBufSize * 1024, outBufSize = outBufSize * 1024) {
       TCPChannel.connected(new java.net.InetSocketAddress(host, port), new VelviaChannelFactory[Ty,Ty])
     }
 

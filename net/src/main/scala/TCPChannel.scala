@@ -84,41 +84,42 @@ object TCPChannel {
 object TCPConnection {
   /**
     *  A connection using a synchronous network channel bound to the given address. This
-    *  is not the usual way to offer service at a given address.
+    *  is not the usual way to offer service at a given address (use a server).
     */
   def bound[OUT, IN](address: InetSocketAddress,
                      factory: TypedChannelFactory[OUT, IN],
-                     outSize: Int = 0,
-                     inSize: Int = 0,
                      name: String = ""): NetConnection[OUT, IN] = {
     val channel = TCPChannel.bound[OUT, IN](address, factory)
-    NetConnection(channel, outSize, inSize, name)
+    NetConnection(channel, name)
   }
 
   /** A connection that is connected to the given address */
   def connected[OUT, IN](address: InetSocketAddress,
                          factory: TypedChannelFactory[OUT, IN],
-                         outSize: Int = 0,
-                         inSize: Int = 0,
                          name: String = ""): NetConnection[OUT, IN] = {
     val channel = TCPChannel.connected[OUT, IN](address, factory)
-    NetConnection(channel, outSize, inSize, name)
+    NetConnection(channel, name)
   }
 
   /**
     *   Start a server offering service at the given port. In response to
     *   a connection made (by `connected`) to the given port, apply the
     *   given `session` with a suitable `NetConnection` as argument. The
-    *   session MUST run or fork its argument connection.
+    *   session MUST run or fork its argument connection. The transfer buffer
+    *   sizes of each connection are specified by the values of
+    *   `ChannelOptions.{inConSize, outConSize}` at the moment `server` is called.
     */
   def server[OUT, IN](port: Int, backlog: Int, factory: TypedChannelFactory[OUT, IN],
-                      outSize: Int = 0,
-                      inSize: Int = 0,
                       name: => String = ""
-                     ) (session: NetConnection[OUT, IN] => Unit): PROC =
+                     ) (session: NetConnection[OUT, IN] => Unit): PROC = {
+    val ocs = ChannelOptions.outChanSize
+    val ics = ChannelOptions.inChanSize
     TCPChannel.server(port, backlog, factory) {
-      case tcpChannel: TypedTCPChannel[OUT,IN] => session(NetConnection[OUT, IN](tcpChannel, outSize, inSize, name))
+      case tcpChannel: TypedTCPChannel[OUT, IN] =>
+        val connection = ChannelOptions.withOptions(outChanSize = ocs, inChanSize = ics) { NetConnection[OUT, IN](tcpChannel, name) }
+        session(connection)
     }
+  }
 
 }
 
