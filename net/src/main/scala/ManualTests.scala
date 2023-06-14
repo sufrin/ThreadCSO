@@ -26,7 +26,7 @@ abstract class ManualTest(doc: String) extends App {
   val logging = true
   var clientauth = false
   val log = ox.logging.Logging.Log("test")
-  var factory: TypedChannelFactory[String, String] = UTF8ChannelFactory
+  var theStringChannelFactory: TypedChannelFactory[String, String] = UTF8ChannelFactory
   var host: String = "localhost"
   var port: Int    = 10000
   var peerAddr: Option[InetSocketAddress] = None
@@ -46,8 +46,8 @@ abstract class ManualTest(doc: String) extends App {
   val Options: List[Opt] = List(
     OPT("-reflect", { reflect = !reflect }, "Don't reflect datagrams to their source (txgrams / rxgrams)"),
     OPT("-datagram", datagram, "Send/receive/reflect datagrams as appropriate"),
-    OPT("-crlf", { factory = CRLFChannelFactory }, "Use crlf string protocol"),
-    OPT("-utf",  { factory = UTF8ChannelFactory }, "Use utf8 string protocol"),
+    OPT("-crlf", { theStringChannelFactory = CRLFChannelFactory }, "Use crlf string protocol"),
+    OPT("-utf",  { theStringChannelFactory = UTF8ChannelFactory }, "Use utf8 string protocol"),
     OPT("peer://.+:[0-9]+", { case s"peer://$h:$p" => peerAddr = Some(new InetSocketAddress(h, p.toInt) ) }, "Set peer host and port (for p2p)"),
     OPT("//.+:[0-9]+",   { case s"//$h:$p" => host = h; port=p.toInt; () }, "Set host and port"),
     OPT("//.+",          { case s"//$h" => host = h; () }, "Set host"),
@@ -77,43 +77,11 @@ abstract class ManualTest(doc: String) extends App {
   def Test(): Unit
 }
 
-/**
-  * A server whose sessions reflect all packets they receive. Buffers can be of arbitrily small
-  * (positive) sizes; and this might be helpful in investigating problems with codecs that could be
-  * caused by packet fragmentation.
-  *
-  * This app is intended to test the "total trip" correctness of codecs by being run "opposite" various `kbd...`
-  * apps.
-  */
-object reflect extends ManualTest("reflect - a server that reflects all TCP client packets without interpretation.") {
 
-  def Test(): Unit = {
-    def session(channel: SocketChannel): Unit = {
-      log.info(s"Accepted: ${channel.getRemoteAddress()}")
-      channel.setOption(java.net.StandardSocketOptions.TCP_NODELAY, java.lang.Boolean.TRUE)
-      val buffer = ByteBuffer.allocateDirect(bbSize)
-      var going  = true
-      var total  = 0
-      while (going) {
-        val count = channel.read(buffer)
-        total += count
-        if (logging) log.finest(s"read:: $count/$total")
-        buffer.flip()
-        channel.write(buffer)
-        buffer.clear()
-        going = count>0
-      }
-      channel.close()
-    }
-    val server = TCPChannel.server(port, 1)(session _)
-    server.fork
-  }
-}
-
-object kbd extends ManualTest("kbd -- sends keyboard messages. Run opposite reflect, or reflection, or reflectioncon.") {
+object kbd extends ManualTest("kbd -- sends single-line keyboard messages. Run opposite reflect, or reflectkbd, or reflectcon.") {
   def Test() = {
     val channel: TypedTCPChannel[String, String] = ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024)
-    { TCPChannel.connected(new java.net.InetSocketAddress(host, port), factory) }
+    { TCPChannel.connected(new java.net.InetSocketAddress(host, port), theStringChannelFactory) }
     if (SND>0) channel.setOption(SO_SNDBUF, SND)
     if (RCV>0) channel.setOption(SO_RCVBUF, RCV)
     val kbd      = OneOne[String]("kbd")
@@ -127,6 +95,8 @@ object kbd extends ManualTest("kbd -- sends keyboard messages. Run opposite refl
 
     var last: String = "?"
     var times = 1
+
+    println("Type lines. (*number or number* replicate the message <number> times; . terminates the program; an empty line terminates the receiver.")
 
     run(proc("ui") {
       repeat {
@@ -159,7 +129,7 @@ object kbd extends ManualTest("kbd -- sends keyboard messages. Run opposite refl
         n += 1
         val decoded = fromHost ? ()
         if (decoded.isEmpty) {
-          log.info(s"Stopping because decoded line $n empty")
+          log.info(s"Stopping because line $n from host is empty")
           stop
         }
         if (decoded.size<50)
@@ -178,10 +148,10 @@ object kbd extends ManualTest("kbd -- sends keyboard messages. Run opposite refl
   }
 }
 
-object kbdcon extends ManualTest("kbdcon -- sends keyboard messages. Run opposite reflect, or reflection, or reflectioncon. Connection API") {
+object kbdcon extends ManualTest("kbdcon -- sends single-line keyboard messages. Run opposite reflect, or reflection, or reflectkbd, or reflectcon. Connection API") {
   def Test() = {
     val connection = ChannelOptions.withOptions(inChanSize=50, outChanSize=50, inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) {
-        TCPConnection.connected(new java.net.InetSocketAddress(host, port), factory, "kbdcon")
+        TCPConnection.connected(new java.net.InetSocketAddress(host, port), theStringChannelFactory, "kbdcon")
     }
     if (SND>0) connection.asTCP.setOption(SO_SNDBUF, SND)
     if (RCV>0) connection.asTCP.setOption(SO_RCVBUF, RCV)
@@ -191,9 +161,10 @@ object kbdcon extends ManualTest("kbdcon -- sends keyboard messages. Run opposit
     val toHost   = connection.out
     val daemon   = connection.fork
 
-
     var last: String = "?"
     var times = 1
+
+    println("Type lines. (*number or number* replicate the message <number> times; . terminates the program; an empty line terminates the receiver.")
 
     run(proc("ui") {
       repeat {
@@ -228,7 +199,7 @@ object kbdcon extends ManualTest("kbdcon -- sends keyboard messages. Run opposit
         n += 1
         val decoded = fromHost ? ()
         if (decoded.isEmpty) {
-          log.info(s"Stopping because decoded line $n empty")
+          log.info(s"Stopping because line $n from host is empty")
           stop
         }
         if (decoded.size<50)
@@ -245,77 +216,16 @@ object kbdcon extends ManualTest("kbdcon -- sends keyboard messages. Run opposit
   }
 }
 
-object kbdd extends ManualTest("kbdd -- sends multiple keyboard messages encoded as a datastream of sequences. Run opposite reflect.") {
+
+object kbds extends ManualTest("kbds -- sends sequences of strings encoded as `StreamerEncoding.Seq*`. Run opposite reflect") {
   type Ty = Seq[String]
   def Test() = {
     import ox.net.codec.StreamerEncoding._
     implicit object `Seq[String]*` extends `Seq*`[String]
-    object CF extends StreamerChannelFactory[Seq[String], Seq[String]]
-    val channel: TypedTCPChannel[Ty, Ty] = ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024)
-                 { TCPChannel.connected(new java.net.InetSocketAddress(host, port), CF) }
-    if (SND>0) channel.setOption(SO_SNDBUF, SND)
-    if (RCV>0) channel.setOption(SO_RCVBUF, RCV)
-    val kbd      = OneOne[String]("kbd")
-    val fromHost = OneOneBuf[Ty](50, name = "fromHost") // A synchronized channel causes deadlock under load
-    val toHost   = OneOneBuf[Ty](50, name = "toHost") // A synchronized channel causes deadlock under load
-
-    // Bootstrap the channel processes
-    val toNet        = channel.CopyToNet(toHost).fork
-    val fromNet      = channel.CopyFromNet(fromHost).fork
-    val fromKeyboard = component.keyboard(kbd, "").fork
-
-    var last: String = "?"
-    var times = 1
-
-    run(proc("ui") {
-      repeat {
-        kbd ? () match {
-          case "." =>
-            kbd.close()
-            fromKeyboard.interrupt()
-            stop
-          case s"*$n" if n matches ("[0-9]+") =>
-            times = n.toInt
-          case line =>
-            last = line
-        }
-        val out = (for { i<-0 until times } yield s"($i)=$last").toSeq
-        log.fine(s"toHost ! $last * $times")
-        toHost ! out
-      }
-      toHost.close()
-      toNet.interrupt()
-      fromNet.interrupt()
-    }
-      || proc("fromHost") {
-      var n = 0
-      repeat {
-        n += 1
-        val decoded = fromHost ? ()
-        if (decoded.length==0)
-          println(s"$n: ${decoded.length}")
-        else
-          println(s"$n: ${decoded.toSeq.take(1)(0)}..${decoded.toSeq.drop(decoded.length-1)(0)}")
-      }
-      toHost.closeOut()
-      kbd.close()
-    }
-    )
-    kbd.close()
-    fromHost.close()
-    exit()
-  }
-}
-
-object kbddcon extends ManualTest("kbddcon -- sends multiple keyboard messages encoded as a datastream of sequences. Run opposite reflect. This is kbdd using the connection API.") {
-  type Ty = Seq[String]
-  def Test() = {
-    import ox.net.codec.StreamerEncoding._
-    implicit object `Seq[String]*` extends `Seq*`[String]
-    object CF extends StreamerChannelFactory[Seq[String], Seq[String]]
+    object SequenceChannelFactory extends StreamerChannelFactory[Seq[String], Seq[String]]
     val connection: NetConnection[Ty, Ty] =
-      ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) {
-        TCPConnection.connected(new java.net.InetSocketAddress(host, port), CF, "TCPConnection")
+      ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024, inChanSize=20, outChanSize=20) {
+        TCPConnection.connected(new java.net.InetSocketAddress(host, port), SequenceChannelFactory, "TCPConnection")
       }
 
     val fromHost        = connection.in
@@ -327,12 +237,16 @@ object kbddcon extends ManualTest("kbddcon -- sends multiple keyboard messages e
     var last: String = "?"
     var times = 1
 
+    println("Type lines. (*number or number* sends the message in a sequence of length <number>; . terminates the program)")
+
     run(proc("ui") {
       repeat {
         kbd ? () match {
           case "." =>
             kbd.closeIn()
             stop
+          case s"$n*" if n matches ("[0-9]+") =>
+            times = n.toInt
           case s"*$n" if n matches ("[0-9]+") =>
             times = n.toInt
           case line =>
@@ -370,7 +284,9 @@ object txgrams extends ManualTest("txgrams -- sends keyboard datagrams to rxgram
   type StringPacket = UDP[String]
   def Test() = {
     // sending on port; receiving on a random port
-    val channel = ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) {UDPChannel.connect(host, port, factory) }
+    val channel = ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) {
+      UDPChannel.connect(host, port, theStringChannelFactory)
+    }
     if (SND > 0) channel.setOption(SO_SNDBUF, SND)
     if (RCV > 0) channel.setOption(SO_RCVBUF, RCV)
 
@@ -382,12 +298,17 @@ object txgrams extends ManualTest("txgrams -- sends keyboard datagrams to rxgram
     // Bootstrap the channel processes
     val toNet        = channel.CopyToNet(toHost).fork
     val fromNet      = channel.CopyFromNet(fromHost).fork
-    //val backchannel  = UDPChannel.bind("localhost", port+1, factory)
+    //val backchannel  = UDPChannel.bind("localhost", port+1, theStringChannelFactory)
     //val backFromNet  = backchannel.CopyFromNet(fromBack).fork
     val fromKeyboard = component.keyboard(kbd, "").fork
     var last: String = ""
     var times = 1
     //if (logging) info(s" $channel\n $backchannel")
+
+    println(
+      """Type lines. (*number or number* replicates the line <number> times as a message; . terminates the program).
+        |Overlong messages are expected to cause the datagram transmission to fail; but not txgrams/rxgrams.
+        |""".stripMargin)
 
     run(proc("ui") {
       repeat {
@@ -447,12 +368,14 @@ object txgrams extends ManualTest("txgrams -- sends keyboard datagrams to rxgram
   }
 }
 
-object rxgrams extends ManualTest("rxgrams receives (and reflects) string datagrams (from txgrams)") {
+object rxgrams extends ManualTest("rxgrams -- receives (and reflects) string datagrams (from txgrams)") {
   import SocketOptions._
   type StringPacket = UDP[String]
   def Test() : Unit =
-  { val channel = ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) { UDPChannel.bind(host, port, factory) }
-    Console.println(s"$factory ${channel.channel.getLocalAddress}")
+  { val channel = ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) {
+      UDPChannel.bind(host, port, theStringChannelFactory)
+    }
+    Console.println(s"$theStringChannelFactory ${channel.channel.getLocalAddress}")
     if (RCV>0) channel.setOption(SO_RCVBUF, RCV)
     if (SND>0) channel.setOption(SO_SNDBUF, SND)
     channel.setOption(SO_REUSEADDR, true)
@@ -482,14 +405,13 @@ object rxgrams extends ManualTest("rxgrams receives (and reflects) string datagr
 
 
 /**
-  * A point-to-point datagram chat program. Largely to test the `connect`
-  * functionality of datagram channels.
+  * A point-to-point datagram chat program.
   */
 object p2p extends ManualTest("p2p -- exchanges datagrams with another p2p") {
   type StringPacket = UDP[String]
   def Test() = {
 
-    val channel = ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) { UDPChannel.bind(host, port, factory) }
+    val channel = ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) { UDPChannel.bind(host, port, theStringChannelFactory) }
 
     if (SND > 0) channel.setOption(SO_SNDBUF, SND)
     if (RCV > 0) channel.setOption(SO_RCVBUF, RCV)
@@ -523,9 +445,12 @@ object p2p extends ManualTest("p2p -- exchanges datagrams with another p2p") {
             kbd.close()
             fromKeyboard.interrupt()
             stop
-          case s"*$pat" if pat matches("[0-9]+") =>
+          case s"$pat*" if pat matches ("[0-9]+") =>
             times = pat.toInt
-            toPeer ! Datagram(last*times, null)
+            toPeer ! Datagram(last * times, null)
+          case s"*$pat" if pat matches ("[0-9]+") =>
+            times = pat.toInt
+            toPeer ! Datagram(last * times, null)
           case line =>
             if (logging) log.fine(s"toPeer ! $line * $times")
             last = line
@@ -559,6 +484,11 @@ object p2p extends ManualTest("p2p -- exchanges datagrams with another p2p") {
       fromKeyboard.interrupt()
     }
 
+    println(
+      """Type lines. (*number or number* replicates the line <number> times as a meesage; . terminates the program).
+        |Long messages are abbreviated on reception.
+        |Overlong messages are expected to cause the datagram transmission to fail; but not txgrams/rxgrams.
+        |""".stripMargin)
     run(self || peer)
     exit()
   }
@@ -566,16 +496,19 @@ object p2p extends ManualTest("p2p -- exchanges datagrams with another p2p") {
 
 }
 
-object p2pcon extends ManualTest("p2pcon -- exchanges datagrams with another p2p -- p2p using a NetConnection") {
+object p2pcon extends ManualTest("p2pcon -- exchanges datagrams with another p2p. UDPConnection API") {
   type StringPacket = UDP[String]
   def Test() = {
 
-    val connection = ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) { UDPConnection.bind(new InetSocketAddress(host, port), factory, "bound") }
+    val connection = ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) {
+        UDPConnection.bind(new InetSocketAddress(host, port), theStringChannelFactory, "bound")
+    }
     if (SND > 0) connection.asUDP.setOption(SO_SNDBUF, SND)
     if (RCV > 0) connection.asUDP.setOption(SO_RCVBUF, RCV)
     val kbd      = OneOne[String]("kbd")
     val fromPeer = connection.in
     val toPeer   = connection.out
+
     // connect to the peer, and start the daemon
     val daemon   = {
       connection.asUDP.connect(peerAddr.get)
@@ -643,25 +576,18 @@ object p2pcon extends ManualTest("p2pcon -- exchanges datagrams with another p2p
 
 }
 
-
 /**
   * A trivial https client that sends a `GET / ` and echoes the response to the terminal
   */
 object httpsclient extends ManualTest("httpclient -- GETs from a (secure) server then outputs the response line-by-line") {
   def Test() = {
     val credential = if (clientauth) TLSCredential("xyzzyxyzzy", new File("/Users/sufrin/.keystore"))  else TLSWithoutCredential
-    val channel = SSLChannel.client(credential, host, port, factory)
-    if (SND > 0) channel.setOption(SO_SNDBUF, SND)
-    if (RCV > 0) channel.setOption(SO_RCVBUF, RCV)
-    val connection = ChannelOptions.withOptions(inChanSize=10, outChanSize=10) { NetConnection(channel) }
+    val connection = ChannelOptions.withOptions(inChanSize=10, outChanSize=10)
+        { SSLConnection.client(credential, host, port, CRLFChannelFactory) }
+    if (SND > 0) connection.asSSL.setOption(SO_SNDBUF, SND)
+    if (RCV > 0) connection.asSSL.setOption(SO_RCVBUF, RCV)
     val fromServer = connection.in
     val toServer   = connection.out
-    // Used to be as follows: now NetConnection does what's required
-    //val fromServer = OneOneBuf[String](50, name = "fromServer")
-    //val toServer   = OneOneBuf[String](50, name = "toServer")
-    // Bootstrap the channel processes
-    //val toNet        = channel.CopyToNet(toServer).fork
-    //val fromNet      = channel.CopyFromNet(fromServer).fork
     val daemon = connection.fork
 
     val request = proc("request") {
@@ -710,122 +636,156 @@ object httpsclient extends ManualTest("httpclient -- GETs from a (secure) server
   *  an individual session before it times-out.
   */
 object httpsserver extends ManualTest("httpsserver -- an https server that echoes clients' requests (as html)") {
+  var _clientCount: Int = 0
 
   def Test() = {
-    val serverProcess = SSLChannel.server(SSLChannel.TLSCredential("xyzzyxyzzy", new File("/Users/sufrin/.keystore")), port, factory, clientSession, sync=true, clientAuth=clientauth)
+    val serverProcess = ChannelOptions.withOptions(inChanSize=10, outChanSize=10) {
+      SSLConnection.server(SSLChannel.TLSCredential("xyzzyxyzzy", new File("/Users/sufrin/.keystore")), port, CRLFChannelFactory) (forkClientSession)
+    }
     run(serverProcess)
   }
 
-  var _clientCount: Int = 0
 
-  def clientSession(channel: TypedSSLChannel[String, String]): Unit = {
-    val connection = ChannelOptions.withOptions(inChanSize=10, outChanSize=10) { NetConnection(channel) }
-    val fromClient = connection.in
-    val toClient   = connection.out
-    // NetConnection now deals with the details
-    // OneOneBuf[String](50, name = "fromClient")
-    // OneOneBuf[String](50, name = "toClient")
-    // val toNet = channel.CopyToNet(toClient).fork
-    // val fromNet = channel.CopyFromNet(fromClient).fork
-    val daemon = connection.fork
-    val sessionDate = new java.util.Date().toString
-    val remote = channel.getRemoteAddress
+  def forkClientSession(connection: NetConnection[String, String]): Unit = {
+    clientSession(connection: NetConnection[String, String]).fork
+    ()
+  }
 
-    val clientCount = {
-      _clientCount += 1
-      _clientCount
-    }
+  def clientSession(connection: NetConnection[String, String]): PROC = proc ("ClientSession $clientCount") {
+      val fromClient  = connection.in
+      val toClient    = connection.out
+      val daemon      = connection.fork
+      val sessionDate = new java.util.Date().toString
+      val remote      = connection.asSSL.getRemoteAddress
 
-
-    log.info(s"New session $clientCount $sessionDate $remote")
-
-    @inline def send(line: String): Unit = toClient ! line
-
-    @inline def headSend(line: String): Unit = {
-      if (logging) log.finest(s"http: $line")
-      toClient ! line
-    }
-
-    @inline def bodySend(line: String): Unit = {
-      if (chunked) send("%x".format(line.length))
-      if (logging) log.finest(s"body: $line")
-      send(line)
-    }
-
-    val readBefore: Boolean = false
-    val listener = proc("listener") {
-      val header = new scala.collection.mutable.Queue[String]
-      var requestCount = 0
-
-      def processRequestLine(request: String): Unit = {
-        val line = request.trim
-        if (logging) log.finest(s"TRIMMED: $line")
-        if (line == "")
-        // end of the request header reached
-        {
-          requestCount += 1
-          headSend("HTTP/1.1 200 OK")
-          headSend("Date: " + sessionDate)
-          headSend("Content-Type: text/html")
-          //headSend("Connection: close")
-          if (chunked) headSend("Transfer-Encoding: chunked")
-          headSend("expect: 100-continue")
-          headSend("")
-          bodySend("<!DOCTYPE html>")
-          bodySend(s"<head><title>Session $clientCount#$requestCount</title></head>")
-          bodySend("<body>")
-          bodySend(s"<h2>Session $clientCount#$requestCount (${new java.util.Date().toString})</h2>")
-          bodySend("<ul>")
-          while (header.nonEmpty) bodySend(s"<li><tt>${header.dequeue()}</tt></li>")
-          bodySend("</ul>")
-          bodySend("</body>")
-          bodySend("</html>")
-          bodySend("")
-        }
-        else
-        // add another line to the header
-        {
-          header.enqueue(line)
-        }
+      val clientCount = {
+        _clientCount += 1
+        _clientCount
       }
 
-      var running = true
-      if (readBefore) {
-        while (running)
-          fromClient.readBefore(idleNS) match {
-            case Some(line) =>
-              processRequestLine(line)
-            case None =>
-              if (logging) log.fine(s"Client $clientCount went idle")
-              running = false
-          }
-      } else
-        while (running)
-          alt {
-            ( fromClient    =?=> { line => processRequestLine(line) }
-            | after(idleNS) ==>  { if (logging) log.fine(s"Client $clientCount went idle")
-                                   running = false
-                                 }
-              )
-          }
 
-      if (logging) log.info(s"Closing client $clientCount session")
+      log.info(s"New session $clientCount $sessionDate $remote")
 
-      // Stop reading from the client: the server will eventually find out
-      fromClient.closeIn()
-      // Probably unnecessary, but must be done after the client close
-      toClient.closeOut()
+      @inline def send(line: String): Unit = toClient ! line
+
+      @inline def headSend(line: String): Unit = {
+        if (logging) log.finest(s"http: $line")
+        toClient ! line
+      }
+
+      @inline def bodySend(line: String): Unit = {
+        if (chunked) send("%x".format(line.length))
+        if (logging) log.finest(s"body: $line")
+        send(line)
+      }
+
+      val readBefore: Boolean = false
+      val listener = proc("listener") {
+        val header = new scala.collection.mutable.Queue[String]
+        var requestCount = 0
+
+        def processRequestLine(request: String): Unit = {
+          val line = request.trim
+          if (logging) log.finest(s"TRIMMED: $line")
+          if (line == "")
+          // end of the request header reached
+          {
+            requestCount += 1
+            headSend("HTTP/1.1 200 OK")
+            headSend("Date: " + sessionDate)
+            headSend("Content-Type: text/html")
+            //headSend("Connection: close")
+            if (chunked) headSend("Transfer-Encoding: chunked")
+            headSend("expect: 100-continue")
+            headSend("")
+            bodySend("<!DOCTYPE html>")
+            bodySend(s"<head><title>Session $clientCount#$requestCount</title></head>")
+            bodySend("<body>")
+            bodySend(s"<h2>Session $clientCount#$requestCount (${new java.util.Date().toString})</h2>")
+            bodySend("<ul>")
+            while (header.nonEmpty) bodySend(s"<li><tt>${header.dequeue()}</tt></li>")
+            bodySend("</ul>")
+            bodySend("</body>")
+            bodySend("</html>")
+            bodySend("")
+          }
+          else
+          // add another line to the header
+          {
+            header.enqueue(line)
+          }
+        }
+
+        var running = true
+        if (readBefore) {
+          while (running)
+            fromClient.readBefore(idleNS) match {
+              case Some(line) =>
+                processRequestLine(line)
+              case None =>
+                if (logging) log.fine(s"Client $clientCount went idle")
+                running = false
+            }
+        } else
+          while (running)
+            alt {
+              ( fromClient    =?=> { line => processRequestLine(line) }
+                | after(idleNS) ==>  { if (logging) log.fine(s"Client $clientCount went idle")
+                running = false
+              }
+                )
+            }
+
+        if (logging) log.info(s"Closing client $clientCount session")
+
+        // Stop reading from the client: the server will eventually find out
+        fromClient.closeIn()
+        // Probably unnecessary, but must be done after the client close
+        toClient.closeOut()
+      }
+
+
+      val listenerHandle = fork(listener)
+      if (logging) log.info(s"Listener at $listenerHandle")
     }
+}
 
+/**
+  * A server whose sessions reflect all packets they receive. Buffers can be of arbitrily small
+  * (positive) sizes; and this might be helpful in investigating problems with codecs that could be
+  * caused by packet fragmentation.
+  *
+  * This app is intended to test the "total trip" correctness of codecs by being run "opposite" various `kbd...`
+  * apps.
+  */
+object reflect extends ManualTest("reflect - a server that reflects all TCP client packets without interpretation.") {
 
-    val listenerHandle = fork(listener)
-    if (logging) log.info(s"Listener at $listenerHandle")
+  def Test(): Unit = {
+    def session(channel: SocketChannel): Unit = {
+      log.info(s"Accepted: ${channel.getRemoteAddress()}")
+      channel.setOption(java.net.StandardSocketOptions.TCP_NODELAY, java.lang.Boolean.TRUE)
+      val buffer = ByteBuffer.allocateDirect(bbSize)
+      var going  = true
+      var total  = 0
+      while (going) {
+        val count = channel.read(buffer)
+        total += count
+        if (logging) log.finest(s"read:: $count/$total")
+        buffer.flip()
+        channel.write(buffer)
+        buffer.clear()
+        going = count>0
+      }
+      channel.close()
+    }
+    val server = TCPChannel.server(port, 1)(session _)
+    server.fork
   }
 }
 
-object reflection extends ManualTest("reflection -- a trivial server that reflects strings sent by its client (kbd)") {
+object reflectkbd extends ManualTest("reflectkbd -- a server that reflects strings sent by its client (kbd) ") {
     def Test(): Unit = {
-    val reflectServer: PROC = TCPChannel.server(port, 0, factory) {
+    val reflectServer: PROC = TCPChannel.server(port, 0, theStringChannelFactory) {
       case channel: TypedTCPChannel[String, String] =>
           val fromClient = OneOne[String](name = "fromClient")
           val toClient   = OneOne[String](name = "toClient")
@@ -841,10 +801,10 @@ object reflection extends ManualTest("reflection -- a trivial server that reflec
   }
 }
 
-object reflectioncon extends ManualTest("reflectioncon -- a trivial server that reflects strings sent by its client (kbd). Uses the TCPConnection api") {
+object reflectcon  extends ManualTest("reflectcon -- a TCPConnection-based server that reflects strings sent by its client (kbd).") {
   def Test(): Unit = {
     val reflectServer: PROC = ChannelOptions.withOptions(inChanSize=10, outChanSize=10){
-      TCPConnection.server(port, 0, factory, "Client") {
+      TCPConnection.server(port, 0, theStringChannelFactory, "Client") {
       case connection: NetConnection[String, String] =>
         val daemon = connection.fork
         fork (proc {
@@ -909,4 +869,67 @@ object interfaces extends ManualTest("interfaces -- list multicast interfaces") 
       exit()
   }
 }
+
+
+/* Sends `StreamEncoding.Seq*` encoded messages. Superseded by `kbds`
+object kbdd extends ManualTest("kbdd -- sends multiple keyboard messages encoded as a datastream of sequences. Run opposite reflect.") {
+  type Ty = Seq[String]
+  def Test() = {
+    import ox.net.codec.StreamerEncoding._
+    implicit object `Seq[String]*` extends `Seq*`[String]
+    object CF extends StreamerChannelFactory[Seq[String], Seq[String]]
+    val channel: TypedTCPChannel[Ty, Ty] = ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024)
+    { TCPChannel.connected(new java.net.InetSocketAddress(host, port), CF) }
+    if (SND>0) channel.setOption(SO_SNDBUF, SND)
+    if (RCV>0) channel.setOption(SO_RCVBUF, RCV)
+    val kbd      = OneOne[String]("kbd")
+    val fromHost = OneOneBuf[Ty](50, name = "fromHost") // A synchronized channel causes deadlock under load
+    val toHost   = OneOneBuf[Ty](50, name = "toHost") // A synchronized channel causes deadlock under load
+    // Bootstrap the channel processes
+    val toNet        = channel.CopyToNet(toHost).fork
+    val fromNet      = channel.CopyFromNet(fromHost).fork
+    val fromKeyboard = component.keyboard(kbd, "").fork
+
+    var last: String = "?"
+    var times = 1
+    run(proc("ui") {
+      repeat {
+        kbd ? () match {
+          case "." =>
+            kbd.close()
+            fromKeyboard.interrupt()
+            stop
+          case s"*$n" if n matches ("[0-9]+") =>
+            times = n.toInt
+          case line =>
+            last = line
+        }
+        val out = (for { i<-0 until times } yield s"($i)=$last").toSeq
+        log.fine(s"toHost ! $last * $times")
+        toHost ! out
+      }
+      toHost.close()
+      toNet.interrupt()
+      fromNet.interrupt()
+    }
+      || proc("fromHost") {
+      var n = 0
+      repeat {
+        n += 1
+        val decoded = fromHost ? ()
+        if (decoded.length==0)
+          println(s"$n: ${decoded.length}")
+        else
+          println(s"$n: ${decoded.toSeq.take(1)(0)}..${decoded.toSeq.drop(decoded.length-1)(0)}")
+      }
+      toHost.closeOut()
+      kbd.close()
+    }
+    )
+    kbd.close()
+    fromHost.close()
+    exit()
+  }
+}
+*/
 

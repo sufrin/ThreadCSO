@@ -1,6 +1,7 @@
 package ox.net
 
 import io.threadcso.{PROC, proc, repeat}
+import ox.net.SSLChannel.Credential
 
 import java.io.FileInputStream
 import java.net.{ServerSocket, Socket}
@@ -136,17 +137,16 @@ object SSLChannel extends ox.logging.Log("SSL") {
     */
   def server[OUT, IN](credential:  Credential,
                       port:        Int,
-                      factory:     ox.net.TypedChannelFactory[OUT, IN],
-                      session:     TypedSSLChannel[OUT, IN] => Unit,
-                      sync:        Boolean = true,
-                      clientAuth:  Boolean = false
-                     ): PROC = proc(s"Server $credential $port (sync=$sync, clientAuth=$clientAuth") {
+                      factory:     ox.net.TypedChannelFactory[OUT, IN])
+                      (session:     TypedSSLChannel[OUT, IN] => Unit): PROC =
+    proc(s"Server $credential $port") {
       val socket: ServerSocket = newServerSocket(credential, port)
-     if (clientAuth) socket match {
+      val clientAuth = ChannelOptions.clientAuth
+      if (clientAuth) socket match {
        case socket: SSLServerSocket => socket.setNeedClientAuth(true)
        case _ =>
-     }
-      val sync = true //
+      }
+      val sync = ChannelOptions.sync
       info(s"Serving on $port with $credential")
       repeat {
         val client = socket.accept
@@ -156,4 +156,29 @@ object SSLChannel extends ox.logging.Log("SSL") {
       }
     }
 }
+
+/** A factory for client connections and servers using SSL/TLS as transport. */
+object SSLConnection {
+  def server[OUT, IN](credential: Credential,
+                      port: Int,
+                      factory: ox.net.TypedChannelFactory[OUT, IN],
+                      name: => String = "")
+                      (session: NetConnection[OUT, IN] => Unit): PROC = {
+    val ocs = ChannelOptions.outChanSize
+    val ics = ChannelOptions.inChanSize
+    SSLChannel.server(credential, port, factory) {
+          case sslChannel: TypedSSLChannel[OUT, IN] =>
+            val connection = ChannelOptions.withOptions(outChanSize = ocs, inChanSize = ics) {
+                NetConnection[OUT, IN](sslChannel, name)
+            }
+            session(connection)
+    }
+  }
+
+  def client[OUT, IN](credential: Credential, host: String, port: Int, factory: ox.net.TypedChannelFactory[OUT, IN], name: => String = ""): NetConnection[OUT,IN] = {
+    val channel = SSLChannel.client(credential, host, port, factory)
+    NetConnection(channel, name)
+  }
+}
+
 

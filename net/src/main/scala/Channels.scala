@@ -55,6 +55,7 @@ object ChannelOptions {
   var inBufSize:  Int                 = 8*1024
   var outBufSize: Int                 = 8*1024
   var protocolFamily: ProtocolFamily  = IPv4
+  var clientAuth: Boolean             = false
   var sync: Boolean                   = true
 
   var inChanSize                       = 1
@@ -81,18 +82,21 @@ object ChannelOptions {
                      outBufSize: Int  = this.outBufSize,
                      inChanSize:  Int  = this.inChanSize,
                      outChanSize: Int  = this.outChanSize,
+                     clientAuth: Boolean = this.clientAuth,
                      sync:       Boolean = this.sync)(makechannel: => T): T = synchronized {
       val is = this.inBufSize
       val os = this.outBufSize
       val ics = this.inChanSize
       val ocs = this.outChanSize
       val pf = this.protocolFamily
+      val ca = this.clientAuth
       val sy = this.sync
       this.inBufSize      = inBufSize
       this.outBufSize     = outBufSize
       this.inChanSize      = inChanSize
       this.outChanSize     = outChanSize
       this.protocolFamily = protocolFamily
+      this.clientAuth = clientAuth
       this.sync = sync
       try makechannel finally {
         this.inBufSize      = is
@@ -100,6 +104,7 @@ object ChannelOptions {
         this.inBufSize      = ics
         this.outBufSize     = ocs
         this.protocolFamily = pf
+        this.clientAuth     = ca
         this.sync           = sy
       }
   }
