@@ -23,8 +23,8 @@ trait NetOutputProxy[-O] extends Encoder[O] {
       in.closeIn()
       closeOut()
     } catch {
-      case exn: java.nio.channels.ClosedByInterruptException =>
-        if (logging) NetProxy.fine(s"CopyToNet terminated by ClosedInterrupt")
+      case exn: java.io.IOException =>
+        if (logging) NetProxy.fine(s"CopyToNet terminated by: $exn")
         in.closeIn()
         closeOut()
         lastEncoderException = Some(exn)
@@ -41,19 +41,11 @@ trait NetInputProxy[+I] extends Decoder[I] {
         val decoded = decode()
         out ! decoded
       }
-      if (logging) NetProxy.fine("CopyFromNet terminated")
+      if (logging) NetProxy.fine("CopyFromNet terminated by $out closing")
       out.closeOut()
     } catch {
-      case exn: java.nio.channels.AsynchronousCloseException =>
-        if (logging) NetProxy.fine(s"CopyFromNet terminated by asynchronous external channel close")
-        out.closeOut()
-        lastDecoderException = Some(exn)
-      case exn: java.io.EOFException =>
-        if (logging) NetProxy.fine(s"CopyFromNet terminated by external channel close")
-        out.closeOut()
-        lastDecoderException = Some(exn)
-      case exn: java.nio.channels.ClosedByInterruptException =>
-        if (logging) NetProxy.fine(s"CopyFromNet terminated by ClosedInterrupt")
+      case exn: java.io.IOException =>
+        if (logging) NetProxy.fine(s"CopyFromNet terminated by: $exn")
         out.closeOut()
         lastDecoderException = Some(exn)
     }
