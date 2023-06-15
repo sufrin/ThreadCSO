@@ -12,7 +12,7 @@ import java.nio.channels.SocketChannel
   * An abstract `ChannelFactory` for a pair of types, `[OUT,IN]` each with a  `Streamer` stream-encoding that can be synthesised or
   * inferred (for example by using the tools of `StreamerEncoding`).
   *
-  * @see  VelviaChannelFactory, CRLFChannelFactory, UTF8ChannelFactory for factories that use other (families of) encoding.
+  * @see  VelviaChannelFactory, CRLFChannelFactory, UTF8ChannelFactory
   */
 class StreamerChannelFactory[OUT : Streamer, IN: Streamer] extends TypedChannelFactory[OUT, IN] {
   val log = new ox.logging.Log()

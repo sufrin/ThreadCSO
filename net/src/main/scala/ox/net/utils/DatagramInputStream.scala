@@ -1,5 +1,4 @@
-package ox.net
-
+package ox.net.utils
 
 import java.net.SocketAddress
 import java.nio.ByteBuffer

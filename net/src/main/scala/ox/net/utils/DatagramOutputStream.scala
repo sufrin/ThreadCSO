@@ -1,5 +1,4 @@
-package ox.net
-
+package ox.net.utils
 
 import java.io.IOException
 import java.net.SocketAddress

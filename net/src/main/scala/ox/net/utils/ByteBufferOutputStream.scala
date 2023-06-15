@@ -1,4 +1,4 @@
-package ox.net
+package ox.net.utils
 
 import java.io.OutputStream
 import java.nio.ByteBuffer

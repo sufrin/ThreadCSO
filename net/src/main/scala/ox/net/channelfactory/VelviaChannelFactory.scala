@@ -1,7 +1,7 @@
 package ox.net.channelfactory
 
 import org.velvia.InvalidMsgPackDataException
-import org.velvia.msgpack.{Codec => ImplicitCodec}
+import org.velvia.msgpack.{Codec => VelviaCodec}
 import ox.net.TypedChannelFactory
 import ox.net.TypedSSLChannel
 import ox.net.TypedTCPChannel
@@ -11,16 +11,20 @@ import java.net.Socket
 import java.nio.channels.SocketChannel
 
 /**
-  * An abstract `ChannelFactory` for a pair of types, `[OUT,IN]` each with an  `ImplicitCodec` stream-encoding that can be synthesised or
-  * inferred (for example by using the tools of `org.velvia.msgpack`). This class is structurally almost the same as
-  * `StreamerChannelFactory`.
+  * An abstract `ChannelFactory` for a pair of types, `[OUT,IN]` each with an  `org.velvia.msgpack.Codec` stream-encoding that can be synthesised or
+  * inferred (for example by using the tools of `org.velvia.msgpack`).
+  *
+  * This class is structurally almost the same as `StreamerChannelFactory`, and no doubt we could find an
+  * abstraction that covers them both if we tried hard enough.
+  *
+  * @see  StreamerChannelFactory, CRLFChannelFactory, UTF8ChannelFactory
   */
 
 object VelviaChannelFactory {
   val log = new ox.logging.Log()
 }
 
-class VelviaChannelFactory[OUT : ImplicitCodec, IN: ImplicitCodec] extends TypedChannelFactory[OUT, IN] {
+class VelviaChannelFactory[OUT : VelviaCodec, IN: VelviaCodec] extends TypedChannelFactory[OUT, IN] {
   val log = VelviaChannelFactory.log
 
   def newChannel(theChannel: SocketChannel): TypedTCPChannel[OUT,IN] = new TypedTCPChannel[OUT, IN] with Mixin {
@@ -54,7 +58,7 @@ class VelviaChannelFactory[OUT : ImplicitCodec, IN: ImplicitCodec] extends Typed
     def sync: Boolean
 
     def decode(): IN = try {
-      org.velvia.MessagePack.unpack(input)(implicitly[ImplicitCodec[IN]])
+      org.velvia.MessagePack.unpack(input)(implicitly[VelviaCodec[IN]])
     } catch {
       case exn: InvalidMsgPackDataException => inOpen = false; throw new ox.net.codec.EndOfInputStream(input)
       case exn: UTFDataFormatException => inOpen = false; throw new ox.net.codec.EndOfInputStream(input)

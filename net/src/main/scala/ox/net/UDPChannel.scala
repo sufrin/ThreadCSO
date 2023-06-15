@@ -4,6 +4,7 @@ import io.SourceLocation._
 import ox.net.SocketOptions._
 import ox.net.UDPChannel.UDP
 import ox.net.codec.{Codec, EndOfInputStream}
+import ox.net.utils.{DatagramInputStream, DatagramOutputStream}
 
 import java.io.{EOFException, UTFDataFormatException}
 import java.net._

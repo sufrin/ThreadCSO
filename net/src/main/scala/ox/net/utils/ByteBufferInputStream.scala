@@ -1,4 +1,4 @@
-package ox.net
+package ox.net.utils
 
 import java.io.InputStream
 import java.nio.ByteBuffer
@@ -21,7 +21,6 @@ class ByteBufferInputStream(size: Int) extends InputStream {
     val logging = false
 
     override def toString: String = s"ByteBufferInputStream($size) (remaining: ${byteBuffer.remaining()})"
-    import ByteBufferInputStream._
     val buf                    = new Array[Byte](size)
     val byteBuffer: ByteBuffer = ByteBuffer.wrap(buf)
 
