@@ -11,7 +11,7 @@ import java.nio.channels._
 
 object UDPChannel
 { val log = ox.logging.Logging.Log("UDPChannel")
-  val logging = log.logging
+  @inline def logging = log.logging
 
   sealed trait UDP[T] {
     val address: SocketAddress
@@ -126,7 +126,7 @@ object UDPChannel
       val networkInterface = NetworkInterface.getByName(interfaceName)
       val membershipKey    = socket.join(address.getAddress, networkInterface)
       channel.setOption(SO_REUSEADDR, value = true)
-      log.fine(s"MultiConnect ni=$networkInterface, key=$membershipKey")
+      if (logging) log.fine(s"MultiConnect ni=$networkInterface, key=$membershipKey")
       channel.property("networkInterface") = networkInterface
       channel.property("membershipKey")    = membershipKey
     } else throw new IllegalArgumentException(s"${address.getAddress} is not a multicast address")
@@ -153,7 +153,7 @@ object UDPChannel
     channel.property("family")           = family
     channel.property("networkInterface") = networkInterface
     socket.bind(new InetSocketAddress(address.getPort))
-    log.fine(s"MultiBind Interface: $networkInterface, Address: $address, Channel: $channel")
+    if (logging) log.fine(s"MultiBind Interface: $networkInterface, Address: $address, Channel: $channel")
     channel
   }
 

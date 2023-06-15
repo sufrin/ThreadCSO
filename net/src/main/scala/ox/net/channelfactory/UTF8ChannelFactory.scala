@@ -7,7 +7,9 @@ import java.io._
 import java.net.Socket
 import java.nio.channels.SocketChannel
 
-object UTF8ChannelFactory extends ox.logging.Log("UTF8ChannelFactory") with TypedChannelFactory[String,String] {
+object UTF8ChannelFactory extends TypedChannelFactory[String,String] {
+  val log = ox.logging.Log("UTF8ChannelFactory")
+
   override def toString = "UTF8 Factory"
 
   trait Mixin {
@@ -28,27 +30,27 @@ object UTF8ChannelFactory extends ox.logging.Log("UTF8ChannelFactory") with Type
     def encode(value: String): Unit = try {
       out.writeUTF(value)
       if (sync) out.flush()
-      if (logging) finest(s"UTF: wrote #${value.length}")
+      if (log.logging) log.finest(s"UTF: wrote #${value.length}")
     } catch {
       case exn: IOException =>
         outOpen = false
-        if (logging) finest(s"UTF: Encode IOException $exn")
+        if (log.logging) log.finest(s"UTF: Encode IOException $exn")
         throw new EndOfOutputStream(out)
     }
 
 
     def decode(): String = try {
       val r = in.readUTF()
-      if (logging) finest(s"UTF: Decode #${r.length} (${r.subSequence(0, 40 min r.length)}...")
+      if (log.logging) log.finest(s"UTF: Decode #${r.length} (${r.subSequence(0, 40 min r.length)}...")
       r
     } catch { // exceptions caused by datagram truncation
       case exn: EOFException =>
         inOpen = false
-        fine(s"UTF: Decode EOF $exn")
+        if (log.logging) log.fine(s"UTF: Decode EOF $exn")
         throw exn
       case exn: UTFDataFormatException =>
         inOpen = false
-        warning(s"UTF: Decode error $exn")
+        log.severe(s"UTF: Decode error $exn")
         throw exn
     }
   }

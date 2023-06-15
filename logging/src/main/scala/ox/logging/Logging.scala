@@ -15,7 +15,7 @@ object Logging
   var showLogNames: Boolean = false
   /** Show stack backtraces at the point at which `Throwable`s are logged.
     * `Throwable` messages are still passed to the current `loggingMethod`. */
-  var showLoggedExceptions: Boolean = true
+  var showLogStacks: Boolean = true
 
   /** Constructor for logging messages  */
   case class Message(level: Int, logName: String, message: String, location: SourceLocation)
@@ -35,11 +35,11 @@ object Logging
     _loggingMethod
   }
 
-  /** Logs a throwable, and if `showLoggedExceptions` is true, also prints the stack backtrace immediately. */
+  /** Logs a throwable, and if `showLogStacks` is true, also prints the stack backtrace immediately. */
   def logThrowable(level: Int, name: String, exn: Throwable, loc: SourceLocation): Unit = {
     loggingMethod(Message(level, name, exn.toString, loc))
     // PRO-TEM
-    if (showLoggedExceptions) exn.printStackTrace(scala.Console.err)
+    if (showLogStacks) exn.printStackTrace(scala.Console.err)
   }
 
   /**
@@ -92,6 +92,8 @@ object Logging
   val levelMap = new scala.collection.mutable.HashMap[String,Int]
 
   val logMap = new scala.collection.mutable.HashMap[String, Log]
+
+  def Log()(implicit loc: SourceLocation): Log = Log(loc.file)
 
   def Log(name: String): Log =
     logMap.get(name) match {
@@ -175,11 +177,11 @@ trait Logging
   import scala.annotation.elidable._
 
   /** The logging level of this log */
-  @inline def logLevel : Int = Logging.getLevel(name)
+  @inline def logLevel: Int    = Logging.getLevel(name)
+  /** Is this log active for levels below FINE */
+  @inline def logging: Boolean = logLevel<=FINE
 
-  @inline def logging: Boolean = logLevel>=FINE
-
-  override def toString = s"Log{name=$name, logLevel=${Logging.levelName(logLevel)})"
+  override def toString = s"Log{name=$name, logLevel=${Logging.levelName(logLevel)}, logging=$logging)"
 
   /** If the given `level` is not strictly below the current `logLevel`
       for the object being logged, then the given `message` is

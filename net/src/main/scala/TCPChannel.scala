@@ -9,6 +9,7 @@ import java.nio.channels.{ServerSocketChannel, SocketChannel}
 
 
 object TCPChannel {
+  val log = new ox.logging.Log()
 
   /**
     *   Construct a synchronous network channel bound to the given socket address.
@@ -82,6 +83,7 @@ object TCPChannel {
 
 /** A factory for connections using TCP as transport. */
 object TCPConnection {
+  val log = new ox.logging.Log("TCPConnection")
   /**
     *  A connection using a synchronous network channel bound to the given address. This
     *  is not the usual way to offer service at a given address (use a server).
@@ -98,7 +100,9 @@ object TCPConnection {
                          factory: TypedChannelFactory[OUT, IN],
                          name: String = ""): NetConnection[OUT, IN] = {
     val channel = TCPChannel.connected[OUT, IN](address, factory)
-    NetConnection(channel, name)
+    val connected = NetConnection(channel, name)
+    if (log.logging) log.finer(s"TCPConnection.connected($connected)")
+      connected
   }
 
   /**
@@ -117,6 +121,7 @@ object TCPConnection {
     TCPChannel.server(port, backlog, factory) {
       case tcpChannel: TypedTCPChannel[OUT, IN] =>
         val connection = ChannelOptions.withOptions(outChanSize = ocs, inChanSize = ics) { NetConnection[OUT, IN](tcpChannel, name) }
+        if (log.logging) log.finer(s"TCPConnection.server($port, $backlog).session(connection)")
         session(connection)
     }
   }

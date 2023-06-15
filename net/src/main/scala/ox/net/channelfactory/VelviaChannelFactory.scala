@@ -16,7 +16,13 @@ import java.nio.channels.SocketChannel
   * `StreamerChannelFactory`.
   */
 
-class VelviaChannelFactory[OUT : ImplicitCodec, IN: ImplicitCodec] extends ox.logging.Log("VelviaChannelFactory") with TypedChannelFactory[OUT, IN] {
+object VelviaChannelFactory {
+  val log = new ox.logging.Log()
+}
+
+class VelviaChannelFactory[OUT : ImplicitCodec, IN: ImplicitCodec] extends TypedChannelFactory[OUT, IN] {
+  val log = VelviaChannelFactory.log
+
   def newChannel(theChannel: SocketChannel): TypedTCPChannel[OUT,IN] = new TypedTCPChannel[OUT, IN] with Mixin {
     val channel = theChannel
     val output = new DataOutputStream(new BufferedOutputStream(java.nio.channels.Channels.newOutputStream(channel)))

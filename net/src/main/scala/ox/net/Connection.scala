@@ -19,10 +19,15 @@ trait Connection[-OUT, +IN] {
   * forwards material arriving from the network to `in`, using the given `transfer` channels
   *
   */
-class NetConnection[OUT, IN](val _name: String = "", val proxy: NetProxy[OUT, IN], val transferToNet: Chan[OUT], val transferFromNet: Chan[IN]) extends Connection[OUT, IN] with PROC {
+class NetConnection[OUT, IN](val _name:           String = "<anonymous>",
+                             val proxy:           NetProxy[OUT, IN],
+                             val transferToNet:   Chan[OUT],
+                             val transferFromNet: Chan[IN]) extends Connection[OUT, IN] with PROC {
+  override def toString: String = s"NetConnection(${_name}, $proxy)"
   val out: OutPort[OUT] = transferToNet
   val in:  InPort[IN]   = transferFromNet
-  val daemon: PROC      = (proxy.CopyToNet(transferToNet) || proxy.CopyFromNet(transferFromNet)).withName(_name)
+
+  private val copiers: PROC  = (proxy.CopyToNet(transferToNet) || proxy.CopyFromNet(transferFromNet)).withName(_name)
 
   def asUDP: TypedUDPChannel[OUT,IN] = proxy match {
     case channel: TypedUDPChannel[OUT,IN] => channel
@@ -36,13 +41,13 @@ class NetConnection[OUT, IN](val _name: String = "", val proxy: NetProxy[OUT, IN
     case channel: TypedTCPChannel[OUT, IN] => channel
   }
 
-  /** Run the daemon in the current thread */
-  def apply(): Unit = daemon()
+  /** Run the copiers in the current thread */
+  def apply(): Unit = copiers()
 
   /**
-    * Acquire a thread, and run the daemon in it
+    * Acquire a thread, and run the copiers in it
     */
-  def fork: Process.Handle = daemon.fork
+  def fork: Process.Handle = copiers.fork
 }
 
 /**
@@ -60,9 +65,9 @@ object NetConnection {
       */
     def apply[OUT, IN](proxy: NetProxy[OUT, IN], name: String=""): NetConnection[OUT, IN] = {
       val outName = s"NetConnection($name).out"
-      val inName = s"NetConnection($name).in"
+      val inName  = s"NetConnection($name).in"
       val outSize = ChannelOptions.outChanSize
-      val inSize = ChannelOptions.inChanSize
+      val inSize  = ChannelOptions.inChanSize
       val out: Chan[OUT] = if (outSize <= 0) OneOne[OUT](outName) else OneOneBuf[OUT](outSize, outName)
       val in: Chan[IN] = if (inSize <= 0) OneOne[IN](inName) else OneOneBuf[IN](inSize, inName)
       new NetConnection[OUT, IN](name, proxy, transferToNet = out, transferFromNet = in)

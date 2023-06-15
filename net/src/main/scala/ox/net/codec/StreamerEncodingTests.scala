@@ -259,16 +259,16 @@ object StreamerEncodingTests {
     test(null: Node[Int])(`?Node[Int]*`)  // 2 bytes
 
     // ----------------
-    try {
+    {
       /**
         * This specification is type-correct, but will fail at the moment of encoding the `null` at the end of
         * the `Node` chain.
         *
         */
-      lazy val `Node[Int]WRONG`: Streamer[Node[Int]] = new`2-Case-Rec*`[Node[Int], Int, Node[Int]](Node.apply, Node.unapply)(`Int*`, `Node[Int]WRONG`)
-      test(b)(`Node[Int]WRONG`)
-    } catch {
-      case exn: Throwable => println(s"**** Encoding failure as expected:\n**** Node.unapply(null) fails at the end of the chain:\n**** ${exn.toString}")
+      lazy val wrong: Streamer[Node[Int]] = new`2-Case-Rec*`[Node[Int], Int, Node[Int]](Node.apply, Node.unapply)(`Int*`, wrong)
+      try test(b)(wrong) catch {
+         case exn: Throwable => println(s"**** Encoding failure of $wrong  as expected:\n**** Node.unapply(null) fails at the end of the chain:\n**** ${exn.toString}")
+      }
     }
 
 

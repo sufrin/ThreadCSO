@@ -8,7 +8,9 @@ import java.net.Socket
 import java.nio.channels.SocketChannel
 import javax.net.ssl.SSLSocket
 
-object CRLFChannelFactory extends ox.logging.Log("CRLFChannelFactory") with TypedChannelFactory[String,String] {
+object CRLFChannelFactory extends TypedChannelFactory[String,String] {
+  val log = new ox.logging.Log()
+
   override def toString = "CRLF Factory"
 
   trait Mixin {
@@ -32,7 +34,7 @@ object CRLFChannelFactory extends ox.logging.Log("CRLFChannelFactory") with Type
             val c = input.read()
             c match {
               case -1 =>
-                if (logging) fine(s"crlf: fromStream: stream ended before string")
+                if (log.logging) log.warning(s"crlf: fromStream: stream ended before string")
                 throw new EOFException()
               case '\r' =>
                 cr = true
@@ -77,7 +79,7 @@ object CRLFChannelFactory extends ox.logging.Log("CRLFChannelFactory") with Type
       super.close()
       socket match {
         case ssl: SSLSocket =>
-          if (logging) fine(s"SSL socket $ssl shutting down output")
+          if (log.logging) log.fine(s"SSL socket $ssl shutting down output")
           ssl.shutdownOutput()
       }
     }
@@ -86,7 +88,7 @@ object CRLFChannelFactory extends ox.logging.Log("CRLFChannelFactory") with Type
       super.close()
       socket match {
         case ssl: SSLSocket =>
-          if (logging) fine(s"SSL socket $ssl shutting down input")
+          if (log.logging) log.fine(s"SSL socket $ssl shutting down input")
           ssl.shutdownInput()
       }
     }

@@ -6,10 +6,10 @@ import java.nio.ByteBuffer
 import java.nio.channels.DatagramChannel
 
 object DatagramInputStream {
-  val log = ox.logging.Logging.Log("DatagramOutputStream")
-  val logging = log.logging
+  val log     = new ox.logging.Log()
+
   def apply(channel: DatagramChannel, size: Int): DatagramInputStream =
-    new DatagramInputStream(channel, size)
+      new DatagramInputStream(channel, size)
 }
 
 /**
@@ -43,7 +43,7 @@ class DatagramInputStream(val channel: DatagramChannel, size: Int) extends ByteB
   @inline private def receive(buffer: ByteBuffer): SocketAddress = {
       buffer.clear
       val sourceAddress = channel.receive(buffer)
-      if (logging) log.finest(s"received $buffer from $sourceAddress")
+      if (log.logging) log.finest(s"received $buffer from $sourceAddress")
       buffer.flip
       sourceAddress
   }

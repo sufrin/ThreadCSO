@@ -7,7 +7,8 @@ import java.io.FileInputStream
 import java.net.{ServerSocket, Socket}
 import java.security.KeyStore
 
-object SSLChannel extends ox.logging.Log("SSL") {
+object SSLChannel  {
+  val log = new ox.logging.Log()
 
   import javax.net._
   import javax.net.ssl._
@@ -50,7 +51,7 @@ object SSLChannel extends ox.logging.Log("SSL") {
         val keyManagers = KeyManagerFactory.getInstance("SunX509")
         keyStore.load(new FileInputStream(keyStoreFile), passPhrase.toCharArray)
         keyManagers.init(keyStore, passPhrase.toCharArray)
-        if (logging) finest(s"${keyManagers.getKeyManagers()}")
+        if (log.logging) log.fine(s"${keyManagers.getKeyManagers()}")
         context.init(keyManagers.getKeyManagers(), null, null)
         context.getServerSocketFactory()
     }
@@ -70,7 +71,7 @@ object SSLChannel extends ox.logging.Log("SSL") {
         val keyManagers = KeyManagerFactory.getInstance("SunX509")
         keyStore.load(new FileInputStream(keyStoreFile), passPhrase.toCharArray)
         keyManagers.init(keyStore, passPhrase.toCharArray)
-        if (logging) finest(s"${keyManagers.getKeyManagers()}")
+        if (log.logging) log.finest(s"${keyManagers.getKeyManagers()}")
         context.init(keyManagers.getKeyManagers(), null, null)
         context.getSocketFactory()
     }
@@ -87,7 +88,7 @@ object SSLChannel extends ox.logging.Log("SSL") {
   }
 
   /**
-    * Build a `TypedSSLChannel[OUT,IN]` that connects to `//host:port` using the given credential.
+    * Build a `Typedlog[OUT,IN]` that connects to `//host:port` using the given credential.
     * If the credential is a `TLSWithoutCredential` then communication uses `SSL/TLS`, but
     * the client identity is not certified.
     * If the credential is a `TLSCredential`
@@ -117,7 +118,7 @@ object SSLChannel extends ox.logging.Log("SSL") {
       case _                 =>
     }
     val channel       = factory.newChannel(socket)
-    if (logging) fine(s"Client socket $socket")
+    if (log.logging) log.fine(s"Client socket $socket")
     channel
   }
 
@@ -147,7 +148,7 @@ object SSLChannel extends ox.logging.Log("SSL") {
        case _ =>
       }
       val sync = ChannelOptions.sync
-      info(s"Serving on $port with $credential")
+      if (log.logging) log.fine(s"Serving on $port with $credential")
       repeat {
         val client = socket.accept
         client.setTcpNoDelay(sync)

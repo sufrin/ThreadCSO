@@ -25,39 +25,45 @@ import java.nio.ByteBuffer
   *
   * @see DatagramOutputStream
   */
-object ByteBufferOutputStream extends ox.logging.Log("ByteBufferOutputStream")
+object ByteBufferOutputStream {
+  val log = new ox.logging.Log()
+}
 
 
 
 class ByteBufferOutputStream(size: Int, deltaCapacity: Int = 100) extends OutputStream  {
-  import ByteBufferOutputStream._
+  import ByteBufferOutputStream.log
+  // @inline private def logging = log.logging
+  private val logging = false
+
   var buffer: ByteBuffer = ByteBuffer.allocate(size)
 
   def write(b: Int): Unit = {
     if (buffer.remaining()<1) enlarge(buffer.capacity+10)
     buffer.put(b.toByte)
-    if (logging) finest(s"BBOS.put($b) $buffer")
+    if (logging) log.finest(s"BBOS.put($b) $buffer")
   }
 
   override def write(b: Array[Byte]): Unit = {
     while (buffer.remaining()<b.length) enlarge(b.length)
     buffer.put(b)
-    if (logging) finest(s"BBOS.put $buffer")
+    if (logging) log.finest(s"BBOS.put $buffer")
   }
 
   override def write(b: Array[Byte], off: Int, len: Int): Unit = {
     while (buffer.remaining()<len) enlarge(len)
     buffer.put(b, off, len)
-    if (logging) finest(s"BBOS.put(buf, $off, $len) $buffer")
+    if (logging) log.finest(s"BBOS.put(buf, $off, $len) $buffer")
   }
 
   /**
     * Enlarge the buffer to `targetCapacity+deltaCapacity`. Invoked by `write` methods
-    * when the buffer is too small.
+    * when the buffer is too small. Not particularly efficient, but the amortized
+    * efficiency over the lifetime of the buffer is ... ok.
     */
   def enlarge(targetCapacity: Int): Unit = {
     val capacity = targetCapacity + deltaCapacity
-    if (logging) finest(s"BBOS.enlarge -> $capacity")
+    if (logging) log.finest(s"BBOS.enlarge -> $capacity")
     val newBuffer = ByteBuffer.allocate(capacity)
     buffer.flip()
     newBuffer.put(buffer)

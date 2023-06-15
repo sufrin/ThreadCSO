@@ -14,12 +14,15 @@ import java.nio.channels.SocketChannel
   *
   * @see  VelviaChannelFactory, CRLFChannelFactory, UTF8ChannelFactory for factories that use other (families of) encoding.
   */
-class StreamerChannelFactory[OUT : Streamer, IN: Streamer]
-       extends ox.logging.Log("StreamerChannelFactory")
-       with TypedChannelFactory[OUT, IN] {
+class StreamerChannelFactory[OUT : Streamer, IN: Streamer] extends TypedChannelFactory[OUT, IN] {
+  val log = new ox.logging.Log()
 
-  private val tenc = implicitly[Streamer[OUT]]
-  private val uenc = implicitly[Streamer[IN]]
+  private val oenc = implicitly[Streamer[OUT]]
+  private val ienc = implicitly[Streamer[IN]]
+
+  override def toString: String = s"StreamerChannelFactory[$oenc, $ienc]"
+
+  if (log.logging) log.fine(s"new $this")
 
   /**
     * This mixin requires `input` and `output` datastreams, and a `sync`
@@ -37,7 +40,7 @@ class StreamerChannelFactory[OUT : Streamer, IN: Streamer]
       * Decode the next encoded item on the associated network stream
       */
     def decode(): IN = try {
-      uenc.fromStream(input)
+      ienc.fromStream(input)
     } catch {
       case exn: UTFDataFormatException => inOpen = false; throw new EndOfInputStream(input)
       case exn: EOFException => inOpen = false; throw new EndOfInputStream(input)
@@ -61,7 +64,7 @@ class StreamerChannelFactory[OUT : Streamer, IN: Streamer]
       * the associated network stream
       */
     def encode(t: OUT): Unit = {
-      tenc.toStream(output, t)
+      oenc.toStream(output, t)
       if (sync) output.flush()
     }
 

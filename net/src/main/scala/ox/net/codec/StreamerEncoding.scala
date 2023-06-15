@@ -94,51 +94,64 @@ object StreamerEncoding {
         * and return the datum.
         */
       def fromStream(in: DataInputStream): T
+
+      override def toString = name
+
+      val name: String
     }
 
     implicit object `Int*` extends Streamer[Int] {
       def toStream(out: DataOutputStream, t: Int): Unit = out.writeInt(t)
       def fromStream(in: DataInputStream): Int = in.readInt()
+      val name = "`Int*`"
     }
 
     implicit object `Long*` extends Streamer[Long] {
       def toStream(out: DataOutputStream, t: Long): Unit  = out.writeLong(t)
       def fromStream(in: DataInputStream): Long = in.readInt()
+      val name = "`Long*`"
     }
 
     implicit object `VarInt*` extends Streamer[VarInt] {
       def toStream(out: DataOutputStream, t: VarInt): Unit  = ox.net.codec.VarInt.writeVarInt(out, t)
       def fromStream(in: DataInputStream): VarInt = ox.net.codec.VarInt.readVarInt(in)
+      val name = "`VarInt*`"
     }
 
     implicit object `Char*` extends Streamer[Char] {
       def toStream(out: DataOutputStream, t: Char): Unit  = out.writeChar(t)
       def fromStream(in: DataInputStream): Char      = in.readChar()
+      val name = "`Char*`"
     }
 
     implicit object `Byte*` extends Streamer[Byte] {
       def toStream(out: DataOutputStream, t: Byte): Unit  = out.writeByte(t)
       def fromStream(in: DataInputStream): Byte = in.readByte()
+      val name = "`Byte*`"
     }
 
     implicit object `Short*` extends Streamer[Short] {
       def toStream(out: DataOutputStream, t: Short): Unit  = out.writeShort(t)
       def fromStream(in: DataInputStream): Short = in.readShort()
+      val name = "`Byte*`"
     }
 
     implicit object `String*` extends Streamer[String] {
       def toStream(out: DataOutputStream, t: String): Unit  = out.writeUTF(t)
       def fromStream(in: DataInputStream): String = in.readUTF()
+      val name = "`String*`"
     }
 
     implicit object `Double*` extends Streamer[Double] {
       def toStream(out: DataOutputStream, t: Double): Unit  = out.writeDouble(t)
       def fromStream(in: DataInputStream): Double = in.readDouble()
+      val name = "`Double*`"
     }
 
     implicit object `Float*` extends Streamer[Float] {
       def toStream(out: DataOutputStream, t: Float): Unit  = out.writeFloat(t)
       def fromStream(in: DataInputStream): Float = in.readFloat()
+      val name = "`Float*`"
     }
 
     implicit object `BigJavaDecimal*` extends Streamer[BigJavaDecimal] {
@@ -156,6 +169,9 @@ object StreamerEncoding {
           for { i<-0 until length } rep(i) = in.readByte()
           new BigJavaDecimal(new BigJavaInteger(rep), scale)
       }
+
+      val name = "`BigJavaDecimal*`"
+
     }
 
     implicit object `BigJavaInteger*` extends Streamer[BigJavaInteger] {
@@ -171,6 +187,9 @@ object StreamerEncoding {
         for {i <- 0 until length} rep(i) = in.readByte()
         new BigJavaInteger(rep)
       }
+
+      val name = "`BigJavaInteger*`"
+
     }
 
     implicit object `BigInt*` extends Streamer[BigInt] {
@@ -181,6 +200,9 @@ object StreamerEncoding {
       def fromStream(in: DataInputStream): BigInt = {
           BigInt(`BigJavaInteger*`.fromStream(in))
       }
+
+      val name = "`BigInt*`"
+
     }
 
     implicit object `BigDecimal*` extends Streamer[BigDecimal] {
@@ -191,10 +213,15 @@ object StreamerEncoding {
       def fromStream(in: DataInputStream): BigDecimal = {
         `BigJavaDecimal*`.fromStream(in)
       }
+
+      val name = "`BigDecimal*`"
+
     }
 
   class `Seq*`[T : Streamer] extends Streamer[Seq[T]]  {
     private val enc = implicitly[Streamer[T]]
+
+    val name = s"`Seq*`($enc)"
 
     def toStream(out: DataOutputStream, t: Seq[T]): Unit = {
       writeVarInt(out, t.length)
@@ -227,6 +254,8 @@ object StreamerEncoding {
         }
         result
       }
+
+      val name = s"`Seq*`(explicit $enc)"
     }
   }
 
@@ -250,11 +279,16 @@ object StreamerEncoding {
         None
       }
     }
+
+    val name = s"`Option*`($enc)"
+
   }
 
   class `Either*`[L: Streamer, R: Streamer] extends Streamer[Either[L,R]] {
     val encl = implicitly[Streamer[L]]
     val encr = implicitly[Streamer[R]]
+    val name = s"`Either*`($encl, $encr)"
+
     /**
       * Append the encoding of `datum` to the `out` stream
       */
@@ -292,6 +326,9 @@ object StreamerEncoding {
       }
       result.toList
     }
+
+    val name = s"`List*`($enc)"
+
   }
 
   /** A streamer for `Array[T]` it needs `T` to have a class tag */
@@ -307,6 +344,8 @@ object StreamerEncoding {
           for  { i<-0 until length } result(i) = enc.fromStream(in)
       result
     }
+
+    val name = s"`Array*`($enc)"
 
   }
 
@@ -345,6 +384,7 @@ object StreamerEncoding {
   class `1-Case*`[K, T](apply: T=>K, unapply: K=>Option[T])(implicit enc: Streamer[T]) extends Streamer[K] {
     def toStream(out: DataOutputStream, t: K): Unit = enc.toStream(out, unapply(t).get)
     def fromStream(in: DataInputStream): K = apply(enc.fromStream(in))
+    val name = s"`Case*`($enc)"
   }
 
   /** @see `1-Case*` */
@@ -352,13 +392,15 @@ object StreamerEncoding {
       private val enc = new `2-Tuple*`[T,U]
       def toStream(out: DataOutputStream, t: K): Unit = enc.toStream(out, unapply(t).get)
       def fromStream(in: DataInputStream): K = apply.tupled(enc.fromStream(in))
-    }
+      val name = s"`Case*`($enc)"
+  }
 
   /** @see `1-Case*` */
   class `3-Case*`[K, T: Streamer, U: Streamer, V: Streamer](apply: (T, U, V) => K, unapply: K => Option[(T, U, V)]) extends Streamer[K] {
     private val enc = new `3-Tuple*`[T, U, V]
     def toStream(out: DataOutputStream, t: K): Unit = enc.toStream(out, unapply(t).get)
     def fromStream(in: DataInputStream): K = apply.tupled(enc.fromStream(in))
+    val name = s"`Case*`($enc)"
   }
 
   /** @see `1-Case*` */
@@ -366,16 +408,17 @@ object StreamerEncoding {
     private val enc = new `4-Tuple*`[T, U, V, W]
     def toStream(out: DataOutputStream, t: K): Unit = enc.toStream(out, unapply(t).get)
     def fromStream(in: DataInputStream): K = apply.tupled(enc.fromStream(in))
+    val name = s"`Case*`($enc)"
   }
 
   /** @see `1-Case*` */
   class `5-Case*`[K, T: Streamer, U: Streamer, V: Streamer, W: Streamer, X: Streamer](apply: (T, U, V, W, X) => K, unapply: K => Option[(T, U, V, W, X)])
     extends Streamer[K] {
     private val enc = new`5-Tuple*`[T, U, V, W, X]
-
     def toStream(out: DataOutputStream, t: K): Unit = enc.toStream(out, unapply(t).get)
-
     def fromStream(in: DataInputStream): K = apply.tupled(enc.fromStream(in))
+    val name = s"`Case*`($enc)"
+
   }
 
   /** @see `1-Case*` */
@@ -385,11 +428,13 @@ object StreamerEncoding {
     private val enc = new`6-Tuple*`[T, U, V, W, X, Y]
     def toStream(out: DataOutputStream, t: K): Unit = enc.toStream(out, unapply(t).get)
     def fromStream(in: DataInputStream): K = apply.tupled(enc.fromStream(in))
+    val name = s"`Case*`($enc)"
   }
 
 
   /** 2-Case with explicit encodings passed by name: for when one of the component types is (or references) `K` */
   class `2-Case-Rec*`[K, T, U](apply: (T, U) => K, unapply: K => Option[(T, U)])(tenc: => Streamer[T], uenc: => Streamer[U]) extends Streamer[K] {
+    val name = s"`2-Case-Rec*`"
 
     def toStream(out: DataOutputStream, t: K): Unit = {
       val Some((tt, uu)) = unapply(t)
@@ -406,6 +451,7 @@ object StreamerEncoding {
 
   /** 3-Case with explicit encodings passed by name: for when one of the component types is (or references) `K` */
   class `3-Case-Rec*`[K, T, U, V](apply: (T, U, V) => K, unapply: K => Option[(T, U, V)])(tenc: => Streamer[T], uenc: => Streamer[U], venc: => Streamer[V]) extends Streamer[K] {
+    val name = s"`3-Case-Rec*`"
 
     def toStream(out: DataOutputStream, t: K): Unit = {
       val Some((tt, uu, vv)) = unapply(t)
@@ -425,6 +471,8 @@ object StreamerEncoding {
   /** 4-Case with explicit encodings passed by name: for when one of the component types is (or references) `K` */
   class `4-Case-Rec*`[K, T, U, V, W](apply: (T, U, V, W) => K, unapply: K => Option[(T, U, V, W)])
                                  (tenc: => Streamer[T], uenc: => Streamer[U], venc: => Streamer[V], wenc: => Streamer[W]) extends Streamer[K] {
+
+    val name = s"`4-Case-Rec*`"
 
     def toStream(out: DataOutputStream, t: K): Unit = {
       val Some((tt, uu, vv, ww)) = unapply(t)
@@ -447,6 +495,7 @@ object StreamerEncoding {
   class `5-Case-Rec*`[K, T, U, V, W, X](apply: (T, U, V, W, X) => K, unapply: K => Option[(T, U, V, W, X)])
                                        (tenc: => Streamer[T], uenc: => Streamer[U], venc: => Streamer[V], wenc: => Streamer[W], xenc: => Streamer[X])
     extends Streamer[K] {
+    val name = s"`5-Case-Rec*`"
 
     def toStream(out: DataOutputStream, t: K): Unit = {
       val Some((tt, uu, vv, ww, xx)) = unapply(t)
@@ -471,6 +520,8 @@ object StreamerEncoding {
   class `6-Case-Rec*`[K, T, U, V, W, X, Y](apply: (T, U, V, W, X, Y) => K, unapply: K => Option[(T, U, V, W, X,Y)])
                                           (tenc: => Streamer[T], uenc: => Streamer[U], venc: => Streamer[V], wenc: => Streamer[W], xenc: => Streamer[X], yenc: Streamer[Y])
     extends Streamer[K] {
+
+    val name = s"`6-Case-Rec*`"
 
     def toStream(out: DataOutputStream, t: K): Unit = {
       val Some((tt, uu, vv, ww, xx, yy)) = unapply(t)
@@ -498,6 +549,7 @@ object StreamerEncoding {
     *   injection/projection.
     */
   class `Case*`[K](it: K) extends Streamer[K] {
+    val name = "`Case*`"
     def toStream(out: DataOutputStream, t: K): Unit = out.writeByte(0)
 
     def fromStream(in: DataInputStream): K = {
@@ -538,12 +590,15 @@ object StreamerEncoding {
   class `Enum*`[E](decoding: Int => E, encoding: E => Int) extends Streamer[E] {
     def toStream(out: DataOutputStream, k: E): Unit = out.writeInt(encoding(k))
     def fromStream(in: DataInputStream): E = decoding(in.readInt())
+    val name = "`Enum*`"
   }
 
   /** Essential for `null`-terminated recursive structures, etc.
     * @see StreamerEncodingTests
     */
   implicit object `Null*` extends Streamer[Null] {
+    val name = "`Null*`"
+
     def toStream(out: DataOutputStream, t: Null): Unit = {
       out.writeBoolean(false)
     }
@@ -563,6 +618,7 @@ object StreamerEncoding {
     */
   class `Encode*`[T, CODE : Streamer](fromCode: CODE=>T, toCode: T=>CODE) extends Streamer[T] {
     val enc = implicitly[Streamer[CODE]]
+    val name = s"`Encode*`($enc)"
     def toStream(out: DataOutputStream, k: T): Unit = enc.toStream(out, toCode(k))
     def fromStream(in: DataInputStream): T = fromCode(enc.fromStream(in))
   }
@@ -573,6 +629,7 @@ object StreamerEncoding {
   /** Maps encoded as 2-tuple sequences */
   class `PairsMap*`[K : Streamer, V : Streamer] extends Streamer[Map[K,V]] {
     private val enc = `Seq*`[(K, V)](new `2-Tuple*`[K, V])
+    val name = s"`PairsMap*`($enc)"
     def toStream(out: DataOutputStream, t: Map[K, V]): Unit = enc.toStream(out, t.toSeq)
     def fromStream(in: DataInputStream): Map[K, V] = enc.fromStream(in).toMap
 
@@ -588,18 +645,20 @@ object StreamerEncoding {
 
   /** Maps encoded as `Seq*[K]` then `Seq*[V]` */
   class `Map*`[K : Streamer, V: Streamer] extends Streamer[Map[K,V]] {
-    private object `keys*` extends `Seq*`[K]
-    private object `vals*` extends `Seq*`[V]
+    private object keys extends `Seq*`[K]
+    private object vals extends `Seq*`[V]
+    val name = s"`Map*`($keys, $vals)"
+
 
     def toStream(out: DataOutputStream, t: Map[K, V]): Unit = {
       val pairs = t.toSeq
-      `keys*`.toStream(out, pairs.map(_._1))
-      `vals*`.toStream(out, pairs.map(_._2))
+      keys.toStream(out, pairs.map(_._1))
+      vals.toStream(out, pairs.map(_._2))
     }
 
 
     def fromStream(in: DataInputStream): Map[K, V] = {
-      val pairs = `keys*`.fromStream(in).zip(`vals*`.fromStream(in))
+      val pairs = keys.fromStream(in).zip(vals.fromStream(in))
       new PairMap[K,V](pairs)
     }
   }
@@ -669,7 +728,7 @@ object StreamerEncoding {
     */
   class `2-Union*`[K, T, U](toT: K=>T, toU: K=>U)
                            (implicit tenc: Streamer[T], uenc: Streamer[U]) extends Streamer[K] {
-
+    val name = s"`2-Union*`($tenc, $uenc)"
     def toStream(out: DataOutputStream, k: K): Unit = {
       val enc =
           (toT.followedBy { x => out.writeByte(0); tenc.toStream(out, x) }) orElse
@@ -689,6 +748,7 @@ object StreamerEncoding {
   /** @see `2-Union*` */
   class `3-Union*`[K, T, U, V](toT: K=>T, toU: K=>U, toV: K=>V)
                              (implicit tenc: Streamer[T], uenc: Streamer[U], venc: Streamer[V]) extends Streamer[K] {
+    val name = s"`3-Union*`($tenc, $uenc, $venc)"
 
     def toStream(out: DataOutputStream, k: K): Unit = {
       val enc =
@@ -710,6 +770,8 @@ object StreamerEncoding {
   /** @see `2-Union*` */
   class `4-Union*`[K, T, U, V, W](toT: K => T, toU: K => U, toV: K => V, toW: K => W)
                                 (implicit tenc: Streamer[T], uenc: Streamer[U], venc: Streamer[V], wenc: Streamer[W]) extends Streamer[K] {
+
+    val name = s"`4-Union*`($tenc, $uenc, $venc, $wenc)"
 
     def toStream(out: DataOutputStream, k: K): Unit = {
       val enc =
@@ -738,6 +800,8 @@ object StreamerEncoding {
 
   class `5-Union**`[K, T, U, V, W, X](toT: K => T, toU: K => U, toV: K => V, toW: K => W, toX: K => X)
                                     (tenc: Streamer[T], uenc: Streamer[U], venc: Streamer[V], wenc: Streamer[W], xenc: Streamer[X]) extends Streamer[K] {
+
+    val name = s"`5-Union*`($tenc, $uenc, $venc, $wenc, $xenc)"
 
     def toStream(out: DataOutputStream, k: K): Unit = {
       val enc =
@@ -770,6 +834,9 @@ object StreamerEncoding {
     val enc5 = implicitly[Streamer[T5]]
     val enc6 = implicitly[Streamer[T6]]
 
+    val name = s"`6-tuple*`($enc1, $enc2, $enc3, $enc4, $enc5, $enc6)"
+
+
     def toStream(out: DataOutputStream, v: (T1, T2, T3, T4, T5, T6)): Unit = {
       enc1.toStream(out, v._1)
       enc2.toStream(out, v._2)
@@ -798,6 +865,9 @@ object StreamerEncoding {
     val enc4 = implicitly[Streamer[T4]]
     val enc5 = implicitly[Streamer[T5]]
 
+    val name = s"`5-Tuple*`($enc1, $enc2, $enc3, $enc4, $enc5)"
+
+
     def toStream(out: DataOutputStream, v: (T1, T2, T3, T4, T5)): Unit = {
       enc1.toStream(out, v._1)
       enc2.toStream(out, v._2)
@@ -822,6 +892,8 @@ object StreamerEncoding {
     val enc2 = implicitly[Streamer[T2]]
     val enc3 = implicitly[Streamer[T3]]
     val enc4 = implicitly[Streamer[T4]]
+    val name = s"`4-Tuple*`($enc1, $enc2, $enc3, $enc4)"
+
 
     def toStream(out: DataOutputStream, v: (T1, T2, T3, T4)): Unit = {
       enc1.toStream(out, v._1)
@@ -844,6 +916,7 @@ object StreamerEncoding {
     val enc1 = implicitly[Streamer[T1]]
     val enc2 = implicitly[Streamer[T2]]
     val enc3 = implicitly[Streamer[T3]]
+    val name = s"`3-Tuple*`($enc1, $enc2, $enc3)"
 
     def toStream(out: DataOutputStream, v: (T1, T2, T3)): Unit = {
       enc1.toStream(out, v._1)
@@ -863,6 +936,8 @@ object StreamerEncoding {
     extends Streamer[(T1, T2)] {
     val enc1 = implicitly[Streamer[T1]]
     val enc2 = implicitly[Streamer[T2]]
+    val name = s"`2-Tuple*`($enc1, $enc2)"
+
 
     def toStream(out: DataOutputStream, v: (T1, T2)): Unit = {
       enc1.toStream(out, v._1)
@@ -880,6 +955,7 @@ object StreamerEncoding {
 
   /** Any `Serializable` type, using object I/O (representations are rather large) */
   class `Serializable*`[T <: Serializable] extends Streamer[T] {
+    val name = s"`Serializable`"
     def toStream(out: DataOutputStream, t: T): Unit = {
       val byteStream = new ByteArrayOutputStream(1024)
       val objOut = new ObjectOutputStream(byteStream)
@@ -929,11 +1005,12 @@ object StreamerEncoding {
   def encodingTest[T: Streamer](value: T): Unit = {
     val encoded = toByteArray[T](value)
     val decoded = fromByteArray[T](encoded)
+    val enc = implicitly[Streamer[T]]
     (value, decoded) match {
-      case (null, null) => println(s"OK null==null (${encoded.length} bytes)")
-      case (v: Array[Any], d: Array[Any]) if v.toList == d.toList => println(s"OK ${v.toList.mkString("Array(", ", ", ")")} as an equal array. (${encoded.length} bytes)")
-      case (_, _) if value==decoded => println(s"OK ${value.toString.take(70)}... (${encoded.length} bytes)")
-      case (_, _) => println(s"**** Roundtrip failure (${encoded.length} bytes)\n**** Encoded: $value\n**** Decoded: $decoded")
+      case (null, null) => println(s"OK $enc\nOK null==null (${encoded.length} bytes)")
+      case (v: Array[Any], d: Array[Any]) if v.toList == d.toList => println(s"OK $enc\n-> ${v.toList.mkString("Array(", ", ", ")")} as an equal array. (${encoded.length} bytes)")
+      case (_, _) if value==decoded => println(s"OK $enc\n-> ${value.toString.take(70)}... (${encoded.length} bytes)")
+      case (_, _) => println(s"**** Roundtrip failure $enc (${encoded.length} bytes)\n**** Encoded: $value\n**** Decoded: $decoded")
     }
   }
 

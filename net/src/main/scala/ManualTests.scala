@@ -25,7 +25,7 @@ import java.nio.channels.SocketChannel
 abstract class ManualTest(doc: String) extends App {
   val logging = true
   var clientauth = false
-  val log = ox.logging.Logging.Log("test")
+  val log = new ox.logging.Log()
   var theStringChannelFactory: TypedChannelFactory[String, String] = UTF8ChannelFactory
   var host: String = "localhost"
   var port: Int    = 10000

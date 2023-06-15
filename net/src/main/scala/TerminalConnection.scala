@@ -43,7 +43,7 @@ object TerminalConnection extends Connection[String, String] with PROC {
     */
   def close(): Unit = synchronized {
     if ((inDaemon ne null) && (outDaemon ne null)) {
-      log.fine("TerminalConnection.close()")
+      log.finer("TerminalConnection.close()")
       fromKbd.close()
       toConsole.close()
       inDaemon.interrupt()
