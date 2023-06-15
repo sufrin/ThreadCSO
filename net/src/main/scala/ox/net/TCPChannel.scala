@@ -121,7 +121,7 @@ object TCPConnection {
     TCPChannel.server(port, backlog, factory) {
       case tcpChannel: TypedTCPChannel[OUT, IN] =>
         val connection = ChannelOptions.withOptions(outChanSize = ocs, inChanSize = ics) { NetConnection[OUT, IN](tcpChannel, name) }
-        if (log.logging) log.finer(s"TCPConnection.server($port, $backlog).session(connection)")
+        if (log.logging) log.finer(s"TCPConnection.server($port, $backlog).session($connection)")
         session(connection)
     }
   }

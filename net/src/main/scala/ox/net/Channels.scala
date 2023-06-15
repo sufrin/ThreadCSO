@@ -150,6 +150,9 @@ trait TCPChannelInterface extends ChannelInterface {
   def shutdownInput(): Unit = if (channel.isOpen) channel.shutdownInput()
   /** Close the output side of the socket */
   def shutdownOutput(): Unit = if (channel.isOpen) channel.shutdownOutput()
+
+  override def toString: String = channel.toString
+
 }
 
 trait UDPChannelInterface extends ChannelInterface {
@@ -168,6 +171,8 @@ trait UDPChannelInterface extends ChannelInterface {
   def shutdownInput(): Unit = {}
   /** No-op for datagram channelfactory */
   def shutdownOutput(): Unit = {}
+
+  override def toString: String = channel.toString
 }
 
 trait SSLChannelInterface extends ChannelInterface {
@@ -187,13 +192,23 @@ trait SSLChannelInterface extends ChannelInterface {
   def shutdownInput(): Unit = close()
   /** Close the output side of the socket */
   def shutdownOutput(): Unit = close()
+
+  override def toString: String = socket.toString
+
 }
 
-trait TypedTCPChannel[-OUT,+IN] extends NetProxy[OUT,IN] with TCPChannelInterface
+trait TypedTCPChannel[-OUT,+IN] extends NetProxy[OUT,IN] with TCPChannelInterface {
+  // augment this TypedTCPChannel's functionality here
+}
+
 trait TypedUDPChannel[-OUT,+IN] extends NetProxy[OUT,IN] with UDPChannelInterface {
+  // augment this TypedUDPChannel's functionality here
   def connect(addr: InetSocketAddress): Unit
 }
-trait TypedSSLChannel[-OUT,+IN] extends NetProxy[OUT,IN] with SSLChannelInterface
+
+trait TypedSSLChannel[-OUT,+IN] extends NetProxy[OUT,IN] with SSLChannelInterface {
+  // augment this TypedSSLChannel's functionality here
+}
 
 
 

@@ -8,7 +8,9 @@ object NetProxy {
   val log = ox.logging.Logging.Log()
 }
 
-trait NetProxy[-OUT,+IN] extends NetOutputProxy[OUT] with NetInputProxy[IN]
+trait NetProxy[-OUT,+IN] extends NetOutputProxy[OUT] with NetInputProxy[IN] {
+  override def toString: String = "NetProxy"
+}
 
 trait NetOutputProxy[-O] extends Encoder[O] {
   private val log     = NetProxy.log

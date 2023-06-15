@@ -10,7 +10,7 @@ import java.nio.channels.SocketChannel
 object UTF8ChannelFactory extends TypedChannelFactory[String,String] {
   val log = ox.logging.Log("UTF8ChannelFactory")
 
-  override def toString = "UTF8 Factory"
+  override def toString = "UTF8 Channel Factory"
 
   trait Mixin {
     val input: InputStream
