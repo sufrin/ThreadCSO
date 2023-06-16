@@ -3,7 +3,7 @@ package io.threadcso.net
 import io.threadcso.PROC
 import io.threadcso.net.SSLChannel.Credential
 import io.threadcso.net.channels.{
-  ChannelOptions,
+  Options,
   NetConnection,
   TypedChannelFactory,
   TypedSSLChannel
@@ -17,12 +17,12 @@ object SSLConnection {
       factory: TypedChannelFactory[OUT, IN],
       name: => String = ""
   )(session: NetConnection[OUT, IN] => Unit): PROC = {
-    val ocs = ChannelOptions.outChanSize
-    val ics = ChannelOptions.inChanSize
+    val ocs = Options.outChanSize
+    val ics = Options.inChanSize
     SSLChannel.server(credential, port, factory) {
       case sslChannel: TypedSSLChannel[OUT, IN] =>
         val connection =
-          ChannelOptions.withOptions(outChanSize = ocs, inChanSize = ics) {
+          Options.withOptions(outChanSize = ocs, inChanSize = ics) {
             channels.NetConnection[OUT, IN](sslChannel, name)
           }
         session(connection)

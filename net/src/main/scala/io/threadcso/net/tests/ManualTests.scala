@@ -2,13 +2,14 @@ package io.threadcso.net.tests
 
 import app.OPT._
 import io.threadcso._
-import io.threadcso.net.factory.{StringChannelCRLF, StreamerChannel, StringChannelUTF8}
+import io.threadcso.net.factory.{StreamerChannel, StringChannelCRLF, StringChannelUTF8}
 import io.threadcso.net.{SSLChannel, SSLConnection, TCPChannel, TCPConnection, TerminalConnection, UDPChannel, UDPConnection, channels}
-import io.threadcso.net.channels.{ChannelOptions, NetConnection, TypedChannelFactory, TypedTCPChannel}
+import io.threadcso.net.channels.{Options, NetConnection, TypedChannelFactory, TypedTCPChannel}
 import io.threadcso.net.SSLChannel.{TLSCredential, TLSWithoutCredential}
 import io.threadcso.net.channels.SocketOptions._
 import io.threadcso.net.UDPChannel.{Datagram, Malformed, UDP}
 import ox.logging.{Logging => LOGGING}
+import io.threadcso.net.channels.Options.withOptions
 
 import java.io.File
 import java.net.{InetAddress, InetSocketAddress}
@@ -21,10 +22,10 @@ import java.nio.channels.SocketChannel
  *  coommand-line flags and parameters.
  */
 abstract class ManualTest(doc: String) extends App {
-  val logging = true
+  val logging    = true
   var clientauth = false
-  val log = new ox.logging.Log()
-  var theStringChannelFactory: TypedChannelFactory[String, String] = StringChannelUTF8
+  val log        = new ox.logging.Log()
+  var theStringChannelFactory: TypedChannelFactory[String, String] = StringChannelCRLF
   var host: String = "localhost"
   var port: Int    = 10000
   var peerAddr: Option[InetSocketAddress] = None
@@ -75,10 +76,29 @@ abstract class ManualTest(doc: String) extends App {
   def Test(): Unit
 }
 
+object chat extends ManualTest("chat") {
+  //import io.threadcso.net.factory.StringChannelCRLF
+  import io.threadcso.net.channels.Connection
+  //import io.threadcso._
+  def Test(): Unit = {
+      println(debugger)
+      val netCon: Connection[String, String] = TCPConnection.connected(new java.net.InetSocketAddress(host, port), StringChannelCRLF, "")
+      val kbdCon: Connection[String,String] = new TerminalConnection()
+      netCon.open()
+      kbdCon.open()
+      println(s"Net: $netCon")
+      kbdCon.out!"> "
+      val toKbd = π { repeat { netCon.in ? { line => kbdCon.out ! s"\t$line\n"; kbdCon.out!"> " } }; kbdCon.close() }
+      val toNet = π { repeat { kbdCon.in ? { line => netCon.out ! s"\t$line" } }; netCon.close() }
+      (toKbd || toNet)()
+      exit()
+  }
+}
 
-object kbd extends ManualTest("kbd -- sends single-line keyboard messages. Run opposite reflect, or reflectkbd, or reflectcon.") {
+
+object kbd extends ManualTest("kbd - sends one-line keyboard messages. Run opposite reflect, or reflectkbd, or reflectcon.") {
   def Test() = {
-    val channel: TypedTCPChannel[String, String] = ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024)
+    val channel: TypedTCPChannel[String, String] = withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024)
     { TCPChannel.connected(new java.net.InetSocketAddress(host, port), theStringChannelFactory) }
     if (SND>0) channel.setOption(SO_SNDBUF, SND)
     if (RCV>0) channel.setOption(SO_RCVBUF, RCV)
@@ -146,18 +166,19 @@ object kbd extends ManualTest("kbd -- sends single-line keyboard messages. Run o
   }
 }
 
-object kbdcon extends ManualTest("kbdcon -- sends single-line keyboard messages. Run opposite reflect, or reflection, or reflectkbd, or reflectcon. Connection API") {
+object kbdcon extends ManualTest("kbdcon - sends single-line keyboard messages. Run opposite reflect, or reflection, or reflectkbd, or reflectcon. Connection API") {
   def Test() = {
-    val connection = ChannelOptions.withOptions(inChanSize=50, outChanSize=50, inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) {
+    val connection = withOptions(inChanSize=50, outChanSize=50, inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) {
         TCPConnection.connected(new java.net.InetSocketAddress(host, port), theStringChannelFactory, "kbdcon")
     }
     if (SND>0) connection.asTCP.setOption(SO_SNDBUF, SND)
     if (RCV>0) connection.asTCP.setOption(SO_RCVBUF, RCV)
-    val kbd            = TerminalConnection.in
-    val terminalDaemon = TerminalConnection.fork
+    val term = new TerminalConnection("EOF\n")
+    val kbd  = term.in
     val fromHost = connection.in
     val toHost   = connection.out
-    val daemon   = connection.fork
+    connection.open()
+    term.open()
 
     var last: String = "?"
     var times = 1
@@ -170,8 +191,8 @@ object kbdcon extends ManualTest("kbdcon -- sends single-line keyboard messages.
           case None => stop
           case Some(line) =>
             line match {
-              case "." =>
-                TerminalConnection.close()
+              case "EOF\n" =>
+                term.close()
                 stop
               case s"$n*" if n matches ("[0-9]+") =>
                 times = n.toInt
@@ -205,11 +226,11 @@ object kbdcon extends ManualTest("kbdcon -- sends single-line keyboard messages.
         else
           println(f"$n%-3d #${decoded.size}%-6d ${decoded.take(20)}...${decoded.drop(decoded.length-20)}")
       }
-      TerminalConnection.close()
+      term.close()
     }
     )
     log.info("Finished")
-    TerminalConnection.close()
+    term.close()
     exit()
   }
 }
@@ -222,15 +243,16 @@ object kbds extends ManualTest("kbds -- sends sequences of strings encoded as `E
     implicit object `Seq[String]*` extends `Seq*`[String]
     object SequenceChannelFactory extends StreamerChannel[Seq[String], Seq[String]]
     val connection: NetConnection[Ty, Ty] =
-      ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024, inChanSize=20, outChanSize=20) {
+      withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024, inChanSize=20, outChanSize=20) {
         TCPConnection.connected(new java.net.InetSocketAddress(host, port), SequenceChannelFactory, "TCPConnection")
       }
 
     val fromHost        = connection.in
     val toHost          = connection.out
-    val daemon          = connection.fork
-    val kbd             = TerminalConnection.in
-    val terminalDaemon  = TerminalConnection.fork
+    val term            = new TerminalConnection("EOF\n")
+    val kbd             = term.in
+    term.open()
+    connection.open()
 
     var last: String = "?"
     var times = 1
@@ -240,7 +262,7 @@ object kbds extends ManualTest("kbds -- sends sequences of strings encoded as `E
     run(proc("ui") {
       repeat {
         kbd ? () match {
-          case "." =>
+          case "EOF\n" =>
             kbd.closeIn()
             stop
           case s"$n*" if n matches ("[0-9]+") =>
@@ -282,7 +304,7 @@ object txgrams extends ManualTest("txgrams -- sends keyboard datagrams to rxgram
   type StringPacket = UDP[String]
   def Test() = {
     // sending on port; receiving on a random port
-    val channel = ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) {
+    val channel = withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) {
       UDPChannel.connect(host, port, theStringChannelFactory)
     }
     if (SND > 0) channel.setOption(SO_SNDBUF, SND)
@@ -369,7 +391,7 @@ object txgrams extends ManualTest("txgrams -- sends keyboard datagrams to rxgram
 object rxgrams extends ManualTest("rxgrams -- receives (and reflects) string datagrams (from txgrams)") {
   type StringPacket = UDP[String]
   def Test() : Unit =
-  { val channel = ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) {
+  { val channel = withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) {
       UDPChannel.bind(host, port, theStringChannelFactory)
     }
     Console.println(s"$theStringChannelFactory ${channel.channel.getLocalAddress}")
@@ -408,7 +430,7 @@ object p2p extends ManualTest("p2p -- exchanges datagrams with another p2p") {
   type StringPacket = UDP[String]
   def Test() = {
 
-    val channel = ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) { UDPChannel.bind(host, port, theStringChannelFactory) }
+    val channel = withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) { UDPChannel.bind(host, port, theStringChannelFactory) }
 
     if (SND > 0) channel.setOption(SO_SNDBUF, SND)
     if (RCV > 0) channel.setOption(SO_RCVBUF, RCV)
@@ -497,7 +519,7 @@ object p2pcon extends ManualTest("p2pcon -- exchanges datagrams with another p2p
   type StringPacket = UDP[String]
   def Test() = {
 
-    val connection = ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) {
+    val connection = withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) {
         UDPConnection.bind(new InetSocketAddress(host, port), theStringChannelFactory, "bound")
     }
     if (SND > 0) connection.asUDP.setOption(SO_SNDBUF, SND)
@@ -579,7 +601,7 @@ object p2pcon extends ManualTest("p2pcon -- exchanges datagrams with another p2p
 object httpsclient extends ManualTest("httpclient -- GETs from a (secure) server then outputs the response line-by-line") {
   def Test() = {
     val credential = if (clientauth) TLSCredential("xyzzyxyzzy", new File("/Users/sufrin/.keystore"))  else TLSWithoutCredential
-    val connection = ChannelOptions.withOptions(inChanSize=10, outChanSize=10)
+    val connection = withOptions(inChanSize=10, outChanSize=10)
         { SSLConnection.client(credential, host, port, StringChannelCRLF) }
     if (SND > 0) connection.asSSL.setOption(SO_SNDBUF, SND)
     if (RCV > 0) connection.asSSL.setOption(SO_RCVBUF, RCV)
@@ -636,7 +658,7 @@ object httpsserver extends ManualTest("httpsserver -- an https server that echoe
   var _clientCount: Int = 0
 
   def Test() = {
-    val serverProcess = ChannelOptions.withOptions(inChanSize=10, outChanSize=10) {
+    val serverProcess = withOptions(inChanSize=10, outChanSize=10) {
       SSLConnection.server(SSLChannel.TLSCredential("xyzzyxyzzy", new File("/Users/sufrin/.keystore")), port, StringChannelCRLF) (forkClientSession)
     }
     run(serverProcess)
@@ -800,13 +822,17 @@ object reflectkbd extends ManualTest("reflectkbd -- a server that reflects strin
 
 object reflectcon  extends ManualTest("reflectcon -- a TCPConnection-based server that reflects strings sent by its client (kbd).") {
   def Test(): Unit = {
-    val reflectServer: PROC = ChannelOptions.withOptions(inChanSize=10, outChanSize=10){
+    val reflectServer: PROC = withOptions(inChanSize=10, outChanSize=10){
       TCPConnection.server(port, 0, theStringChannelFactory, "Client") {
       case connection: NetConnection[String, String] =>
-        val daemon = connection.fork
+        connection.open()
+        log.info(s"Session for $connection")
         fork (proc {
           repeat {
-            connection.in ? { text => connection.out ! text }
+            connection.in ? { text =>
+              log.fine(s"> $text")
+              connection.out ! text
+            }
           }
         })
       }
@@ -875,7 +901,7 @@ object kbdd extends ManualTest("kbdd -- sends multiple keyboard messages encoded
     import io.threadcso.netchannels.streamer.Encoding._
     implicit object `Seq[String]*` extends `Seq*`[String]
     object CF extends StreamerChannel[Seq[String], Seq[String]]
-    val channel: TypedTCPChannel[Ty, Ty] = ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024)
+    val channel: TypedTCPChannel[Ty, Ty] = withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024)
     { TCPChannel.connected(new java.netchannels.InetSocketAddress(host, port), CF) }
     if (SND>0) channel.setOption(SO_SNDBUF, SND)
     if (RCV>0) channel.setOption(SO_RCVBUF, RCV)

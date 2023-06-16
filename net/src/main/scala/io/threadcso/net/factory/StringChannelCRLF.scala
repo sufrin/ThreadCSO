@@ -1,6 +1,6 @@
 package io.threadcso.net.factory
 
-import io.threadcso.net.channels.{ChannelOptions, TypedChannelFactory, TypedSSLChannel, TypedTCPChannel}
+import io.threadcso.net.channels.{Options, TypedChannelFactory, TypedSSLChannel, TypedTCPChannel}
 import io.threadcso.net.codec.Codec
 
 import java.io._
@@ -64,14 +64,14 @@ object StringChannelCRLF extends TypedChannelFactory[String,String] {
 
   def newChannel(theChannel: SocketChannel): TypedTCPChannel[String, String] = new TypedTCPChannel[String, String] with Mixin {
     val channel: SocketChannel = theChannel
-    val output = java.nio.channels.Channels.newWriter(channel, UTF8.newEncoder(), ChannelOptions.outBufSize)
-    val input  = java.nio.channels.Channels.newReader(channel, UTF8.newDecoder(), ChannelOptions.inBufSize)
+    val output = java.nio.channels.Channels.newWriter(channel, UTF8.newEncoder(), Options.outBufSize)
+    val input  = java.nio.channels.Channels.newReader(channel, UTF8.newDecoder(), Options.inBufSize)
     sync = true
   }
 
   def newChannel(theSocket: Socket): TypedSSLChannel[String, String] = new TypedSSLChannel[String, String] with Mixin {
     val socket: Socket = theSocket
-    val output = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream, UTF8.newEncoder()), ChannelOptions.outBufSize)
+    val output = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream, UTF8.newEncoder()), Options.outBufSize)
     val input = new InputStreamReader(socket.getInputStream, UTF8.newDecoder())
     sync = true
 
@@ -96,7 +96,7 @@ object StringChannelCRLF extends TypedChannelFactory[String,String] {
 
   def newCodec(_output: OutputStream, _input: InputStream): Codec[String,String] =
       new Codec[String,String] with Mixin {
-        val output = new BufferedWriter(new OutputStreamWriter(_output, UTF8.newEncoder()), ChannelOptions.outBufSize)
+        val output = new BufferedWriter(new OutputStreamWriter(_output, UTF8.newEncoder()), Options.outBufSize)
         val input  = new InputStreamReader(_input, UTF8.newDecoder()) // TODO: factory parameters
         sync = true
       }

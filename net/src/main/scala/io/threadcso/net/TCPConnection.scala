@@ -2,7 +2,7 @@ package io.threadcso.net
 
 import io.threadcso.PROC
 import io.threadcso.net.channels.{
-  ChannelOptions,
+  Options,
   NetConnection,
   TypedChannelFactory,
   TypedTCPChannel
@@ -43,7 +43,7 @@ object TCPConnection {
     * given `session` with a suitable `NetConnection` as argument. The
     * session MUST run or fork its argument connection. The transfer buffer
     * sizes of each connection are specified by the values of
-    * `ChannelOptions.{inConSize, outConSize}` at the moment `server` is called.
+    * `Options.{inConSize, outConSize}` at the moment `server` is called.
     */
   def server[OUT, IN](
       port: Int,
@@ -51,12 +51,12 @@ object TCPConnection {
       factory: TypedChannelFactory[OUT, IN],
       name: => String = ""
   )(session: NetConnection[OUT, IN] => Unit): PROC = {
-    val ocs = ChannelOptions.outChanSize
-    val ics = ChannelOptions.inChanSize
+    val ocs = Options.outChanSize
+    val ics = Options.inChanSize
     TCPChannel.server(port, backlog, factory) {
       case tcpChannel: TypedTCPChannel[OUT, IN] =>
         val connection =
-          ChannelOptions.withOptions(outChanSize = ocs, inChanSize = ics) {
+          Options.withOptions(outChanSize = ocs, inChanSize = ics) {
             channels.NetConnection[OUT, IN](tcpChannel, name)
           }
         if (log.logging)

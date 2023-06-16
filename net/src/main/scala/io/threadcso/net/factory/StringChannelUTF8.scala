@@ -1,6 +1,6 @@
 package io.threadcso.net.factory
 
-import io.threadcso.net.channels.{ChannelOptions, TypedChannelFactory, TypedSSLChannel, TypedTCPChannel}
+import io.threadcso.net.channels.{Options, TypedChannelFactory, TypedSSLChannel, TypedTCPChannel}
 import io.threadcso.net.codec.{Codec, EndOfOutputStream}
 
 import java.io._
@@ -69,7 +69,7 @@ object StringChannelUTF8 extends TypedChannelFactory[String,String] {
 
   def newCodec(_output: OutputStream, _input: InputStream): Codec[String, String] =
     new Codec[String, String] with Mixin {
-      val output = new BufferedOutputStream(_output, ChannelOptions.outBufSize)
-      val input  = new BufferedInputStream(_input, ChannelOptions.inBufSize)
+      val output = new BufferedOutputStream(_output, Options.outBufSize)
+      val input  = new BufferedInputStream(_input, Options.inBufSize)
     }
 }

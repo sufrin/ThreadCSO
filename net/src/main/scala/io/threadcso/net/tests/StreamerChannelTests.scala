@@ -3,7 +3,8 @@ package io.threadcso.net.tests
 
 import io.threadcso.net.TCPChannel
 import io.threadcso.net.factory.StreamerChannel
-import io.threadcso.net.channels.{ChannelOptions, TypedTCPChannel}
+import io.threadcso.net.channels.TypedTCPChannel
+import io.threadcso.net.channels.Options.withOptions
 import io.threadcso.net.channels.SocketOptions.{SO_RCVBUF, SO_SNDBUF}
 import io.threadcso.{OneOne, OneOneBuf, component, exit, proc, repeat, run, stop}
 
@@ -41,7 +42,7 @@ object dskbd extends ManualTest("dskbd -- sends sequences of records ") {
   implicit object `RecordSeq*`  extends `Seq*`[Record]
 
   def Test() = {
-    val channel: TypedTCPChannel[RecordSeq, RecordSeq] = ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024)
+    val channel: TypedTCPChannel[RecordSeq, RecordSeq] = withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024)
     {
        TCPChannel.connected(new java.net.InetSocketAddress(host, port), new StreamerChannel[RecordSeq, RecordSeq]())
     }

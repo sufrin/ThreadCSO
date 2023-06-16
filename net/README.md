@@ -1,11 +1,55 @@
-## The `io.threadcso.net.interfaces.netchannels` Package
+## The `io.threadcso.net` Package
 
 This package provides relatively lightweight means for
-deriving cross-network transport between `ox.threadcso` programs
-communicating via channels. It provides a more-or-less uniform
-API that is suitable for UDP (Datagram) connections,
-encrypted SSL/TLS connections, and unencrypted TCP connections. 
+deriving cross-network transport between `io.threadcso.net` programs
+written using via `threadcso` channels. It provides two more-or-less uniform
+APIs that provide for UDP (Datagram) transport,
+encrypted SSL/TLS transport, and unencrypted TCP transport. It
+also provides a rich collection of ways of building "wire-encodings"
+compatible with other programs and services.
 
+### Connection: a high level abstraction
+Cross-network transport is typed (by output, and input type), and presents
+as a `Connection` -- with a pair of channels to and from which data is sent once the
+connection has been started.
+
+Here's a little `threadcso.net` program that opens a network connection to `localhost:port`, and a connection
+to the controlling terminal. The latter sends `"EOF\n"` when the terminal stream is
+ended by the user typing the end of file character (control-d on Unix machines). 
+It relays lines in both directions, so if there's a server at the port
+that responds to the outgoing lines it will show these on the terminal.
+
+
+    import io.threadcso.net.factory.StringChannelCRLF
+    import io.threadcso.net.channels.Connection
+    import io.threadcso._
+    import java.net.{InetSocketAddress => NetAddr}
+
+    def main(args: Array[String]): Unit = {
+        var host = "localhost"
+        var port = 10000
+        val netCon: Connection[String, String] =
+            TCPConnection.connected(new NetAddr(host, port), 
+                                        StringChannelCRLF, "Chat Connection")
+        val kbdCon: Connection[String,String] = new TerminalConnection("EOF\n")
+        netCon.open()
+        kbdCon.open()
+        serve(  kbdCon.in =?=> { 
+                   case "EOF\n"   => netCon.close()
+                   case line      => netCon.out ! line 
+                }
+             |  netCon.in =?=> { line => kbdCon.out ! s"\t$line" }
+             )
+        netCon.close()
+        kbdCon.close()
+    }
+
+Several simple programs like this can be found in the package `io.threadcso.net.tests`. Some
+use the `Connection` APIs and others use the lower-level APIs whose descriptions are given in
+detail below. Start by reading `io.threadcso.net.tests.chat` and 
+`io.threadcso.net.tests.reflectcon` -- the latter is an example of a server.
+
+### Lower-level Detail
 Cross-network transport is typed (by output, and input type), and 
 presents to an application as a pair of  proxy processes whose
 purpose is to copy data from and to the application itself:
@@ -56,7 +100,7 @@ for strings that is consistent with `http` with strings terminated by
 the doublet `"\r\n"`
 
     val channel1: TypedTCPChannel[String,String] = 
-            TCPChannel.connected(host, port, CRLFChannelFactory)
+            TCPChannel.connected(host, port, StringChannelUTF8)
 
 The second uses java's built-in `DataOutputStream` representation for strings. 
 
@@ -68,7 +112,7 @@ The following constructs a non-credentialled TLS/SSL client channel to `host` at
 the `client` method.
 
     val channel3: TypedSSLChannel[String,String] = 
-            SSLChannel.client(TLSCredential(null, null), host, port, CRLFChannelFactory)
+            SSLChannel.client(TLSCredential(null, null), host, port, StringChannelCRLF)
 
 Finally, the following constructs a UDP datagram channel that has a "bespoke" 
 wire encoding for messages that consist of sequences of records. 

@@ -1,2 +1,2 @@
-name := "netchannels"
-version := "0.0.1"
+name := "net"
+version := "0.0.2"

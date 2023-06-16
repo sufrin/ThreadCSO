@@ -12,7 +12,7 @@ object MessagePack {
   def unpack[A: Codec](in: DataInputStream): A = { implicitly[Codec[A]].unpack(in) }
 
   /**
-   * Packs an item using the msgpack protocol and streamer typeclasses
+   * Packs an item using the msgpack protocol and codec typeclasses
    *
    * Warning: this does not do any recursion checks. If you pass a cyclic object,
    * you will run in an infinite loop until you run out of memory.

@@ -11,6 +11,8 @@ import io.threadcso.{Chan, OneOne, OneOneBuf, PROC}
 trait Connection[-OUT, +IN] {
   val out: OutPort[OUT]
   val in:  InPort[IN]
+  def open(): Unit
+  def close(): Unit
 }
 
 /**
@@ -47,6 +49,12 @@ class NetConnection[OUT, IN](val _name:           String = "<anonymous>",
     * Acquire a thread, and run the copiers in it
     */
   def fork: Process.Handle = copiers.fork
+
+  def open(): Unit = { fork; () }
+  def close(): Unit = {
+    in.closeIn()
+    out.closeOut()
+  }
 }
 
 /**
@@ -65,8 +73,8 @@ object NetConnection {
     def apply[OUT, IN](proxy: NetProxy[OUT, IN], name: String=""): NetConnection[OUT, IN] = {
       val outName = s"NetConnection($name).out"
       val inName  = s"NetConnection($name).in"
-      val outSize = ChannelOptions.outChanSize
-      val inSize  = ChannelOptions.inChanSize
+      val outSize = Options.outChanSize
+      val inSize  = Options.inChanSize
       val out: Chan[OUT] = if (outSize <= 0) OneOne[OUT](outName) else OneOneBuf[OUT](outSize, outName)
       val in: Chan[IN] = if (inSize <= 0) OneOne[IN](inName) else OneOneBuf[IN](inSize, inName)
       new NetConnection[OUT, IN](name, proxy, transferToNet = out, transferFromNet = in)

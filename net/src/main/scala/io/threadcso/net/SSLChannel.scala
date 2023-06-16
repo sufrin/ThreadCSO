@@ -1,6 +1,6 @@
 package io.threadcso.net
 
-import io.threadcso.net.channels.{ChannelOptions, TypedChannelFactory, TypedSSLChannel}
+import io.threadcso.net.channels.{Options, TypedChannelFactory, TypedSSLChannel}
 import io.threadcso.{PROC, proc, repeat}
 
 import java.io.FileInputStream
@@ -142,12 +142,12 @@ object SSLChannel  {
                       (session:     TypedSSLChannel[OUT, IN] => Unit): PROC =
     proc(s"Server $credential $port") {
       val socket: ServerSocket = newServerSocket(credential, port)
-      val clientAuth = ChannelOptions.clientAuth
+      val clientAuth = Options.clientAuth
       if (clientAuth) socket match {
        case socket: SSLServerSocket => socket.setNeedClientAuth(true)
        case _ =>
       }
-      val sync = ChannelOptions.sync
+      val sync = Options.sync
       if (log.logging) log.fine(s"Serving on $port with $credential")
       repeat {
         val client = socket.accept

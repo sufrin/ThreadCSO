@@ -48,42 +48,40 @@ object SocketOptions {
   * Dynamically-set channel features that are bound into network channels at the
   * point of their construction.
   */
-object ChannelOptions {
+object Options {
   val IPv4: java.net.StandardProtocolFamily = java.net.StandardProtocolFamily.INET
   val IPv6: java.net.StandardProtocolFamily = java.net.StandardProtocolFamily.INET6
-
   var inBufSize:  Int                 = 8*1024
   var outBufSize: Int                 = 8*1024
   var protocolFamily: ProtocolFamily  = IPv4
   var clientAuth: Boolean             = false
   var sync: Boolean                   = true
-
-  var inChanSize                       = 1
-  var outChanSize                      = 1
+  var inChanSize                      = 10
+  var outChanSize                     = 10
   /**
     * Define a selection of features while constructing a
     * channel (or, indeed, any value)
     *
-    * @param inBufSize size of preallocated input buffers. Affects efficiency, but not correctness.
+    * @param inBufSize size in bytes of preallocated input buffers. Affects efficiency, but not correctness.
     *               Experiments show that it can be as small as 1! But there is generally an expensive  switch of
     *               kernel context at each read.
-    * @param outBufSize size of preallocated output buffers. For the moment this should be no smaller than the size of the largest
+    * @param outBufSize size in bytes of preallocated output buffers. For the moment this should be no smaller than the size of the largest
     *                message to be sent on the channel. (TODO: apply the easy but non-urgent fix)
-    * @param inChanSize size (in items) of the buffered input channel used for a connection. 0 means synchronous.
-    * @param outChanSize size (in items) of the buffered output channel used for a connection. 0 means synchronous.
+    * @param inChanSize size (in messages) of the buffered input channel used for a connection. 0 means synchronous, and can result in deadlock.
+    * @param outChanSize size (in messages) of the buffered output channel used for a connection. 0 means synchronous, and can result in deadlock.
     * @param sync whether the channel is "synchronous", ie. intermediate streams are flushed immediately after writes.
     *             When false there may be a delay between the logical (CSO) write to a network channel, and its realization
     *             as a network write. The delay makes for more efficient use of buffers and network capacity, but is not
     *             appropriate in some situations
     * @param protocolFamily IPv4 or IPv6
     */
-  def withOptions[T](protocolFamily: ProtocolFamily = this.protocolFamily,
-                     inBufSize:  Int  = this.inBufSize,
-                     outBufSize: Int  = this.outBufSize,
-                     inChanSize:  Int  = this.inChanSize,
-                     outChanSize: Int  = this.outChanSize,
-                     clientAuth: Boolean = this.clientAuth,
-                     sync:       Boolean = this.sync)(makechannel: => T): T = synchronized {
+    def withOptions[T](protocolFamily: ProtocolFamily = this.protocolFamily,
+               inBufSize:  Int  = this.inBufSize,
+               outBufSize: Int  = this.outBufSize,
+               inChanSize:  Int  = this.inChanSize,
+               outChanSize: Int  = this.outChanSize,
+               clientAuth: Boolean = this.clientAuth,
+               sync:       Boolean = this.sync)(makechannel: => T): T = synchronized {
       val is = this.inBufSize
       val os = this.outBufSize
       val ics = this.inChanSize

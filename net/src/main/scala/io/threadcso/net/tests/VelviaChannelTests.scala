@@ -2,9 +2,10 @@
 package io.threadcso.net.tests
 
 import io.threadcso.net.TCPChannel
-import io.threadcso.net.factory.VelviaChannel
-import io.threadcso.net.channels.{ChannelOptions, TypedTCPChannel}
+import io.threadcso.net.channels.Options.withOptions
 import io.threadcso.net.channels.SocketOptions.{SO_RCVBUF, SO_SNDBUF}
+import io.threadcso.net.channels.TypedTCPChannel
+import io.threadcso.net.factory.VelviaChannel
 import io.threadcso.{OneOne, OneOneBuf, component, exit, proc, repeat, run, stop}
 
 
@@ -28,7 +29,7 @@ object kbdy extends ManualTest("kbdy -- sends multiple keyboard messages (using 
     implicit object TyCodec extends `2-Tuple*`[Int,Int]
 
     def Test() = {
-      val channel: TypedTCPChannel[Ty, Ty] = ChannelOptions.withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) {
+      val channel: TypedTCPChannel[Ty, Ty] = withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) {
           TCPChannel.connected(new java.net.InetSocketAddress(host, port), new VelviaChannel[Ty, Ty])
       }
 
@@ -95,7 +96,7 @@ object kbdz extends ManualTest("kbdz -- sends multiple keyboard messages (as pai
   implicit object TyCodec extends `2-Tuple*`[Int, String]
 
   def Test() = {
-    val channel: TypedTCPChannel[Ty, Ty] = ChannelOptions.withOptions(inBufSize = inBufSize * 1024, outBufSize = outBufSize * 1024) {
+    val channel: TypedTCPChannel[Ty, Ty] = withOptions(inBufSize = inBufSize * 1024, outBufSize = outBufSize * 1024) {
       TCPChannel.connected(new java.net.InetSocketAddress(host, port), new VelviaChannel[Ty, Ty])
     }
 
@@ -164,7 +165,7 @@ object kbdq extends ManualTest("kbdq -- sends multiple keyboard messages wrapped
   implicit object TyCodec extends `2-Case*`[Ty, Int, String](Ty.apply, Ty.unapply)
 
   def Test() = {
-    val channel: TypedTCPChannel[Ty, Ty] = ChannelOptions.withOptions(inBufSize = inBufSize * 1024, outBufSize = outBufSize * 1024) {
+    val channel: TypedTCPChannel[Ty, Ty] = withOptions(inBufSize = inBufSize * 1024, outBufSize = outBufSize * 1024) {
       TCPChannel.connected(new java.net.InetSocketAddress(host, port), new VelviaChannel[Ty,Ty])
     }
 

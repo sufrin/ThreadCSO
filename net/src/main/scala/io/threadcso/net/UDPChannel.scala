@@ -3,7 +3,7 @@ package io.threadcso.net
 import io.SourceLocation._
 import io.threadcso.net.UDPChannel.UDP
 import io.threadcso.net.channels.SocketOptions._
-import io.threadcso.net.channels.{ChannelOptions, TypedChannelFactory, TypedUDPChannel}
+import io.threadcso.net.channels.{Options, TypedChannelFactory, TypedUDPChannel}
 import io.threadcso.net.codec.{Codec, EndOfInputStream}
 import io.threadcso.net.utils.{DatagramInputStream, DatagramOutputStream}
 
@@ -220,8 +220,8 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
     if (logging) log.finest(s"connected: $this to $addr")
   }
 
-  val output: DatagramOutputStream    = new DatagramOutputStream(channel, ChannelOptions.outBufSize)
-  val input:  DatagramInputStream     = DatagramInputStream(channel, ChannelOptions.inBufSize)
+  val output: DatagramOutputStream    = new DatagramOutputStream(channel, Options.outBufSize)
+  val input:  DatagramInputStream     = DatagramInputStream(channel, Options.inBufSize)
   val codec:  Codec[OUT,IN]           = factory.newCodec(output, input)
 
   /** Encode and send the packet using the channel, if it is a Datagram with an address.

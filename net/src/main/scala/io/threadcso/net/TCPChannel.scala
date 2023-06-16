@@ -2,7 +2,7 @@ package io.threadcso.net
 
 import io.threadcso._
 import io.threadcso.net.channels.SocketOptions.{IPv4, IPv6}
-import io.threadcso.net.channels.{ChannelOptions, TypedChannelFactory, TypedTCPChannel}
+import io.threadcso.net.channels.{Options, TypedChannelFactory, TypedTCPChannel}
 
 import java.net._
 import java.nio.channels.{ServerSocketChannel, SocketChannel}
@@ -34,16 +34,14 @@ object TCPChannel {
   def connected[OUT, IN](address: InetSocketAddress, factory: TypedChannelFactory[OUT, IN]): TypedTCPChannel[OUT, IN] = {
     val socket = SocketChannel.open
     val channel = factory.newChannel(socket)
-    println(s"connected pre connect: $socket")
     socket.connect(address)
-    println(s"connected post connect: $socket")
     channel
   }
 
 
   /**
     * Start serving on the given `port`, invoking `session` on a `factory`-constructed `TypedTCPCHannel` for each accepted
-    * socket. The channel is constructed using the default `ChannelOptions`. This is, in general, the way to open a local port for business.
+    * socket. The channel is constructed using the default `Options`. This is, in general, the way to open a local port for business.
     * Here's an (incomplete) example of a trivial server that starts a new "reflect" session for each of its connecting clients.
     * {{{
     *   val reflectServer: PROC = TCPChannel.server(port, backlog=0, factory=CRLFFactory) {
@@ -72,7 +70,7 @@ object TCPChannel {
     */
   def server(port: Int, backlog: Int)(session: SocketChannel => Unit): PROC = proc("server") {
     val address = new InetSocketAddress(port)
-    val channel = ServerSocketChannel.open(ChannelOptions.protocolFamily)
+    val channel = ServerSocketChannel.open(Options.protocolFamily)
     channel.bind(address, backlog)
     while (true) {
       val client: SocketChannel = channel.accept()
