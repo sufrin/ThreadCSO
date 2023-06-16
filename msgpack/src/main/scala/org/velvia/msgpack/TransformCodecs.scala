@@ -8,7 +8,7 @@ import java.io.DataOutputStream
   */
 object TransformCodecs {
 
-  /** Defines a codec for `T` given one for `CODE` and a bijection `T` <=> `CODE`.
+  /** Defines a streamer for `T` given one for `CODE` and a bijection `T` <=> `CODE`.
     *
     * An example would be (de)serializing a `Date` by storing its timestamp,
     * which is just a `Long`. This would look like:

@@ -48,7 +48,7 @@ lazy val eieio = (project in file("eieio"))
    )
 */
 
-lazy val net = (project in file("net"))
+lazy val net = (project in file("netchannels"))
   .dependsOn(macroSub)
   .dependsOn(core)
   .dependsOn(msgpack)

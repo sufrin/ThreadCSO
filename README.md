@@ -24,12 +24,12 @@ an up-to-date introductory paper based on the 2007 paper, and
 the slides for the (relevant) lectures given in 2018. Examples of larger
 programs (will) appear elsewhere on GitHub.
 
-### NEWS: May 2023 Early access to ox.net
+### NEWS: May 2023 Early access to io.threadcso.net.interfaces.netchannels
 
 The advent of virtual threads removes the need for using the rather 
 inefficient asynchronous networking proovided by `java.nio`. We have 
 therefore developed an alternative, more coherent, collection
-of low-level networking components. These appear here as `ox.net`,
+of low-level networking components. These appear here as `io.threadcso.net.interfaces.netchannels`,
 and supersed the overcomplicated (and unrefined) `eieio` that emerged
 when asynchronous, event-driven, external I/O seemed to be
 important.
@@ -444,7 +444,7 @@ Several other solutions will appear in due course.
 
 
 ### EIEIO 
-As remarked above, this has been replaced by `ox.net`.
+As remarked above, this has been replaced by `io.threadcso.net.interfaces.netchannels`.
 
 *Bernard Sufrin: July 2021, March and May 2023*
 

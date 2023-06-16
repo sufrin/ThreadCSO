@@ -183,7 +183,7 @@ object AnyCodecs {
   import SimpleCodecs._
 
   /**
-   * A codec for packing and unpacking to and from Any values.
+   * A streamer for packing and unpacking to and from Any values.
    * NOTE: it has to be defined like this so that we can create default objects which refer to
    * themselves as the base K and V codecs
    * @param compatibilityMode true if want to read raw bytes from old messagepack STR values

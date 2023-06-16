@@ -1,4 +1,4 @@
-## The `ox.net` Package
+## The `io.threadcso.net.interfaces.netchannels` Package
 
 This package provides relatively lightweight means for
 deriving cross-network transport between `ox.threadcso` programs
@@ -74,8 +74,8 @@ Finally, the following constructs a UDP datagram channel that has a "bespoke"
 wire encoding for messages that consist of sequences of records. 
 The bespoke encoding is determined implicitly.
 
-    import ox.net.codec.StreamerEncoding.Primitive._
-    import ox.net.codec.StreamerEncoding._
+    import io.threadcso.net.streamer.Encoding.Primitive._
+    import io.threadcso.net.streamer.Encoding._
     case class Record(name: String, value: Seq[Int))
     type Type = Seq[Record]
     implicit object `IntSeq*`     extends Sequence[Int]
@@ -105,7 +105,7 @@ representations, and two -- structurally similar -- APIs are provided
 * The first API uses the very compact standard `msgpack`
 representation documented in https://msgpack.org/index.html. 
 The implementation
-detail is presented in `ox.net.channelfactory.VelviaChannelFactory`,
+detail is presented in `io.threadcso.net.factory.VelviaChannel`,
 and the detailed work done by the  factory is specified implicitly.
 Here, for example, is the definition of a factory that builds a wire-encoding for `(Int,Int)`, 
 and its use to construct a UDP (Datagram) channel for that type.
@@ -115,7 +115,7 @@ and its use to construct a UDP (Datagram) channel for that type.
   import TupleCodecs._
   type Ty = (Int, Int)
   implicit object TyCodec extends TupleCodec2[Int,Int]
-  val channel = ox.net.UDPChannel.bind(host, port, new VelviaChannelFactory[Ty])
+  val channel = io.threadcso.net.interfaces.netchannels.UDPChannel.bind(host, port, new VelviaChannelFactory[Ty])
 `````
 
 * The second API doesn't adhere to any particular standard, 
@@ -125,11 +125,11 @@ factory is specified implicitly. Here, for example, is the definition
 of a factory that builds a wire-encoding for `Seq[String]`, and its
 use to construct a UDP (Datagram) channel for that type.
 `````
-  import ox.net.channelfactory.{DataStreamChannelFactory => Factory}
-  import ox.net.codec.StreamerEncoding.{Sequence, Stream}
-  import ox.net.codec.StreamerEncoding.Primitive._
+  import io.threadcso.net.interfaces.netchannels.channelfactory.{DataStreamChannelFactory => Factory}
+  import io.threadcso.net.streamer.Encoding.{Sequence, Stream}
+  import io.threadcso.net.streamer.Encoding.Primitive._
   implicit object StringSeq extends Sequence[String]
-  val channel = ox.net.UDPChannel.bind(host, port, new Factory[Seq[String]])
+  val channel = io.threadcso.net.interfaces.netchannels.UDPChannel.bind(host, port, new Factory[Seq[String]])
 `````
 
 Although it may not be obvious here, both APIs can be straightforwardly adapted to the
