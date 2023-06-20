@@ -140,7 +140,26 @@ in a factory of the specific form of transport that will be used. Any
 factory / wire-encoding can be defined ad-hoc by following this pattern, 
 but there are better (and more reliable) ways of doing this.
 
-### Defining Wire-Encodings
+### Predefined Wire-Encodings
+
+#### Strings
+The simplest predefined wire encodings are for strings. The are defined by:
+
+    io.threadcso.net.StringChannelCRLF
+    io.threadcso.net.StringChannelUTF8
+
+The former encodes strings as a sequence of (UTF8-encoded) characters followed by the 
+the `"\r\n"` (CRLF). It is suitable for use in `http` communication.
+The latter encodes strings by their UTF8 representation as defined in
+`scala.io.DataOutputStream.writeUTF8`. 
+
+#### Protocol Buffers
+There is also a wire encoding for messages specified using the `Protocol Buffers` 
+notation. Its source code is very simple and is provided here for adoption by
+those who don't mind adding a protocol buffers dependency to their projects.
+(See the `protobuf` project folder)
+
+### User-definable Wire-Encodings
 There is a straightforwardly extensible encoder/decoder framework 
 for use in implementing the factories the specify "wire-level" 
 representations, and two -- structurally similar -- APIs are provided 
@@ -149,10 +168,11 @@ representations, and two -- structurally similar -- APIs are provided
 * The first API uses the very compact standard `msgpack`
 representation documented in https://msgpack.org/index.html. 
 The implementation
-detail is presented in `io.threadcso.net.factory.VelviaChannel`,
-and the detailed work done by the  factory is specified implicitly.
-Here, for example, is the definition of a factory that builds a wire-encoding for `(Int,Int)`, 
-and its use to construct a UDP (Datagram) channel for that type.
+detail is presented in `io.threadcso.net.factory.VelviaChannel.`
+The detailed work done by the  factory is specified implicitly.
+Here, for example, is the definition of a factory that builds a wire-encoding 
+for `(Int,Int)` and a demonstration of 
+its use to construct a UDP (Datagram) channel for that type.
 `````
   import org.velvia.msgpack._
   import SimpleCodecs._
@@ -166,7 +186,7 @@ and its use to construct a UDP (Datagram) channel for that type.
 and isn't particularly compact, but is straightforward to use and 
 to extend. Most of the detailed  work done by the 
 factory is specified implicitly. Here, for example, is the definition
-of a factory that builds a wire-encoding for `Seq[String]`, and its
+of a factory that builds a wire-encoding for `Seq[String]` -- together with its
 use to construct a UDP (Datagram) channel for that type.
 `````
   import io.threadcso.net.interfaces.netchannels.channelfactory.{DataStreamChannelFactory => Factory}

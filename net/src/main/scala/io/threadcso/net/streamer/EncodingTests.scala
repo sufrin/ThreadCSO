@@ -1,4 +1,5 @@
 package io.threadcso.net.streamer
+import java.io.{DataInputStream, DataOutputStream}
 
 
 /**
@@ -185,6 +186,78 @@ object EncodingTests {
 
   /////////////////////////////////////////////////////////////////////////
 
+  /**
+    * An experimental implementation of "self-describing" streamable classes.
+    * Each object of a streamable class registers its reading method. The corresponding
+    * `kind` byte is used, on input, to discover the reading method. This is not,
+    * overall, very efficient. But it has the advantage that the implicit `Streamer`s
+    * for all `Streamables` are defined in advance.
+    *
+    * NOT RECOMMENDED.
+    *
+    * TODO: on the other hand, preregistration of `Streamable` classes might be possibl
+    */
+  trait Streamable {
+    val kind: Byte
+    def writeTo(out: DataOutputStream): Unit
+  }
+
+  object Streamable {
+    var nextKind: Byte = 0
+
+    val nameRegistry: collection.mutable.HashMap[String, Byte] =
+      new collection.mutable.HashMap[String, Byte]
+
+    val readerRegistry: collection.mutable.HashMap[Byte, DataInputStream => Streamable] =
+      new collection.mutable.HashMap[Byte, DataInputStream => Streamable]
+
+    def apply[T <: Streamable](name: String)(reader: DataInputStream => T): Byte = {
+       val kind = nameRegistry.get(name) match {
+         case Some(kind) => kind
+         case None       =>
+           nextKind = (nextKind + 1).toByte
+           readerRegistry(nextKind) = reader
+           nextKind
+       }
+       kind
+    }
+  }
+
+  /**
+    * On output the "natural" encoding is labelled with the streamable's kind, which is used
+    * on input to determine the streamable's "natural" reader.
+    */
+  implicit def `Streamable*`[T <: Streamable]: Streamer[T] = new Streamer[T] {
+    def toStream(out: DataOutputStream, t: T): Unit = {
+      out.writeByte(t.kind)
+      t.writeTo(out)
+    }
+
+    def fromStream(in: DataInputStream): T = {
+      val kind = in.readByte()
+      Streamable.readerRegistry(kind)(in).asInstanceOf[T]
+    }
+    val name: String = "`Streamable*`"
+  }
+
+  case class Experiment(n: Int) extends Streamable {
+    val kind = Streamable("Experiment") {
+      case in: DataInputStream => Experiment(in.readInt())
+    }
+
+    def writeTo(out: DataOutputStream): Unit = out.writeInt(n)
+  }
+
+  case class GenericExperiment[T : Streamer](t: T) extends Streamable {
+    val enc = implicitly[Streamer[T]]
+    val kind = Streamable("GenericExperiment") {
+      case in: DataInputStream => GenericExperiment(enc.fromStream(in))
+    }
+    def writeTo(out: DataOutputStream): Unit = enc.toStream(out, t)
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+
   def main(args: Array[String]): Unit = {
     import Encoding.{encodingTest => test}
     test(1)
@@ -290,6 +363,11 @@ object EncodingTests {
            println("$exn during serializable roundtrip")
     }
 
+    test(Experiment(3))
+    test(Experiment(5))
+    test(GenericExperiment(3))
+    test(GenericExperiment(5))
+    test(GenericExperiment("with a string"))
 
     val f = new Foo("aFoo")
     test(f)

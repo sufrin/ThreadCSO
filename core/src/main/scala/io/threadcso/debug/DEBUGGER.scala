@@ -206,34 +206,10 @@ class DEBUGGER(debugPort: Int = 0) {
     out.println("\n")
   }
 
-  /** Mapping from mangleable characters to their mangling. */
-  private[this] val mangleMap = List(
-    ("~", "$tilde"),
-    ("=", "$eq"),
-    ("<", "$less"),
-    (">", "$greater"),
-    ("!", "$bang"),
-    ("#", "$hash"),
-    ("%", "$percent"),
-    ("^", "$up"),
-    ("&", "$amp"),
-    ("|", "$bar"),
-    ("*", "$times"),
-    ("/", "$div"),
-    ("+", "$plus"),
-    ("-", "$minus"),
-    (":", "$colon"),
-    ("\\", "$bslash"),
-    ("?", "$qmark"),
-    ("@", "$at")
-  )
+
 
   /** unmangle a compiler-generated mangled name */
-  private def unmangle(name: String): String = {
-    var r = name
-    for ((ch, mangled) <- mangleMap) r = r.replace(mangled, ch)
-    r
-  }
+  private def unmangle(name: String): String = scala.reflect.NameTransformer.decode(name)
 
   /** Write a textual representation of the current state of the CSO program
     * (its threads and channel and monitored variables) to `out`.

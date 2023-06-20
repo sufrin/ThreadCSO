@@ -2,8 +2,8 @@ package io.threadcso.net.codec
 
 import io.threadcso.process.Stopped
 
-case class EndOfInputStream(stream: Any) extends Stopped
-case class EndOfOutputStream(stream: Any) extends Stopped
+class EndOfInputStream(stream: Any) extends Stopped
+class EndOfOutputStream(stream: Any) extends Stopped
 
 /**
   * An `Encoder[O]` is implicitly associated with a network output stream,

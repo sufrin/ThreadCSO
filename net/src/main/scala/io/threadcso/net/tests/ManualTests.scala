@@ -791,7 +791,9 @@ object reflect extends ManualTest("reflect - a server that reflects all TCP clie
         total += count
         if (logging) log.finest(s"read:: $count/$total")
         buffer.flip()
+        if (logging) log.finest(s"write:: $buffer")
         channel.write(buffer)
+        if (logging) log.finest(s"written:: $buffer")
         buffer.clear()
         going = count>0
       }

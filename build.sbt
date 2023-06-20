@@ -34,19 +34,7 @@ lazy val core = (project in file("core"))
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.15" % "test"
   )
 
-/* /* Exiled to ATTIC */
-lazy val eieio = (project in file("eieio"))
-   .dependsOn(macroSub)
-   .dependsOn(core)
-   .dependsOn(app)
-   .settings(
-    scalacOptions ++= Seq(
-      "-deprecation",
-      "-unchecked"
-      /* "-Werror" */
-    )
-   )
-*/
+
 
 lazy val net = (project in file("net"))
   .dependsOn(macroSub)

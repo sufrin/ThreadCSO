@@ -15,6 +15,7 @@ SCALAVERSION=2.13
 JAVAVERSION=jdk20
 VERSION=$SCALAVERSION+$JAVAVERSION+$LIBVERSION
 LIBJAR=threadcso-$VERSION.jar
+EXAMPLESJAR=threadcso-examples-$VERSION.jar
 EXAMPLES=./examples/target/scala-2.13/examples_2.13-1.3.1.jar
 MANUALTESTS=./manualtests/target/scala-2.13/manualtests_2.13-1.3.jar
 RUNTESTS=$MANUALTESTS:$EXAMPLES:$LIBJAR

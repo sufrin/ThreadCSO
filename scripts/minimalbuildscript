@@ -4,7 +4,7 @@
 #
 #  PRECONDITIONS:
 #     1. you have downloaded a jdk-20.jdk 
-#     2. scala and scalac are versions 2.13.7 or 2.13.8
+#     2. scala and scalac are versions 2.13.7 or 2.13.8 or higher
 #
 source $(dirname $0)/configuration.sh
 #
@@ -32,6 +32,10 @@ $scalac -d $BUILD  $(findscala macros)
 # 2. Compile the core code (without tests)
 echo Compiling Core 
 $scalac -d $BUILD -cp $BUILD $(findscala core/src/main)
+
+# 2.5. Compile the net code (without tests)
+echo Compiling net 
+$scalac -d $BUILD -cp $BUILD $(findscala net | grep -v "tests/" )
 
 # 3. Make a jar
 echo Building $LIBJAR

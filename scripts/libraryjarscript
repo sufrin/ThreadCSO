@@ -1,0 +1,25 @@
+#!/bin/bash
+#
+# Makes a single jarfile of all the library modules compiled by sbt
+# omitting test and examples files
+#
+#
+source $(dirname $0)/configuration.sh
+
+CLASSES=$(find `pwd` -path  "*/target/*/classes" -a
+         -not \( \( -path "*examples/*" \) -o \
+                 \( -path "*test*" \) \) \ -o \
+                 \( -path "*Test*" \) \) \ -o \
+        )
+rm    -rf $BUILD
+mkdir -p  $BUILD
+for DIR in $CLASSES
+do
+   echo $DIR
+   cp -pr $DIR/ $BUILD
+done
+cd $BUILD
+jar cvf ../$LIBJAR *
+rm -rf $BUILD
+
+
