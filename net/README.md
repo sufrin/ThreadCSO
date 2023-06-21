@@ -2,13 +2,13 @@
 
 This package provides relatively lightweight means for
 deriving cross-network transport between `io.threadcso.net` programs
-written using via `threadcso` channels. It provides two more-or-less uniform
+communicating  via `threadcso` channels. It provides two analogous
 APIs that provide for UDP (Datagram) transport,
 encrypted SSL/TLS transport, and unencrypted TCP transport. It
 also provides a rich collection of ways of building "wire-encodings"
 compatible with other programs and services.
 
-### Connection: a high level abstraction
+### Connection: a high level API
 Cross-network transport is typed (by output, and input type), and presents
 as a `Connection` -- with a pair of channels to and from which data is sent once the
 connection has been started.
@@ -49,7 +49,7 @@ use the `Connection` APIs and others use the lower-level APIs whose descriptions
 detail below. Start by reading `io.threadcso.net.tests.chat` and 
 `io.threadcso.net.tests.reflectcon` -- the latter is an example of a server.
 
-### Lower-level Detail
+### Lower-level API
 Cross-network transport is typed (by output, and input type), and 
 presents to an application as a pair of  proxy processes whose
 purpose is to copy data from and to the application itself:
@@ -62,7 +62,7 @@ purpose is to copy data from and to the application itself:
 
 It is the application's responsibility to start the proxies before it gets down
 to business, and (if necessary) to terminate them when its business is over. 
-Here's a simple server that responds to each `s: String` with `f: String`, and
+Here's a simple server that responds to each `s: String` with `f(s)`, and
 terminates if the peer (client) process closes its output or input channel.
 
     def application(transport: NetProxy[String,String], f: String=>String): Unit = {
@@ -89,7 +89,7 @@ forms of network transport:
 
 A transport is constructed by specifying its form (`TCP`, `UDP`, `SSL`, `...`) together
 with the details of the "wire encoding". The latter is specified by providing
-a `ChannelFactory` that does the work of composing an untyped network interface
+a `ChannelFactory` that does the work of composing an untyped network transport interface
 with the encoding and decoding machinery.
 
 ## Channel Examples

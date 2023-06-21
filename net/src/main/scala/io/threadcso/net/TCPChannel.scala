@@ -6,6 +6,7 @@ import io.threadcso.net.channels.{Options, TypedChannelFactory, TypedTCPChannel}
 
 import java.net._
 import java.nio.channels.{ServerSocketChannel, SocketChannel}
+import scala.annotation.nowarn
 
 
 object TCPChannel {
@@ -16,7 +17,7 @@ object TCPChannel {
     *   This is NOT in general the way to open a local TCP channel for business.
     */
   def bound[OUT, IN](address: InetSocketAddress, factory: TypedChannelFactory[OUT, IN]): TypedTCPChannel[OUT, IN] = {
-    val family = address.getAddress match {
+    @nowarn val family = address.getAddress match {
       case _: Inet4Address => IPv4
       case _: Inet6Address => IPv6
     }

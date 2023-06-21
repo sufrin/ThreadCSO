@@ -4,4 +4,4 @@
 #
 export JAVA_OPTS="-Xmx1024M -Xms128M --enable-preview"
 export JAVA_HOME="/Users/sufrin/Downloads/jdk-20.jdk/Contents/Home"
-scala -cp threadcso-2.13+jdk20+1.3.jar "$@"
+scala -cp /Users/sufrin/IdeaProjects/ThreadCSO/threadcso-2.13+jdk20+2.0.0.jar "$@"

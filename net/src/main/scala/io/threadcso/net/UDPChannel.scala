@@ -10,6 +10,7 @@ import io.threadcso.net.utils.{DatagramInputStream, DatagramOutputStream}
 import java.io.{EOFException, UTFDataFormatException}
 import java.net._
 import java.nio.channels._
+import scala.annotation.nowarn
 
 object UDPChannel
 { val log = ox.logging.Logging.Log("UDPChannel")
@@ -58,7 +59,7 @@ object UDPChannel
     *
     */
   def bind[OUT,IN](address: InetSocketAddress, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT,IN] = {
-    val family = address.getAddress match {
+    @nowarn val family = address.getAddress match {
       case _: Inet4Address => IPv4
       case _: Inet6Address => IPv6
     }
@@ -79,7 +80,7 @@ object UDPChannel
     * @tparam IN
     */
   def connect[OUT, IN](address: InetSocketAddress, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT, IN] = {
-    val family = address.getAddress match {
+    @nowarn val family = address.getAddress match {
       case _: Inet4Address => IPv4
       case _: Inet6Address => IPv6
     }
@@ -117,7 +118,7 @@ object UDPChannel
 
   /** Return a channel that listens to a multicast IP address/port  */
   def multicastsFrom[OUT, IN](interfaceName: String, address: InetSocketAddress, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT, IN] = {
-    val family = address.getAddress match {
+    @nowarn val family = address.getAddress match {
       case _: Inet4Address => IPv4
       case _: Inet6Address => IPv6
     }
@@ -143,7 +144,7 @@ object UDPChannel
     * datagrams.
     */
   def multicastsTo[OUT, IN](interfaceName: String, address: InetSocketAddress, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT, IN] = {
-    val family = address.getAddress match {
+    @nowarn val family = address.getAddress match {
       case _: Inet4Address => IPv4
       case _: Inet6Address => IPv6
     }

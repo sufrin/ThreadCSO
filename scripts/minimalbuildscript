@@ -35,6 +35,8 @@ $scalac -d $BUILD -cp $BUILD $(findscala core/src/main)
 
 # 2.5. Compile the net code (without tests)
 echo Compiling net 
+$scalac -d $BUILD -cp $BUILD $(findscala logging | grep -v "tests/" )
+$scalac -d $BUILD -cp $BUILD $(findscala msgpack | grep -v "tests/" )
 $scalac -d $BUILD -cp $BUILD $(findscala net | grep -v "tests/" )
 
 # 3. Make a jar
@@ -58,5 +60,14 @@ then
    # 4. Compile the examples
    echo Building $EXAMPLESJAR from examples and manualtests
    $scalac -d $EXAMPLESJAR -cp $LIBJAR $(findscala examples) $(findscala manualtests)
+else
+   ls -l $EXAMPLESJAR
 fi
+
+############################# Runners
+sh scripts/makerunners
+exit
+
+
+
 

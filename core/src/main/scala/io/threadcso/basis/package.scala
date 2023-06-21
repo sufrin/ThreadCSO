@@ -76,7 +76,7 @@ package object basis {
     * line by `-Dname=`''text''. If there is no such property then return
     * `orelse`.
     */
-  def getPropElse[T](name: String, coerce: String => T)(orelse: T): T = {
+  def getPropElse[T](name: String, coerce: String => T)(orelse: =>T): T = {
     val prop = java.lang.System.getProperty(name)
     if (prop == null) orelse else coerce(prop)
   }

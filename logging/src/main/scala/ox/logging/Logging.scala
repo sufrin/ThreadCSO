@@ -5,6 +5,12 @@ import io.SourceLocation.SourceLocation
   * Management of logging and logging levels
   * for named instances of `Log` and `Logging`.
   *
+  * This logging subsystem is intended for use in situations
+  * where small numbers of informational messages will be produced
+  * -- usually (though not necessarily) destined for the controlling terminal.
+  * For higher-resolution logging integrated with the built-in
+  * debugger see the package `io.threadcso.debug`.
+  *
   */
 object Logging
 {
@@ -126,13 +132,28 @@ object Logging
   var DEFAULTLEVEL = elidable.byName("WARNING")
 
   /** Get the logging level associated with `name`. This is called
-      once by all `Logging` objects as their first logging method
+      (at least) once by all `Logging` objects as their first logging method
       is called.
+
+      If the level hasn't been set explicitly during the creation of the log, then
+      the system property list is examined for properties called `name`, or
+      `[name]` with a value that names any logging level.
+
+      {{{
+        scala -DStreamerChannel=finest -D[NetProxy]=fine ...
+      }}}
   */
   def getLevel(name: String): Int =
   { levelMap.get(name) match
-    { case None        => DEFAULTLEVEL
+    { case None        => getSystemLevel(name)
       case Some(level) => level
+    }
+  }
+
+  def getSystemLevel(name: String): Int = {
+    import io.threadcso.basis.getPropElse
+    getPropElse(s"$name", { level => elidable.byName(level.toUpperCase)}) {
+      getPropElse(s"[$name]", { level => elidable.byName(level.toUpperCase) })(DEFAULTLEVEL)
     }
   }
 

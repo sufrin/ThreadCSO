@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang xml:lang>
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>README</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <style type="text/css">@font-face {
+font-family: octicons-link;
+src: url(data:font/woff;charset=utf-8;base64,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) format('woff');
+}
+.octicon {
+display: inline-block;
+fill: currentColor;
+vertical-align: text-bottom;
+}
+.anchor {
+float: left;
+line-height: 1;
+margin-left: -20px;
+padding-right: 4px;
+}
+.anchor:focus {
+outline: none;
+}
+h1 .octicon-link,
+h2 .octicon-link,
+h3 .octicon-link,
+h4 .octicon-link,
+h5 .octicon-link,
+h6 .octicon-link {
+color: #1b1f23;
+vertical-align: middle;
+visibility: hidden;
+}
+h1:hover .anchor,
+h2:hover .anchor,
+h3:hover .anchor,
+h4:hover .anchor,
+h5:hover .anchor,
+h6:hover .anchor {
+text-decoration: none;
+}
+h1:hover .anchor .octicon-link,
+h2:hover .anchor .octicon-link,
+h3:hover .anchor .octicon-link,
+h4:hover .anchor .octicon-link,
+h5:hover .anchor .octicon-link,
+h6:hover .anchor .octicon-link {
+visibility: visible;
+}
+body {
+-ms-text-size-adjust: 100%;
+-webkit-text-size-adjust: 100%;
+color: #24292e;
+line-height: 1.5;
+font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol;
+font-size: 16px;
+line-height: 1.5;
+word-wrap: break-word;
+}
+.pl-c {
+color: #6a737d;
+}
+.pl-c1,
+.pl-s .pl-v {
+color: #005cc5;
+}
+.pl-e,
+.pl-en {
+color: #6f42c1;
+}
+.pl-s .pl-s1,
+.pl-smi {
+color: #24292e;
+}
+.pl-ent {
+color: #22863a;
+}
+.pl-k {
+color: #d73a49;
+}
+.pl-pds,
+.pl-s,
+.pl-s .pl-pse .pl-s1,
+.pl-sr,
+.pl-sr .pl-cce,
+.pl-sr .pl-sra,
+.pl-sr .pl-sre {
+color: #032f62;
+}
+.pl-smw,
+.pl-v {
+color: #e36209;
+}
+.pl-bu {
+color: #b31d28;
+}
+.pl-ii {
+background-color: #b31d28;
+color: #fafbfc;
+}
+.pl-c2 {
+background-color: #d73a49;
+color: #fafbfc;
+}
+.pl-c2:before {
+content: "^M";
+}
+.pl-sr .pl-cce {
+color: #22863a;
+font-weight: 700;
+}
+.pl-ml {
+color: #735c0f;
+}
+.pl-mh,
+.pl-mh .pl-en,
+.pl-ms {
+color: #005cc5;
+font-weight: 700;
+}
+.pl-mi {
+color: #24292e;
+font-style: italic;
+}
+.pl-mb {
+color: #24292e;
+font-weight: 700;
+}
+.pl-md {
+background-color: #ffeef0;
+color: #b31d28;
+}
+.pl-mi1 {
+background-color: #f0fff4;
+color: #22863a;
+}
+.pl-mc {
+background-color: #ffebda;
+color: #e36209;
+}
+.pl-mi2 {
+background-color: #005cc5;
+color: #f6f8fa;
+}
+.pl-mdr {
+color: #6f42c1;
+font-weight: 700;
+}
+.pl-ba {
+color: #586069;
+}
+.pl-sg {
+color: #959da5;
+}
+.pl-corl {
+color: #032f62;
+text-decoration: underline;
+}
+details {
+display: block;
+}
+summary {
+display: list-item;
+}
+a {
+background-color: transparent;
+}
+a:active,
+a:hover {
+outline-width: 0;
+}
+strong {
+font-weight: inherit;
+font-weight: bolder;
+}
+h1 {
+font-size: 2em;
+margin: .67em 0;
+}
+img {
+border-style: none;
+}
+code,
+kbd,
+pre {
+font-family: monospace,monospace;
+font-size: 1em;
+}
+hr {
+box-sizing: content-box;
+height: 0;
+overflow: visible;
+}
+input {
+font: inherit;
+margin: 0;
+}
+input {
+overflow: visible;
+}
+[type=checkbox] {
+box-sizing: border-box;
+padding: 0;
+}
+* {
+box-sizing: border-box;
+}
+input {
+font-family: inherit;
+font-size: inherit;
+line-height: inherit;
+}
+a {
+color: #0366d6;
+text-decoration: none;
+}
+a:hover {
+text-decoration: underline;
+}
+strong {
+font-weight: 600;
+}
+hr {
+background: transparent;
+border: 0;
+border-bottom: 1px solid #dfe2e5;
+height: 0;
+margin: 15px 0;
+overflow: hidden;
+}
+hr:before {
+content: "";
+display: table;
+}
+hr:after {
+clear: both;
+content: "";
+display: table;
+}
+table {
+border-collapse: collapse;
+border-spacing: 0;
+}
+td,
+th {
+padding: 0;
+}
+details summary {
+cursor: pointer;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+margin-bottom: 0;
+margin-top: 0;
+}
+h1 {
+font-size: 32px;
+}
+h1,
+h2 {
+font-weight: 600;
+}
+h2 {
+font-size: 24px;
+}
+h3 {
+font-size: 20px;
+}
+h3,
+h4 {
+font-weight: 600;
+}
+h4 {
+font-size: 16px;
+}
+h5 {
+font-size: 14px;
+}
+h5,
+h6 {
+font-weight: 600;
+}
+h6 {
+font-size: 12px;
+}
+p {
+margin-bottom: 10px;
+margin-top: 0;
+}
+blockquote {
+margin: 0;
+}
+ol,
+ul {
+margin-bottom: 0;
+margin-top: 0;
+padding-left: 0;
+}
+ol ol,
+ul ol {
+list-style-type: lower-roman;
+}
+ol ol ol,
+ol ul ol,
+ul ol ol,
+ul ul ol {
+list-style-type: lower-alpha;
+}
+dd {
+margin-left: 0;
+}
+code,
+pre {
+font-family: SFMono-Regular,Consolas,Liberation Mono,Menlo,Courier,monospace;
+font-size: 12px;
+}
+pre {
+margin-bottom: 0;
+margin-top: 0;
+}
+input::-webkit-inner-spin-button,
+input::-webkit-outer-spin-button {
+-webkit-appearance: none;
+appearance: none;
+margin: 0;
+}
+.border {
+border: 1px solid #e1e4e8!important;
+}
+.border-0 {
+border: 0!important;
+}
+.border-bottom {
+border-bottom: 1px solid #e1e4e8!important;
+}
+.rounded-1 {
+border-radius: 3px!important;
+}
+.bg-white {
+background-color: #fff!important;
+}
+.bg-gray-light {
+background-color: #fafbfc!important;
+}
+.text-gray-light {
+color: #6a737d!important;
+}
+.mb-0 {
+margin-bottom: 0!important;
+}
+.my-2 {
+margin-bottom: 8px!important;
+margin-top: 8px!important;
+}
+.pl-0 {
+padding-left: 0!important;
+}
+.py-0 {
+padding-bottom: 0!important;
+padding-top: 0!important;
+}
+.pl-1 {
+padding-left: 4px!important;
+}
+.pl-2 {
+padding-left: 8px!important;
+}
+.py-2 {
+padding-bottom: 8px!important;
+padding-top: 8px!important;
+}
+.pl-3,
+.px-3 {
+padding-left: 16px!important;
+}
+.px-3 {
+padding-right: 16px!important;
+}
+.pl-4 {
+padding-left: 24px!important;
+}
+.pl-5 {
+padding-left: 32px!important;
+}
+.pl-6 {
+padding-left: 40px!important;
+}
+.f6 {
+font-size: 12px!important;
+}
+.lh-condensed {
+line-height: 1.25!important;
+}
+.text-bold {
+font-weight: 600!important;
+}
+a:not([href]) {
+color: inherit;
+text-decoration: none;
+}
+blockquote,
+dl,
+ol,
+p,
+pre,
+table,
+ul {
+margin-bottom: 16px;
+margin-top: 0;
+}
+hr {
+background-color: #e1e4e8;
+border: 0;
+height: .25em;
+margin: 24px 0;
+padding: 0;
+}
+blockquote {
+border-left: .25em solid #dfe2e5;
+color: #6a737d;
+padding: 0 1em;
+}
+blockquote>:first-child {
+margin-top: 0;
+}
+blockquote>:last-child {
+margin-bottom: 0;
+}
+kbd {
+background-color: #fafbfc;
+border: 1px solid #c6cbd1;
+border-bottom-color: #959da5;
+border-radius: 3px;
+box-shadow: inset 0 -1px 0 #959da5;
+color: #444d56;
+display: inline-block;
+font-size: 11px;
+line-height: 10px;
+padding: 3px 5px;
+vertical-align: middle;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+font-weight: 600;
+line-height: 1.25;
+margin-bottom: 16px;
+margin-top: 24px;
+}
+h1 {
+font-size: 2em;
+}
+h1,
+h2 {
+border-bottom: 1px solid #eaecef;
+padding-bottom: .3em;
+}
+h2 {
+font-size: 1.5em;
+}
+h3 {
+font-size: 1.25em;
+}
+h4 {
+font-size: 1em;
+}
+h5 {
+font-size: .875em;
+}
+h6 {
+color: #6a737d;
+font-size: .85em;
+}
+ol,
+ul {
+padding-left: 2em;
+}
+ol ol,
+ol ul,
+ul ol,
+ul ul {
+margin-bottom: 0;
+margin-top: 0;
+}
+li {
+word-wrap: break-all;
+}
+li>p {
+margin-top: 16px;
+}
+li+li {
+margin-top: .25em;
+}
+dl {
+padding: 0;
+}
+dl dt {
+font-size: 1em;
+font-style: italic;
+font-weight: 600;
+margin-top: 16px;
+padding: 0;
+}
+dl dd {
+margin-bottom: 16px;
+padding: 0 16px;
+}
+table {
+display: block;
+overflow: auto;
+width: 100%;
+}
+table th {
+font-weight: 600;
+}
+table td,
+table th {
+border: 1px solid #dfe2e5;
+padding: 6px 13px;
+}
+table tr {
+background-color: #fff;
+border-top: 1px solid #c6cbd1;
+}
+table tr:nth-child(2n) {
+background-color: #f6f8fa;
+}
+img {
+background-color: #fff;
+box-sizing: content-box;
+max-width: 100%;
+}
+img[align=right] {
+padding-left: 20px;
+}
+img[align=left] {
+padding-right: 20px;
+}
+code {
+background-color: rgba(27,31,35,.05);
+border-radius: 3px;
+font-size: 85%;
+margin: 0;
+padding: .2em .4em;
+}
+pre {
+word-wrap: normal;
+}
+pre>code {
+background: transparent;
+border: 0;
+font-size: 100%;
+margin: 0;
+padding: 0;
+white-space: pre;
+word-break: normal;
+}
+.highlight {
+margin-bottom: 16px;
+}
+.highlight pre {
+margin-bottom: 0;
+word-break: normal;
+}
+.highlight pre,
+pre {
+background-color: #f6f8fa;
+border-radius: 3px;
+font-size: 85%;
+line-height: 1.45;
+overflow: auto;
+padding: 16px;
+}
+pre code {
+background-color: transparent;
+border: 0;
+display: inline;
+line-height: inherit;
+margin: 0;
+max-width: auto;
+overflow: visible;
+padding: 0;
+word-wrap: normal;
+}
+.commit-tease-sha {
+color: #444d56;
+display: inline-block;
+font-family: SFMono-Regular,Consolas,Liberation Mono,Menlo,Courier,monospace;
+font-size: 90%;
+}
+.blob-wrapper {
+border-bottom-left-radius: 3px;
+border-bottom-right-radius: 3px;
+overflow-x: auto;
+overflow-y: hidden;
+}
+.blob-wrapper-embedded {
+max-height: 240px;
+overflow-y: auto;
+}
+.blob-num {
+-moz-user-select: none;
+-ms-user-select: none;
+-webkit-user-select: none;
+color: rgba(27,31,35,.3);
+cursor: pointer;
+font-family: SFMono-Regular,Consolas,Liberation Mono,Menlo,Courier,monospace;
+font-size: 12px;
+line-height: 20px;
+min-width: 50px;
+padding-left: 10px;
+padding-right: 10px;
+text-align: right;
+user-select: none;
+vertical-align: top;
+white-space: nowrap;
+width: 1%;
+}
+.blob-num:hover {
+color: rgba(27,31,35,.6);
+}
+.blob-num:before {
+content: attr(data-line-number);
+}
+.blob-code {
+line-height: 20px;
+padding-left: 10px;
+padding-right: 10px;
+position: relative;
+vertical-align: top;
+}
+.blob-code-inner {
+color: #24292e;
+font-family: SFMono-Regular,Consolas,Liberation Mono,Menlo,Courier,monospace;
+font-size: 12px;
+overflow: visible;
+white-space: pre;
+word-wrap: normal;
+}
+.pl-token.active,
+.pl-token:hover {
+background: #ffea7f;
+cursor: pointer;
+}
+kbd {
+background-color: #fafbfc;
+border: 1px solid #d1d5da;
+border-bottom-color: #c6cbd1;
+border-radius: 3px;
+box-shadow: inset 0 -1px 0 #c6cbd1;
+color: #444d56;
+display: inline-block;
+font: 11px SFMono-Regular,Consolas,Liberation Mono,Menlo,Courier,monospace;
+line-height: 10px;
+padding: 3px 5px;
+vertical-align: middle;
+}
+:checked+.radio-label {
+border-color: #0366d6;
+position: relative;
+z-index: 1;
+}
+.tab-size[data-tab-size="1"] {
+-moz-tab-size: 1;
+tab-size: 1;
+}
+.tab-size[data-tab-size="2"] {
+-moz-tab-size: 2;
+tab-size: 2;
+}
+.tab-size[data-tab-size="3"] {
+-moz-tab-size: 3;
+tab-size: 3;
+}
+.tab-size[data-tab-size="4"] {
+-moz-tab-size: 4;
+tab-size: 4;
+}
+.tab-size[data-tab-size="5"] {
+-moz-tab-size: 5;
+tab-size: 5;
+}
+.tab-size[data-tab-size="6"] {
+-moz-tab-size: 6;
+tab-size: 6;
+}
+.tab-size[data-tab-size="7"] {
+-moz-tab-size: 7;
+tab-size: 7;
+}
+.tab-size[data-tab-size="8"] {
+-moz-tab-size: 8;
+tab-size: 8;
+}
+.tab-size[data-tab-size="9"] {
+-moz-tab-size: 9;
+tab-size: 9;
+}
+.tab-size[data-tab-size="10"] {
+-moz-tab-size: 10;
+tab-size: 10;
+}
+.tab-size[data-tab-size="11"] {
+-moz-tab-size: 11;
+tab-size: 11;
+}
+.tab-size[data-tab-size="12"] {
+-moz-tab-size: 12;
+tab-size: 12;
+}
+.task-list-item {
+list-style-type: none;
+}
+.task-list-item+.task-list-item {
+margin-top: 3px;
+}
+.task-list-item input {
+margin: 0 .2em .25em -1.6em;
+vertical-align: middle;
+}
+hr {
+border-bottom-color: #eee;
+}
+.pl-0 {
+padding-left: 0!important;
+}
+.pl-1 {
+padding-left: 4px!important;
+}
+.pl-2 {
+padding-left: 8px!important;
+}
+.pl-3 {
+padding-left: 16px!important;
+}
+.pl-4 {
+padding-left: 24px!important;
+}
+.pl-5 {
+padding-left: 32px!important;
+}
+.pl-6 {
+padding-left: 40px!important;
+}
+.pl-7 {
+padding-left: 48px!important;
+}
+.pl-8 {
+padding-left: 64px!important;
+}
+.pl-9 {
+padding-left: 80px!important;
+}
+.pl-10 {
+padding-left: 96px!important;
+}
+.pl-11 {
+padding-left: 112px!important;
+}
+.pl-12 {
+padding-left: 128px!important;
+}
+</style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<h1 id="threadcso">ThreadCSO</h1>
+<h2 id="cspoccam-style-channel-based-concurrency-on-the-jvm">CSP/OCCAM-style channel-based concurrency on the JVM</h2>
+<h4 id="may-2023">May 2023</h4>
+<p><strong>ThreadCSO</strong> is the second substantive implementation of the <em>Communicating Scala Objects</em> DSL (<strong>CSO</strong>) designed and built by Bernard Sufrin at Oxford University in 2007 to support the <em>Concurrent Programming</em> course that he taught there between 2004 and 2018, alternating every few years with Gavin Lowe, who with Andrew Bate, made important contributions to the DSL and to the course.</p>
+<p>Though there are several more modern programming languages that provide channel-based communication, few provide the low-overhead compositional blend of <strong>CSO</strong> -- inspired by CSP/OCCAM -- that includes (potentially-guarded and timed) input and output alternations, &quot;upstream&quot; channel closing, straightforward clean network termination, <em>etc</em>.</p>
+<p><strong>ThreadCSO</strong> is published on GitHub now, with a few small example programs, in the hope that it may prove useful to someone as a pedagogical or a practical tool. The folder <code>Lectures</code> contains an up-to-date introductory paper based on the 2007 paper, and the slides for the (relevant) lectures given in 2018. Examples of larger programs (will) appear elsewhere on GitHub.</p>
+<h3 id="news-may-2023-early-access-to-iothreadcsonet">NEWS: May 2023 Early access to io.threadcso.net</h3>
+<p>The advent of virtual threads removes the need for using the rather inefficient asynchronous networking proovided by <code>java.nio</code>. We have therefore developed an alternative, more coherent, collection of low-level networking components. These appear here in the package <code>io.threadcso.net</code>, and supersede the overcomplicated (and unrefined) <code>eieio</code> that emerged when asynchronous, event-driven, external I/O seemed to be important.</p>
+<h3 id="news-februarymarch-2023-early-access-to-virtual-threads">NEWS: February/March 2023 Early access to virtual threads</h3>
+<p>With the assistance of M Ahsan Al Mahir we have now made a version of ThreadCSO that can use virtual threads (from <strong>jdk20</strong>) alongside platform threads. Only minor changes were necessary (the introduction of a new form of executor); and 99% of the API remains unchanged.</p>
+<p>These virtual threads provide dramatically enhanced possibilities for channel-based programming since tens or hundreds of thousands of them can be running in the same address space. Inter-process communication performance (between processes running on virtual threads) appears (in our tests) to better by order(s) of magnitude.</p>
+<h3 id="to-build-and-test-this-version">To build and test this version</h3>
+<p>First <strong>ensure</strong> you have exported <code>JAVA_HOME</code> set to the path of a jdk that is <strong>no earlier than jdk 20</strong></p>
+<h5 id="if-you-have-mastered-sbt">If you have mastered sbt:</h5>
+<p>Just run</p>
+<pre><code>sbt clean test package</code></pre>
+<p>This will compile the source code, and produce a few <code>.jar</code> files in the target folders of the various modules of threadcso.</p>
+<p>A little editing of <code>scripts/configuration.sh</code> to get the absolute path bound to the symbol <code>JAVA_HOME</code> correct for your computer is now necessary. Running:</p>
+<pre><code>sh scripts/sbt-onejar</code></pre>
+<p>will construct two jar files that includes all the relevant class files generated by the above sbt command. One has only the library modules in it; the other has the example programs in it.</p>
+<p>The former file should be placed on the scala / scalac class path as you run / compile a scala program that uses the <code>threadcso</code> library.</p>
+<p>If the (rudimentary) tests were passed you can also start a session with <code>sbt</code> and run some of the examples directly. Here&#39;s an example of a (two command) session with sbt:</p>
+<pre><code>sbt:threadcso&gt; project examples
+sbt:examples&gt; runMain Life</code></pre>
+<p>You can, of course, prolong the session; edit sources and try running again, etc.</p>
+<h5 id="if-you-have-not-mastered-sbt">If you have not mastered sbt</h5>
+<p>Just adjust the symbol bound to <code>JAVA_HOME</code> to the path to your downloaded <em>jdk</em> (which must be <em>jdk 20</em> or later), then run</p>
+<pre><code>sh scripts/minimalbuildscript</code></pre>
+<p>This will, independently of sbt, build a <code>.jar</code> file that consolidates all the necessary components to compile and run <code>threadcso</code> programs, as well as one containing the compiled <code>examples</code>.</p>
+<p>It will also generate an executable script <code>runexample</code> that will run any of the examples mentioned in <code>examples/README.md</code>, as well as scripts <code>cso</code>, and <code>csoc</code>.</p>
+<p>Try one of these:</p>
+<pre><code>./runexample Life
+./runexample Gravitation w 10 q 4
+./runexample Autonomous  s 40 i 8</code></pre>
+<p>Or if you want to look at the corpse of a deadlocked non-solution to the dining philosophers problem, try:</p>
+<pre><code>./runexample Phils</code></pre>
+<p>Then, when the program appears to deadlock, use a web browser to connect to the debugger whose port is announced as the program starts.</p>
+<h4 id="one-script-wonderment">One-script wonderment</h4>
+<p>The self-contained script <code>scripts/cso</code> can easily be adjusted to your own needs and context. If it is on your <code>PATH</code> (and linked to <code>csoc</code>) then</p>
+<pre><code>cso        - creates and shows JAVA_HOME, CSOPATH, JAVA_OPTS variables
+cso  args  - run scala -cp $CSOPATH args...
+cso  -jars - show file details of the jars that will be on the CSOPATH
+cso  -sbt args - run sbt args using JAVA_HOME and JAVA_OPTS
+csoc args  - run scalac -cp $CSOPATH args...</code></pre>
+<h2 id="introduction-to-cso">Introduction to CSO</h2>
+<h3 id="processes-and-process-notation">Processes and Process Notation</h3>
+<p><em>(Some extracts from the introductory paper)</em></p>
+<p>A CSO process is a value with Scala type <code>PROC</code> and is what an experienced object oriented programmer would call a <em>stereotype</em> for a thread. When a process is <em>started</em> any fresh threads that are necessary for it to run are acquired from a pool; they are returned to the pool when the process terminates. The present default pool implementation acquires new worker threads from the underlying JVM when necessary and &#39;&#39;retires&#39;&#39; threads that have remained dormant in the pool for more than a certain period. Several varieties of pool implementation are available: all can be specified and parameterized at run-time. (Note added Feb 2023: in the present setup <em>virtual threads</em> are used to run processes: the exact form of thread it will use when running can be specified at process abstration time)</p>
+<p>Simple process expressions yield values of type <code>PROC</code> and take one of the following forms</p>
+<ol type="1">
+<li><code>proc { </code><em>expression</em> <code>}</code></li>
+<li><code>proc (</code><em>name</em><code>: String) {</code> <em>expression</em> <code>}</code></li>
+</ol>
+<p>If a <em>name</em> is not supplied, a new one is automatically associated with the process value as it is constructed. The <em>expression</em> must be of type <code>Unit</code>. These <em>name</em>s are useful only in inspecting the output of a debugger.</p>
+<p>Parallel compositions of <code>N</code> processes, each of type <code>PROC</code> take the form</p>
+<p>3. <em>p1</em> <code>||</code> <em>p2</em> <code>||</code> ... <em>pN</em></p>
+<p>and the parallel composition of a finite <em>collection</em> of process values takes the form</p>
+<p>4. <code>(||</code> <em>collection</em> <code>)</code></p>
+<p>This form is exactly equivalent to <em>p1</em> <code>||</code> <em>p2</em> <code>||</code> ... <em>pN</em> where the <em>pi</em> are the members (in some order) of the <em>collection</em>. An empty collection is equivalent to process that terminates immediately.</p>
+<p><strong>Running</strong></p>
+<p>If <em>p</em> is a process, then evaluation of the expression <em>p</em><code>()</code> runs the process; and the expression <code>run</code><em>(p)</em> has exactly the same effect.</p>
+<p>The following cases are distinguished:</p>
+<ol type="1">
+<li><em>p</em> is <code>proc{</code><em>expr</em><code>}</code></li>
+<li><em>p</em> is <code>proc(</code><em>name</em><code>){</code><em>expr</em><code>}</code></li>
+</ol>
+<p>Both forms cause <em>expr</em> to be evaluated in the current thread -- <em>i.e.</em> the thread that invoked the run. The process terminates when the evaluation of <em>expr</em> terminates or throws an (uncaught) exception.</p>
+<p>The behaviour of the expression <em>p</em><code>()</code> cannot be distinguished from that of the expression <code>{</code><em>expr</em><code>}</code>, except that its <em>name</em> is used to identify the thread running <em>p</em> until <em>p</em> terminates. This identification can be helpful when inspecting a running CSO program using the CSO debugger.</p>
+<p>3. <em>p1</em> <code>||</code> <em>p2</em> <code>||</code> ... <em>pN</em></p>
+<p>Each of the processes except one is run in a new thread of its own; the remaining process is run in the current thread. The process as a whole terminates only when <em>every</em> component <em>pi</em> has terminated. But if one or more of the components terminated by throwing an uncaught exception then <em>when and only when they have all terminated</em> these exceptions are bundled into a <code>ParException</code> which is re-thrown, <em>unless they are all subtypes of</em> <code>io.threadcso.process.Stopped</code>; in which case a <em>single</em> <code>io.threadcso.process.Stopped</code> is thrown. (The reasons for this exception are explained in detail in the introductory paper. They are the foundation of the <em>network termination</em> protocol.)</p>
+<p><strong>Forking</strong></p>
+<p>It can sometimes simplify the construction of a large system to have processes that run (more or less permanently) in the background. The expression <code>fork(</code><em>p</em><code>)</code> runs <em>p</em> in a new thread concurrent with the thread that invoked <code>fork</code>, and returns a <em>handle</em> on the running process that can be used (to some extent) to manipulate it. The new thread is recycled (2023: or abandoned if it is a virtual thread) when the process terminates.</p>
+<h3 id="ports-and-channels">Ports and Channels</h3>
+<p>A CSO channel has two ports, one at each end, and in general is intended to transmit (for reading) to its <em>input port</em> the data that is written to its <em>output port</em>. Ports are parameterized by the type of data the channel transmits, and we define the abbreviations <code>??[T]</code> and <code>!![T]</code> respectively for <code>InPort[T]</code> and <code>OutPort[T]</code>. (2023: the abbreviations used to be <code>?[T]</code> and <code>![T]</code> but one or both of these are now forbidden in Scala 2.13)</p>
+<p>The most important method of an output port <em>op</em><code>: !![T]</code> is its writing method <em>op</em><code>!(</code><em>value</em><code>:T)</code>.</p>
+<p>The most important methods of an input port <em>ip</em><code>:??[T]</code> are its reading method <em>ip</em><code>?():T</code>, and its read-and-evaluate method <em>ip</em><code>?{[U](</code><em>f</em><code>:T=&gt;U):U</code>. If <em>f</em><code>:T=&gt;U</code>, the expression <em>ip</em><code>?(</code><em>f</em><code>)</code> has exactly the same effect as <em>f</em><code>(</code><em>ip</em><code>?())</code>, namely to read a datum from <em>ip</em> (waiting, if necessary, for one to become available) then apply the function <em>f</em> to it.</p>
+<p>The type <code>Chan[T]</code> is implemented by all channels that carry values of type <code>T</code>; it is a subtype of both <code>!![T]</code> and <code>??[T]</code>. The implicit contract of every conventional <code>Chan</code> implementation is that it transmits the data written at its output port to its input port in the order in which the data is written.</p>
+<p>CSO provides a variety of channel implementations , with different synchronization behaviours (synchronised, buffered, <em>etc</em>) and different restrictions on the numbers of processes that may access (<em>i.e.</em> use the principal methods of) their ports at any time (many-to-many, one-to-one, <em>etc</em>). Channels may be closed by their creator or from processes communicating using their ports: after being closed they (eventually or immediately) cease to transmit data.</p>
+<p>A variety of other CSO constructs are designed to simplify the programming of components / server processes that can be connected in networks tjhat can straightforwardly be terminated. For example, a read from the input port of a channel that is, or becomes, closed throws a <code>Stopped</code> exception, and such exceptions <em>naturally</em> terminate <strong>repeat</strong> loops and propagate through <code>||</code> compositions.</p>
+<p>For detailed descriptions of the varieties of channel, and of the conventions for fuss-free clean network termination see the introductory paper and Lectures/04....</p>
+<p>As an example of the flavour of programming components in CSO, the <code>tee</code> process generator below builds a process that, when started, broadcasts data from its input port to all its output ports concurrently: if the input port closes, or if any output port is closed before or during a broadcast, then the process stops broadcasting and closes all its ports, before itself terminating.</p>
+<pre><code>    def tee[T](in: ??[T], outs: Seq[!![T]]) =
+    proc { var data = in.nothing  // unspecified initial value
+           val cast = || for (out&lt;-outs) yield proc { out!data }
+           repeat { data = in?(); cast() }
+           for (out&lt;-outs) out.closeOut; in.closeIn
+         }</code></pre>
+<p>Any process that happens to be reading or writing at the time will (if it is written using the termination conventions) itself do likewise, thereby propagating termination across the communications network. To simplify compliance with the network termination convention Channel closure is idempotent: once a channel is closed it can be re-closed without having any discernible effects elsewhere.</p>
+<p><strong>Alternation</strong></p>
+<p>It is often useful to be able to input from the first available channel of a collection of channels: the <strong>alt</strong> construct supports this. For example, a process generated by <code>tagger</code> (shown below) repeatedly inputs from one of two input ports, then outputs the value that was input &quot;tagged&quot; with either <code>0</code> or <code>1</code> to indicate its origin:</p>
+<pre><code>    def tagger[T](l: ??[T], r: ??[T], out: !![(Int, T)]): PROC = 
+    proc { repeat { alt ( l =?=&gt; { vl =&gt; out!(0, vl) } 
+                        | r =?=&gt; { vr =&gt; out!(1, vr) } 
+                        ) 
+                  }
+           l.closeIn; r.closeIn; out.closeOut 
+         }</code></pre>
+<p>When either or both input ports can provide input, the <strong>alt</strong> chooses (in principle nondeterministically) between those that can. The nondeterministic choice is not necessarily made fairly, so one of the ports can &quot;get ahead&quot; of the other in some circumstances. One way of making things fairer is to program the repeated <strong>alt</strong> as a <strong>serve</strong> construct, thus:</p>
+<pre><code>    def tagger[T](l: ??[T], r: ??[T], out: !![(Int, T)]): PROC = 
+    proc { serve ( l =?=&gt; { vl =&gt; out!(0, vl) } 
+                 | r =?=&gt; { vr =&gt; out!(1, vr) } 
+                 ) 
+           l.closeIn; r.closeIn; out.closeOut 
+         }</code></pre>
+<p>The <strong>serve</strong> is <em>almost</em> equivalent to the repeated <strong>alt</strong> except for using a &quot;round-robin&quot; policy of choosing between ports that are simultaneously ready in successive iterations.</p>
+<p>Both these &quot;taggers&quot; obey the termination protocol. The (<strong>repeat</strong>ed) <strong>alt</strong> fails with a <code>Stopped</code> exception, thereby terminating the <strong>repeat</strong>, either if <code>out</code> becomes closed, or <em>both</em> <code>l</code>, and <code>r</code> become closed. The <strong>serve</strong> has identical termination behaviour.</p>
+<p>Notice that the above alternations are composed of a sequence of <strong>events</strong> of the form <em>inport</em><code>=?=&gt;</code><em>function</em>. The <em>function</em> is invoked when the port <em>can</em> provide input and is <em>chosen</em> by the alternation to do so. Such events can also be guarded with boolean guards, and a port is not considered by an alternation construct if its guard is false.</p>
+<p>A good example of the use of guarded events, and a mix of input and output events is the (purely pedagogic) example of a two-place buffer implementation that appears in the chapter on alternation: Lectures/06.</p>
+<pre><code>    def Buff2Alt[T](in: ??[T], out: !![T]) = proc {
+        var x     = in?()
+        var empty = false
+        serve ( (empty  &amp;&amp; in)  =?=&gt; { y =&gt; x=y; empty=false }
+              | (!empty &amp;&amp; in)  =?=&gt; { y =&gt; out!x; x=y } 
+              | (!empty &amp;&amp; out) =!=&gt; { empty=true; x }
+              )
+        }</code></pre>
+<ul>
+<li><p>When <code>empty</code> its next action <em>must</em> be to input from <code>in</code>.</p></li>
+<li><p>When <code>!empty</code>, either:</p>
+<ol type="1">
+<li>An input can be accepted, but then the current value of <code>x</code> must be output immediately</li>
+<li><code>x</code> can be output if there is demand from (the other end of the channel connected to) <code>in</code>, and then it becomes <code>empty</code> again.</li>
+</ol>
+<p>An output event consists of a possibly-guarded channel, followed by <code>=!=&gt;</code>, followed by a block that is executed to provide the value to be output if the event is enabled and is chosen by the alternation. In the example we anticipate its becoming empty again before providing the value (<code>x</code>).</p></li>
+</ul>
+<p><strong>The Dining Philosophers</strong></p>
+<p>If you are here, then you will already know the (purely pedagogical) &quot;Dining Philosophers&quot; problem. For a complete example of the use of <strong>CSO</strong> here we show a simulation of the classical solution to avoiding deadlock, wherein the majority of philosophers are left handed, but one is right handed. Several other solutions will appear in due course.</p>
+<pre><code>    import io.threadcso._
+    import scala.language.postfixOps
+    
+    object PhilsLeft 
+    {
+      // Philosophers&#39; actions 
+      abstract class Action {}
+      case class Pick(who: Int)  extends Action
+      case class Drop(who: Int)  extends Action
+    
+      val N = 5 // Number of philosophers
+    
+      val random = new scala.util.Random
+    
+      // Simulate basic actions
+      def Eat   = sleep(50*milliSec)
+      def Think = sleep(random.nextInt(80)*milliSec) 
+      def Pause = sleep(50*milliSec)
+    
+      // buffered channel of indefinite capacity to report what&#39;s happening  
+      val report = N2NBuf[String] (0, 0, 1, &quot;report&quot;)
+      
+      // A single philosopher with identity `me`: 0 is right-handed
+      def Phil(me: Int, left: !![Action], right: !![Action]) = proc(&quot;Phil&quot;+me) {
+        repeat {
+          Think
+          if (me==0) {
+             right!Pick(me); report!(me+&quot; picks up right fork&quot;); Pause
+             left!Pick(me);  report!(me+&quot; picks up left fork&quot;);  Pause
+          } else {
+             left!Pick(me);  report!(me+&quot; picks up left fork&quot;);  Pause
+             right!Pick(me); report!(me+&quot; picks up right fork&quot;); Pause
+          }
+          report ! (me+&quot; eats&quot;); Eat
+          left!Drop(me);  report!(me+&quot; drops left fork&quot;); Pause
+          right!Drop(me); report!(me+&quot; drops right fork&quot;); Pause
+        }
+      }
+    
+    
+      // A single fork
+      def Fork(me: Int, left: ?[Action], right: ?[Action]) = proc(&quot;Fork&quot;+me) {
+        var owner: String=&quot;Nobody&quot;
+        // Associate this fork&#39;s state with a debugger format 
+        // In case of deadlock the debugger can be invoked froma web browser, 
+        // and the fork&#39;s current owner can be determined by inspection
+        withDebuggerFormat(s&quot;Fork ${me} with $owner&quot;)
+        { // Forks must be dropped by the philosopher who picked them up
+          serve
+          {(  left  =?=&gt; { case Pick(x) =&gt; owner=s&quot;$x&quot;; 
+                                           left?{ case Drop(y) =&gt; assert(y==x); 
+                                                  owner=&quot;nobody&quot;} 
+                         }
+           |  right =?=&gt; { case Pick(x) =&gt; owner=s&quot;$x&quot;; 
+                                           right?{ case Drop(y) =&gt; assert(y==x); 
+                                                   owner=&quot;nobody&quot;} 
+                         }
+          )}
+          println(s&quot;Both the ports of FORK $me are closed: owned by ${owner}&quot;)
+        }
+      }
+    
+      // Copy messages from report onto the console
+      val theConsole: PROC = proc (&quot;Console&quot;) { repeat{ Console.println(report?()) } }
+    
+      // One to one channels to pick up and drop the forks:
+      val philToLeftFork  = 
+          for (i&lt;-0 until N) yield 
+              OneOne[Action]  (s&quot;Phil($i) to Fork($i)&quot;)
+      val philToRightFork = 
+          for (i&lt;-0 until N) yield 
+              OneOne[Action]  (s&quot;Phil($i) to Fork(${(N+i-1)%N})&quot;)
+      // philToLeftFork(i)  is from Phil(i) to Fork(i);
+      // philToRightFork(i) is from Phil(i) to Fork((i-1)%N)
+    
+    
+      // Put the components together
+      val AllPhils: PROC = || ( 
+        for (i &lt;- 0 until N) yield 
+          Phil( i, philToLeftFork(i), philToRightFork(i) ) 
+      )
+    
+      val AllForks: PROC = || ( 
+        for (i &lt;- 0 until N) yield 
+          Fork( i, philToRightFork((i+1)%N), philToLeftFork(i) ) 
+      )
+            
+      // And run the simulation
+      def main(args : Array[String]) = 
+      { println(debugger) // show the TCP port on which the debugger will report
+        run(AllPhils || AllForks || theConsole)
+      } 
+    }</code></pre>
+<h3 id="eieio">EIEIO</h3>
+<p>As remarked above, this has been replaced by <code>io.threadcso.net.interfaces.netchannels</code>.</p>
+<p><em>Bernard Sufrin: July 2021, March and May 2023</em></p>
+</body>
+</html>

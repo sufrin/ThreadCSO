@@ -1,0 +1,51 @@
+#!/bin/bash
+#
+# Makes a single jarfile of all the library and example modules compiled by sbt
+#
+source $(dirname $0)/configuration.sh
+#
+#
+#
+LIBJARS=$(find `pwd` -name "*.jar" -a \
+            \( \( -path "*/target/*" \)  -a \
+            -not \( \( -path "*sbt*" \)  -o \
+                    \( -path "*test*" \) -o \
+                    \( -path "*examples/*" \) \
+                    \) \
+            \))
+
+EXAMPLEJARS=$(find `pwd` \( -path "*/target*example*.jar" -o \
+                            -path "*/target*test*.jar" \
+                         \) )
+
+#
+#
+#
+function BUILDJAR () {
+LIB=$1
+shift
+JARS="$@"
+rm    -rf $BUILD
+mkdir -p  $BUILD
+echo Unpacking jars:
+for JAR in $JARS
+do
+  # echo $JAR
+  (cd $BUILD; jar xf $JAR)
+done
+echo
+echo Making threadcso library file: $LIB
+jar cfM $LIB -C $BUILD .
+rm -rf $BUILD
+}
+
+#
+#
+#
+BUILDJAR $LIBJAR      $LIBJARS
+BUILDJAR $EXAMPLESJAR $EXAMPLEJARS
+
+##########################################
+
+  
+
