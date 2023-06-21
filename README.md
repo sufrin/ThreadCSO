@@ -101,11 +101,16 @@ It will also generate an executable script `runexample` that will run
 any of the examples  mentioned in `examples/README.md`, as well as 
 scripts `cso`, and `csoc`. 
 
+##### Running a few example programs
+
 Try one of these:
 
     ./runexample Life
     ./runexample Gravitation w 10 q 4
     ./runexample Autonomous  s 40 i 8
+    ./runexample Life -h
+
+(the last of these shows how to interact with the GUI).
 
 Or if you want to look at the corpse of a deadlocked non-solution
 to the dining philosophers problem, try:
@@ -115,6 +120,8 @@ to the dining philosophers problem, try:
 Then, when the program appears to deadlock, use a web browser to
 connect to the debugger whose port is announced as the program
 starts.
+
+For further detail see "examples/README.md" and "examples/BOIDSREADME.md"
 
 #### One-script wonderment
 

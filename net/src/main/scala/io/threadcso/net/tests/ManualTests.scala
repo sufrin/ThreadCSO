@@ -155,9 +155,12 @@ object kbd extends ManualTest("kbd - sends one-line keyboard messages. Run oppos
         else
           println(f"$n%-3d #${decoded.size}%-6d ${decoded.take(20)}...${decoded.drop(decoded.length-20)}")
       }
-      toHost.close()
-      fromHost.close()
+      log.info(s"Closing and interrupting")
       kbd.close()
+      fromKeyboard.interrupt()
+      toNet.interrupt()
+      fromNet.interrupt()
+      log.info(s"All closed and interrupted")
     }
     )
     kbd.close()

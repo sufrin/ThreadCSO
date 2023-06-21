@@ -15,8 +15,9 @@ unset JAVA_OPTS
 #
 #
 #
-CSO=/Users/sufrin/GitHomes/threadcso/ThreadCSO
-JAVA_OPTS="-Xmx256M -Xms32M --enable-preview"
+CSO=/Users/sufrin/IdeaProjects/ThreadCSO
+JAVA_OPTS="-Xmx256M -Xms32M --enable-preview -Djavax.net.ssl.trustStore=$HOME/PRIVATE-cacerts"
+###### -Djavax.net.debug=ssl:handshake
 JAVA_HOME=/Users/sufrin/Downloads/jdk-20.jdk/Contents/Home
 
 case $0 in
@@ -32,7 +33,7 @@ esac
 case $1 in
   -jars)
      (cd $CSO ;\
-      ls -l $(find . -name "*.jar" -a -not \( -path "*sbt*" \)) )
+      ls -l $(find . -name "*.jar" -a -not \( -path "*sbt*" -o -path "*out*" \)) )
     exit;;
 
   -sbt);;
@@ -50,14 +51,11 @@ esac
 #
 # Collect jar files for the path
 #
-for jar in $(find $CSO -name "*.jar" | grep -v sbt)
+for jar in $(find $CSO -name "*.jar" -a -not \( -path "*sbt*" -o -path "*out*" \) )
 do
   CSOPATH=$jar:$CSOPATH
 done
-for jar in $(find . -name "*.jar" | grep -v sbt)
-do
-  CSOPATH=$jar:$CSOPATH
-done
+
 
 export CSOPATH
 export JAVA_HOME
