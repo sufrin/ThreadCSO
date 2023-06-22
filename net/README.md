@@ -100,14 +100,15 @@ for strings that is consistent with `http` with strings terminated by
 the doublet `"\r\n"`
 
     val channel1: TypedTCPChannel[String,String] = 
-            TCPChannel.connected(host, port, StringChannelUTF8)
+            TCPChannel.connected(host, port, StringChannelCRLF)
 
-The second uses java's built-in `DataOutputStream` representation for strings. 
+The second uses java's built-in wire representation for strings, as 
+encoded in `java.io.DataOutputStream`. 
 
     val channel2: TypedTCPChannel[String,String] = 
-            TCPChannel.connected(host, port, UTF8ChannelFactory)
+            TCPChannel.connected(host, port, StringChannelUTF8)
 
-The following constructs a non-credentialled TLS/SSL client channel to `host` at its `port`. The
+The following constructs a non-credentialled TLS/SSL client channel to `host` at its `port` -- the
 `TLS` negotiation for wire-level encryption is conducted ("out of sight, out of mind") by
 the `client` method.
 
@@ -116,34 +117,39 @@ the `client` method.
 
 Finally, the following constructs a UDP datagram channel that has a "bespoke" 
 wire encoding for messages that consist of sequences of records. 
-The bespoke encoding is determined implicitly.
+The bespoke encoding for `Type` is determined implicitly by composing 
+bespoke encodings (the implicit objects) for its component types: 
 
-    import io.threadcso.net.streamer.Encoding.Primitive._
     import io.threadcso.net.streamer.Encoding._
     case class Record(name: String, value: Seq[Int))
     type Type = Seq[Record]
-    implicit object `IntSeq*`     extends Sequence[Int]
-    implicit object `Record*`     extends `2cons`[Record, String, Seq[Int]](Record.apply, Record.unapply)
-    implicit object `RecordSeq*`  extends Sequence[Record]
+    implicit object `Seq[Int]*` extends `Seq*`[Int]
+    implicit object `Record*`   extends `2-Case*`[Record, String, Seq[Int]](Record.apply, Record.unapply)
+    implicit object `Type*`     extends `Seq*`[Record]
     val channel4: TypedUDPChannel[Type, Type] = 
-           UDPChannel.bind(host, port, new DataStreamChannelFactory[Type]())
+           UDPChannel.bind(host, port, new StreamerChannel[Type]())
 
 
-What the above channel constructions have in common is that they declare the 
-wire protocol by passing a `ChannelFactory` of the appropriate kind to a method 
-that determines the transport. 
+What all the above channel constructions have in common is that they declare the 
+wire protocol by passing a `TypedChannelFactory` of the appropriate kind: 
+
+    io.threadcso.net.factory.StringChannelCRLF
+    io.threadcso.net.factory.StringChannelUTF8
+    io.threadcso.net.factory.StreamerChannel[Type]
+
+to a method that determines the transport and an endpoint port.
+
+    TCPChannel.connected(host, port, StringChannelUTF8) 
+    SSLChannel.client(TLSCredential(null, null), host, port, StringChannelCRLF)
+    UDPChannel.bind(host, port, new StreamerChannel[Type]())
 
 Two simple factories determine wire encodings for
-`String`; they are provided to show the detail of what is, in general, 
-expected  of a factory, and the extent to which account can be taken
-in a factory of the specific form of transport that will be used. Any
-factory / wire-encoding can be defined ad-hoc by following this pattern, 
-but there are better (and more reliable) ways of doing this.
+`String`; 
 
 ### Predefined Wire-Encodings
 
 #### Strings
-The simplest predefined wire encodings are for strings. The are defined by:
+The simplest predefined wire encodings are for strings. They are defined by:
 
     io.threadcso.net.StringChannelCRLF
     io.threadcso.net.StringChannelUTF8
@@ -151,13 +157,12 @@ The simplest predefined wire encodings are for strings. The are defined by:
 The former encodes strings as a sequence of (UTF8-encoded) characters followed by the 
 the `"\r\n"` (CRLF). It is suitable for use in `http` communication.
 The latter encodes strings by their UTF8 representation as defined in
-`scala.io.DataOutputStream.writeUTF8`. 
-
-#### Protocol Buffers
-There is also a wire encoding for messages specified using the `Protocol Buffers` 
-notation. Its source code is very simple and is provided here for adoption by
-those who don't mind adding a protocol buffers dependency to their projects.
-(See the `protobuf` project folder)
+`scala.io.DataOutputStream.writeUTF8`. A glance at their source code
+shows the detail of what is, in general,  expected  of a factory, and 
+the extent to which account can be taken  within a factory of the specific 
+form of transport that will be used. Any factory / wire-encoding can be defined 
+ad-hoc by following this pattern,  but there are better (and more reliable) ways of 
+doing this.
 
 ### User-definable Wire-Encodings
 There is a straightforwardly extensible encoder/decoder framework 
@@ -165,10 +170,9 @@ for use in implementing the factories the specify "wire-level"
 representations, and two -- structurally similar -- APIs are provided 
 (in due course the APIs will be harmonized).
 
-* The first API uses the very compact standard `msgpack`
-representation documented in https://msgpack.org/index.html. 
-The implementation
-detail is presented in `io.threadcso.net.factory.VelviaChannel.`
+* The first API uses the very compact standard `msgpack` representation 
+documented in https://msgpack.org/index.html. 
+The implementation detail is presented in `io.threadcso.net.factory.VelviaChannel.`
 The detailed work done by the  factory is specified implicitly.
 Here, for example, is the definition of a factory that builds a wire-encoding 
 for `(Int,Int)` and a demonstration of 
@@ -178,13 +182,13 @@ its use to construct a UDP (Datagram) channel for that type.
   import SimpleCodecs._
   import TupleCodecs._
   type Ty = (Int, Int)
-  implicit object TyCodec extends TupleCodec2[Int,Int]
+  implicit object `Ty*` extends `2-Tuple*`[Int,Int]
   val channel = io.threadcso.net.interfaces.netchannels.UDPChannel.bind(host, port, new VelviaChannelFactory[Ty])
 `````
 
 * The second API doesn't adhere to any particular standard, 
 and isn't particularly compact, but is straightforward to use and 
-to extend. Most of the detailed  work done by the 
+to extend. The detailed  work done by the 
 factory is specified implicitly. Here, for example, is the definition
 of a factory that builds a wire-encoding for `Seq[String]` -- together with its
 use to construct a UDP (Datagram) channel for that type.
@@ -198,4 +202,10 @@ use to construct a UDP (Datagram) channel for that type.
 
 Although it may not be obvious here, both APIs can be straightforwardly adapted to the
 task of "pickling" program representations as filestore representations.
+
+#### Protocol Buffers
+There is also a wire encoding for messages specified using the `Protocol Buffers`
+notation. Its source code is very simple and is provided here for adoption by
+those who don't mind adding a protocol buffers dependency to their projects.
+(See the `protobuf` project folder)
 
