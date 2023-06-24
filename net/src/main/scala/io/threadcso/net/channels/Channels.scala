@@ -99,8 +99,8 @@ object Options {
       try makechannel finally {
         this.inBufSize      = is
         this.outBufSize     = os
-        this.inBufSize      = ics
-        this.outBufSize     = ocs
+        this.inChanSize     = ics
+        this.outChanSize    = ocs
         this.protocolFamily = pf
         this.clientAuth     = ca
         this.sync           = sy

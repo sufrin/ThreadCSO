@@ -47,7 +47,7 @@ trait NetInputProxy[+I] extends Decoder[I] {
         val decoded = decode()
         out ! decoded
       }
-      if (logging) log.fine("CopyFromNet terminated by $out closing")
+      if (logging) log.fine(s"CopyFromNet terminated by $out closing")
       out.closeOut()
     } catch {
       case exn: java.io.IOException =>

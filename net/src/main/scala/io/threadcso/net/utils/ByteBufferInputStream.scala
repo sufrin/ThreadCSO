@@ -17,7 +17,7 @@ object ByteBufferInputStream {
   */
 class ByteBufferInputStream(size: Int) extends InputStream {
     private val log = ByteBufferInputStream.log
-    // @inline private def logging = log.logging
+    //@inline private def logging = log.logging
     val logging = false
 
     override def toString: String = s"ByteBufferInputStream($size) (remaining: ${byteBuffer.remaining()})"

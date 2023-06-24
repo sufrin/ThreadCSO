@@ -65,7 +65,8 @@ class StreamerChannel[OUT : Streamer, IN: Streamer] extends TypedChannelFactory[
       */
     def encode(t: OUT): Unit = {
       oenc.toStream(output, t)
-      if (sync) output.flush()
+      if (sync)
+        output.flush()
     }
 
     /**

@@ -16,6 +16,8 @@ object DatagramInputStream {
   */
 class DatagramInputStream(val channel: DatagramChannel, size: Int) extends ByteBufferInputStream(size) {
   import DatagramInputStream._
+
+  override def toString: String = s"DatagramInputStream($channel, $size)"
   /**
     * Receive the next datagram on the associated `channel`, and return the address
     * from which it was sent.

@@ -67,6 +67,7 @@ object UDPChannel
     val channel = new UDPChannel[OUT,IN](socket, factory)
     channel.property("family") = family
     socket.bind(address)
+    log.finer(s"UDPChannel.bind($address,$factory) => $channel")
     channel
   }
 
@@ -88,6 +89,7 @@ object UDPChannel
     val channel = new UDPChannel[OUT, IN](socket, factory)
     channel.property("family") = family
     socket.connect(address)
+    log.finer(s"UDPChannel.connect($address,$factory) => $channel")
     channel
   }
 
