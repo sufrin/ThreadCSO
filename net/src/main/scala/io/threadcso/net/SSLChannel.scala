@@ -7,6 +7,9 @@ import java.io.FileInputStream
 import java.net.{ServerSocket, Socket}
 import java.security.KeyStore
 
+/**
+  *  The factory for `TypedSSLChannel`s as well as servers using `SSL/TLS` transport.
+  */
 object SSLChannel  {
   val log = new ox.logging.Log()
 
@@ -19,15 +22,24 @@ object SSLChannel  {
     */
   trait Credential {}
   /**
-    * Server credential: the `passphrase` is for a server certificate stored in the
+    * Server (or client) credential: the `passphrase` is for a server certificate stored in the
     * given `keyStoreFile`.
+    *
+    * Server channels are built using SSL/TLS.
+    * Client channels are built using client-authenticated TLS.
+    *
     */
   case class  TLSCredential(passPhrase: String, keyStoreFile: java.io.File) extends Credential
 
+  /**
+    * No credential is supplied: both client and server channels
+    * are built using TCP.
+    */
   case object  TLSWithoutCredential extends Credential
 
   /**
-    * A meaningless server credential for use with an unencrypted TCP channel.
+    * No credential is supplied: both client and server channels
+    * are built using TCP.
     */
   case object TCPCredential extends Credential
 
@@ -44,7 +56,8 @@ object SSLChannel  {
     */
   def serverSocketFactory(credential: Credential): ServerSocketFactory = {
     credential match {
-      case TCPCredential => ServerSocketFactory.getDefault()
+      case TCPCredential        => ServerSocketFactory.getDefault()
+      case TLSWithoutCredential => ServerSocketFactory.getDefault()
       case TLSCredential(passPhrase, keyStoreFile) =>
         val context = SSLContext.getInstance("TLSv1.2")
         val keyStore = KeyStore.getInstance("JKS")
@@ -64,6 +77,7 @@ object SSLChannel  {
     */
   def clientSocketFactory(credential: Credential): SocketFactory = {
     credential match {
+      case TLSWithoutCredential => SocketFactory.getDefault()
       case TCPCredential => SocketFactory.getDefault()
       case TLSCredential(passPhrase, keyStoreFile) =>
         val context = SSLContext.getInstance("TLSv1.2")
@@ -88,23 +102,15 @@ object SSLChannel  {
   }
 
   /**
-    * Build a `Typedlog[OUT,IN]` that connects to `//host:port` using the given credential.
-    * If the credential is a `TLSWithoutCredential` then communication uses `SSL/TLS`, but
+    * Build a `TypedSSLChannel[OUT,IN]` that connects to `//host:port` using the given credential.
+    *
+    * If the credential is a `TLSWithoutCredential` (or a `TCPCredential`) then communication uses `SSL/TLS`, but
     * the client identity is not certified.
-    * If the credential is a `TLSCredential`
-    * then communication uses `SSL/TLS`, using the client identity
+    *
+    * If the credential is a `TLSCredential` then communication uses `SSL/TLS`, using the client identity
     * as certified. otherwise a plain `TCP` channel is used.
     *
-    *
-    *
-    *
-    * @param credential
-    * @param host
-    * @param port
-    * @param factory constructs the codecs used for the `TypedSSLChannel`
-    * @tparam OUT
-    * @tparam IN
-    * @return A typed socket whose `From`
+    * @param factory defines the codecs used for the `TypedSSLChannel`
     */
   def client[OUT, IN](credential: Credential, host: String, port: Int, factory: TypedChannelFactory[OUT, IN]): TypedSSLChannel[OUT,IN] = {
     val socketFactory = credential match {
@@ -124,12 +130,16 @@ object SSLChannel  {
 
   /**
     *  Construct and start a server socket bound to `port`. The socket
-    *  uses the `SSL/TLS` protocol if credential is
+    *  uses the `SSL/TLS` transport protocol if credential is
     *  {{{
     *    TLSCredential(passPhrase: String, keyStoreFile: java.io.File)
     *  }}}
     *
-    *  and otherwise uses the plain `TCP` protocol.
+    * and, in this case, if `Options.clientAuth` is true at the point of its construction,
+    * then the server will negotiate client authentication as connections
+    * are made.
+    *
+    *  Otherwise the plain `TCP` protocol is used for transport.
     *
     *  When a client contacts the server, a `TypedSSLChannel` is constructed from the
     *  client socket by the given `factory` and passed to `session`. The latter is

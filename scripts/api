@@ -7,8 +7,13 @@ function findscala () {
 }
 
 BUILD=api
+LIBRARY=$(findscala | grep -v examples | grep -v test | grep -v Test )
+EXAMPLES=$(findscala examples)
 
-scaladoc -d api -author -doc-version $LIBVERSION -implicits $(findscala)
+mkdir -p $BUILD
+rm -rf $BUILD/*
+scaladoc -d $BUILD -author -diagrams -doc-version $LIBVERSION $LIBRARY
+
 
 
 

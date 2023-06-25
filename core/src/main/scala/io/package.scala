@@ -29,5 +29,7 @@
   *   - [[io.threadcso.process]] -- implementation of processes and thread-pools
   *
   *   - [[io.threadcso.semaphore]] -- implementation of semaphores and barriers.
+  *
+  *   - [[io.threadcso.net]] -- implementation of networking infrastructure
   */
 package object io {}

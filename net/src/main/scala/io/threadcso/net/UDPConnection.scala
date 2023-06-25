@@ -11,7 +11,10 @@ import java.net.InetSocketAddress
 
 object UDPConnection {
 
-  /** A network connection bound to `address` that sends/receives `UDP[OUT]/UDP[IN]` */
+  /**
+    * A network connection bound to `address` that sends/receives `UDP[OUT]/UDP[IN]`
+    * @see NetConnection
+    */
   def bind[OUT, IN](
       address: InetSocketAddress,
       factory: TypedChannelFactory[OUT, IN],
@@ -22,7 +25,10 @@ object UDPConnection {
     channels.NetConnection(channel, name)
   }
 
-  /** A network connection connected to `address` that sends/receives `UDP[OUT]/UDP[IN]` */
+  /**
+    * A network connection connected to `address` that sends/receives `UDP[OUT]/UDP[IN]`
+    * @see NetConnection
+    */
   def connect[OUT, IN](
       address: InetSocketAddress,
       factory: TypedChannelFactory[OUT, IN],

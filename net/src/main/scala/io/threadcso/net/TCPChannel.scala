@@ -8,7 +8,9 @@ import java.net._
 import java.nio.channels.{ServerSocketChannel, SocketChannel}
 import scala.annotation.nowarn
 
-
+/**
+  *  The factory for `TypedTCPChannel`s, as well as servers using `TCP` transport.
+  */
 object TCPChannel {
   val log = new ox.logging.Log()
 
@@ -33,7 +35,11 @@ object TCPChannel {
     *  Construct a synchronous network channel connected to the given socket address
     */
   def connected[OUT, IN](address: InetSocketAddress, factory: TypedChannelFactory[OUT, IN]): TypedTCPChannel[OUT, IN] = {
-    val socket = SocketChannel.open
+    @nowarn val family = address.getAddress match {
+      case _: Inet4Address => IPv4
+      case _: Inet6Address => IPv6
+    }
+    val socket = SocketChannel.open(family)
     val channel = factory.newChannel(socket)
     socket.connect(address)
     channel
@@ -66,12 +72,28 @@ object TCPChannel {
       }
 
   /**
-    * Start serving on the given `port`, invoking `session` at each accepted socket.
+    * Start serving on the given `port`, invoking `session` at each accepted socket. Use
+    * `Options.protocolFamily` as the protocol family.
+    *
     * TODO: a shutdown method other than interrupt
     */
   def server(port: Int, backlog: Int)(session: SocketChannel => Unit): PROC = proc("server") {
     val address = new InetSocketAddress(port)
     val channel = ServerSocketChannel.open(Options.protocolFamily)
+    channel.bind(address, backlog)
+    while (true) {
+      val client: SocketChannel = channel.accept()
+      session(client)
+    }
+  }
+
+  /**
+    * Start serving on the `port` specified by `address`, invoking `session` at each accepted socket.
+    *
+    * TODO: a shutdown method other than interrupt
+    */
+  def server(address: InetSocketAddress, backlog: Int)(session: SocketChannel => Unit): PROC = proc("server") {
+    val channel = ServerSocketChannel.open
     channel.bind(address, backlog)
     while (true) {
       val client: SocketChannel = channel.accept()

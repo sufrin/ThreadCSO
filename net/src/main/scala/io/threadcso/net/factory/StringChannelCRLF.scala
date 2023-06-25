@@ -8,6 +8,12 @@ import java.net.Socket
 import java.nio.channels.SocketChannel
 import javax.net.ssl.SSLSocket
 
+/**
+  *  A channel factory that defines a byte-stream encoding for
+  *  strings suitable for use in the `http` protocol.
+  *  Byte stream representations are terminated by the byte
+  *  doublet `"\r\n"`.
+  */
 object StringChannelCRLF extends TypedChannelFactory[String,String] {
   val log = new ox.logging.Log()
 

@@ -7,6 +7,11 @@ import java.io._
 import java.net.Socket
 import java.nio.channels.SocketChannel
 
+/**
+  *  A channel factory that provides the byte-stream encoding for
+  *  strings implemented by `java.io.DataOutputStream.writeUTF`
+  *  and `java.io.DataInputStream.readUTF`
+  */
 object StringChannelUTF8 extends TypedChannelFactory[String,String] {
   val log = ox.logging.Log("StringChannelUTF8")
 
@@ -37,7 +42,6 @@ object StringChannelUTF8 extends TypedChannelFactory[String,String] {
         if (log.logging) log.finest(s"UTF: Encode IOException $exn")
         throw new EndOfOutputStream(out)
     }
-
 
     def decode(): String = try {
       val r = in.readUTF()

@@ -5,11 +5,19 @@ import java.net._
 import java.nio.channels.{DatagramChannel, SocketChannel}
 
 /**
-  * A monstrous mass of boilerplate to overcome the mismatch
-  * between java generics and scala generics. The key goal here
+  * Standard socket options (from `java.netchannels.StandardSocketOption`) useable in all components
+  * of type `TCPChannel`, `SSLChannel`, `UDPChannel` by the **overloaded** `getOption` and `setOption`
+  * methods.
+  *
+  * ==TL;DR==
+  * The key problem solved here is that while all the `javaio/java.nio` channels/sockets used in
+  * our implementation provide `getOption/setOption` methods their types are unrelated.
+  *
+  * The implementation deploys a mass of boilerplate to overcome the mismatch
+  * between java generics and scala generics. The goal
   * is to be able to use the `java.netchannels.StandardSocketOption` names, and
-  * to ensure that when setting a (java channel) option that indicates
-  * that it has a certain type the value provided is of the right type.
+  * to ensure that, when setting a (java channel) option that indicates
+  * that it has a certain type, the value provided is of the right type.
   *
   * Java generics of a specific type are injected into marker case classes,
   * from which they can be projected. There may well be better
@@ -18,6 +26,7 @@ import java.nio.channels.{DatagramChannel, SocketChannel}
   *
   */
 object SocketOptions {
+
   trait SocketOption[T] {
     val netOption:   java.net.SocketOption[_ <: Any]
     val toBoolean:   java.net.SocketOption[java.lang.Boolean] = netOption.asInstanceOf[java.net.SocketOption[java.lang.Boolean]]
@@ -51,6 +60,7 @@ object SocketOptions {
 object Options {
   val IPv4: java.net.StandardProtocolFamily = java.net.StandardProtocolFamily.INET
   val IPv6: java.net.StandardProtocolFamily = java.net.StandardProtocolFamily.INET6
+
   var inBufSize:  Int                 = 8*1024
   var outBufSize: Int                 = 8*1024
   var protocolFamily: ProtocolFamily  = IPv4
@@ -58,21 +68,28 @@ object Options {
   var sync: Boolean                   = true
   var inChanSize                      = 10
   var outChanSize                     = 10
+
   /**
-    * Define a selection of features while constructing a
-    * channel (or, indeed, any value)
+    * Define a selection of features while constructing a channel (or, indeed, any value)
     *
     * @param inBufSize size in bytes of preallocated input buffers. Affects efficiency, but not correctness.
     *               Experiments show that it can be as small as 1! But there is generally an expensive  switch of
     *               kernel context at each read.
+    *
     * @param outBufSize size in bytes of preallocated output buffers. For the moment this should be no smaller than the size of the largest
     *                message to be sent on the channel. (TODO: apply the easy but non-urgent fix)
-    * @param inChanSize size (in messages) of the buffered input channel used for a connection. 0 means synchronous, and can result in deadlock.
-    * @param outChanSize size (in messages) of the buffered output channel used for a connection. 0 means synchronous, and can result in deadlock.
-    * @param sync whether the channel is "synchronous", ie. intermediate streams are flushed immediately after writes.
+    *
+    * @param inChanSize size (in messages) of the buffered input channel used for a connection. 0 means synchronous, and can result in deadlock
+    *                   if misapplied.
+    *
+    * @param outChanSize size (in messages) of the buffered output channel used for a connection. 0 means synchronous, and can result in deadlock
+    *                    if misapplied.
+    *
+    * @param sync whether the channel is "synchronous", ie. intermediate byte-streams are flushed immediately after writes.
     *             When false there may be a delay between the logical (CSO) write to a network channel, and its realization
-    *             as a network write. The delay makes for more efficient use of buffers and network capacity, but is not
-    *             appropriate in some situations
+    *             as a network write. The delay may make for more efficient use of buffers and network capacity, but is not
+    *             appropriate in some situations.
+    *
     * @param protocolFamily IPv4 or IPv6
     */
     def withOptions[T](protocolFamily: ProtocolFamily = this.protocolFamily,
@@ -109,9 +126,11 @@ object Options {
 }
 
 /**
-  * All io.threadcso.netchannels.channels.netchannels.Channel implementations have this interface in common.
+  * All `io.threadcso.net.Channel` implementations have this interface in common.
+  *
   * The details of an implementation depend on the type of transport it uses.
-  * At present this may be an `nio.SocketChannel`, an `nio.DatagramChannel`, or a `netchannels.Socket`.
+  *
+  * At present the transport may be provided by an `nio.SocketChannel`, an `nio.DatagramChannel`, or a `netchannels.Socket`.
   */
 trait ChannelInterface {
   import SocketOptions.SocketOption

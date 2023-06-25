@@ -12,6 +12,9 @@ import java.net._
 import java.nio.channels._
 import scala.annotation.nowarn
 
+/**
+  * Factory for `TypedUDPChannel`s -- both unicast and monocast.
+  */
 object UDPChannel
 { val log = ox.logging.Logging.Log("UDPChannel")
   @inline def logging = log.logging
@@ -177,11 +180,13 @@ object UDPChannel
 
 /**
   * A typed channel for transmitting and receiving datagrams of type `OUT`, and `IN` respectively.
+  *
   * Datagrams to be sent take the form:
   * {{{
   *   Datagram(out: OUT, destination: SocketAddress = null)
   * }}}
-  * then encoded as their wire representations and sent to `destination`.
+  * and are encoded as their wire representations and sent to `destination`.
+  *
   * If `destination` is (unspecified or) null, then it is taken to be the address, if
   * any, to which the channel is currently connected. If the channel is not currently
   * connected then an error is thrown.
@@ -191,6 +196,7 @@ object UDPChannel
   *  Datagram(in: IN, source: SocketAddress)
   *  Malformed(source: SocketAddress)
   * }}}
+  *
   * In the former case, the `IN` is the result of decoding a datagram arriving in wire representation
   * from `source`. The latter case is a notification that an arriving datagram (from source) has not been
   * in the wire encoding declared for this channel, or has been truncated en-route.
