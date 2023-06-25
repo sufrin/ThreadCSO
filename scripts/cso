@@ -1,13 +1,32 @@
 #!/bin/zsh
 #  
-#  cso              - creates and shows JAVA_HOME, CSOPATH, JAVA_OPTS variables
-#  cso  args        - run scala -cp $CSOPATH args...
-#  cso  -jars       - show file details of the jars that will be on the CSOPATH
-#  cso  -sbt args   - run sbt with the appropriate JAVA_HOME and JAVA_OPTS
-#  csoc args        - run scalac -cp $CSOPATH args...
-#  source pathtocso - creates and exports JAVA_HOME, CSOPATH, JAVA_OPTS variables
+#  Usage:
+#   cso   - discovers values for env variables JAVA_HOME, CSOPATH, JAVA_OPTS
+#   cso   - by searching for '*.jar' files from the specified or default root, set
+#   cso     by the env variable $CSO_HOME if it exists; else in the cso script.
+#  
+#   cso  args          - run scala -cp $CSOPATH args in the discovered environment
+#   csoc args          - as for cso, but run scalac (if csoc linked to cso)
+#   cso  -here args    - the root is the current folder
+#   cso  -cp PATH args - augment the discovered classpath by PATH, then as cso args
+#  
+#   cso  -sbt args     - run sbt args using JAVA_HOME and JAVA_OPTS
+#   cso  -jars         - show details of the jars that will be on the CSOPATH
+#   source cso         - exports the JAVA_HOME, CSOPATH, JAVA_OPTS variables
 #
 #  Installation: cso should be somewhere on PATH, with csoc linked to it symbolically
+#  If there is a CSO_HOME environment variable set, then that is taken to be the
+#  root folder from which library jars are discovered; otherwise the root defaults to:
+
+CSO_HOME_DEFAULT=/Users/sufrin/IdeaProjects/ThreadCSO
+
+#
+# Default JAVA_HOME
+#
+JAVA_HOME=${JAVA_HOME-/Users/sufrin/Downloads/jdk-20.jdk/Contents/Home}
+
+
+#
 #
 unset CSOPATH
 unset JAVA_HOME
@@ -15,10 +34,12 @@ unset JAVA_OPTS
 #
 #
 #
-CSO=/Users/sufrin/IdeaProjects/ThreadCSO
+CSO_HOME=${CSO_HOME:-$CSO_HOME_DEFAULT}
 JAVA_OPTS="-Xmx256M -Xms32M --enable-preview -Djavax.net.ssl.trustStore=$HOME/PRIVATE-cacerts"
+#
+#
+#
 ###### -Djavax.net.debug=ssl:handshake
-JAVA_HOME=/Users/sufrin/Downloads/jdk-20.jdk/Contents/Home
 
 case $0 in
   *csoc)   PROGRAM=scalac;;
@@ -31,40 +52,65 @@ esac
 # Interpret any special arguments
 #
 case $1 in
-  -jars)
-     (cd $CSO ;\
-      ls -l $(find . -name "*.jar" -a -not \( -path "*sbt*" -o -path "*out*" \)) )
-    exit;;
+
+  -here)
+     CSO_HOME=`pwd`
+     shift
+     ;;
 
   -sbt);;
   
   -h)
      echo "Usage: "
-     echo " cso        - creates and shows JAVA_HOME, CSOPATH, JAVA_OPTS variables";
-     echo " cso  args  - run scala -cp \$CSOPATH args...";
-     echo " cso  -jars - show file details of the jars that will be on the CSOPATH" ;
-     echo " cso  -sbt args - run sbt args using JAVA_HOME and JAVA_OPTS" ;     
-     echo " csoc args  - run scalac -cp \$CSOPATH args...";
-     echo " source cso - creates and exports JAVA_HOME, CSOPATH, JAVA_OPTS variables";
+     echo " cso   - discovers values for env variables JAVA_HOME, CSOPATH, JAVA_OPTS" ;
+     echo " cso   - by searching for '*.jar' files from the specified or default root, set" ;
+     echo " cso     by the env variable \$CSO_HOME, if it exists; else by the cso script." ;
+     echo
+     echo " cso  args          - run scala -cp \$CSOPATH args in the discovered environment ";
+     echo " csoc args          - as for cso, but run scalac (if csoc linked to cso)";
+     echo " cso  -here args    - the root is the current folder " ;
+     echo " cso  -cp PATH args - augment the discovered classpath by PATH, then as cso args" ;
+     echo
+     echo " cso  -sbt args     - run sbt args using JAVA_HOME and JAVA_OPTS" ;
+     echo " cso  -jars         - show details of the jars that will be on the CSOPATH" ;
+     echo " source cso         - exports the JAVA_HOME, CSOPATH, JAVA_OPTS variables";
      exit;;
 esac
+
 #
 # Collect jar files for the path
 #
-for jar in $(find $CSO -name "*.jar" -a -not \( -path "*sbt*" -o -path "*out*" \) )
+for jar in $(find $CSO_HOME -name "*.jar" -a -not \( -path "*sbt*" -o -path "*out*" \) )
 do
-  CSOPATH=$jar:$CSOPATH
+  if [ "$CSOPATH" = "" ]
+  then
+    CSOPATH=$jar
+  else
+    CSOPATH=$jar:$CSOPATH
+  fi
 done
 
+
+while [ "$1" = "-cp" -a "$#" -gt 1 ]
+do
+   CSOPATH=$CSOPATH:$2
+   shift
+   shift
+done
 
 export CSOPATH
 export JAVA_HOME
 export JAVA_OPTS
 
+
 if [ "$1" = "-sbt" ]
 then
    shift
    sbt "$@"
+elif [ "$1" = "-jars" ]
+then
+   echo $CSOPATH
+   exit
 elif [ $# -ne 0 ]
 then
    $PROGRAM -cp $CSOPATH "$@"

@@ -13,6 +13,6 @@
     <orderEntry type="library" name="sbt: org.scala-lang:scala-library:2.13.11:jar" level="project" />
     <orderEntry type="library" name="sbt: org.scala-lang:scala-reflect:2.13.11:jar" level="project" />
     <orderEntry type="library" name="sbt: org.scalactic:scalactic_2.13:3.2.15:jar" level="project" />
-    <orderEntry type="module" module-name="ThreadCSO.logging" exported="" />
+    <orderEntry type="module" module-name="logging" exported="" />
   </component>
 </module>
