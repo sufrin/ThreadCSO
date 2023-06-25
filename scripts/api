@@ -1,0 +1,14 @@
+
+source $(dirname $0)/configuration.sh
+
+function findscala () {
+        root=${1-.}
+        find $root -name "*.scala" 2>/dev/null
+}
+
+BUILD=api
+
+scaladoc -d api -author -doc-version $LIBVERSION -implicits $(findscala)
+
+
+

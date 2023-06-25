@@ -10,4 +10,12 @@
     </option>
   </component>
   <component name="ProjectRootManager" version="2" languageLevel="JDK_20" default="true" project-jdk-name="20" project-jdk-type="JavaSDK" />
+  <component name="ScaladocSettings">
+    <option name="outputDir" value="$USER_HOME$/Desktop/ThreadCSO" />
+    <option name="additionalFlags" value="" />
+    <option name="maxHeapSize" value="" />
+    <option name="docTitle" value="ThreadCSO Documentation" />
+    <option name="verbose" value="false" />
+    <option name="openInBrowser" value="false" />
+  </component>
 </project>

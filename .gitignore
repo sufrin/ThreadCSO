@@ -1,5 +1,6 @@
 *.class
 *.log
+*.jar
 
 target/
 .bloop/
@@ -10,3 +11,7 @@ core/src/test/scala/LISTING.pdf
 LISTING.pdf
 primchan/primchan.jar
 .idea/
+./idea/*
+api/
+out/
+

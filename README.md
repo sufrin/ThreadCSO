@@ -12,7 +12,7 @@ contributions to the DSL and to the course.
 
 Though there are several more modern programming languages that
 provide channel-based communication, few provide the low-overhead
-compositional blend of **CSO** -- inspired by CSP/OCCAM -- that
+compositional blend of **CSO** -- inspired by **CSP/occam** -- that
 includes (potentially-guarded and timed) input and output alternations,
 "upstream" channel closing, straightforward clean network termination,
 *etc*. 
