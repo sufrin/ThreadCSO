@@ -1,11 +1,11 @@
 
 package io.threadcso.net.tests
 
-import io.threadcso.net.TCPChannel
-import io.threadcso.net.channels.Options.withOptions
-import io.threadcso.net.channels.SocketOptions.{SO_RCVBUF, SO_SNDBUF}
-import io.threadcso.net.channels.TypedTCPChannel
-import io.threadcso.net.factory.VelviaChannel
+import io.threadcso.net.TCPTransport
+import io.threadcso.net.transport.Options.withOptions
+import io.threadcso.net.transport.SocketOptions.{SO_RCVBUF, SO_SNDBUF}
+import io.threadcso.net.transport.TypedTCPTransport
+import io.threadcso.net.factory.VelviaTransport
 import io.threadcso.{OneOne, OneOneBuf, component, exit, proc, repeat, run, stop}
 
 
@@ -19,7 +19,7 @@ import io.threadcso.{OneOne, OneOneBuf, component, exit, proc, repeat, run, stop
   * three examples below.
   */
 
-object kbdy extends ManualTest("kbdy -- sends multiple keyboard messages (using msgpack), receives responses") {
+object kbdy extends TransportTest("kbdy -- sends multiple keyboard messages (using msgpack), receives responses") {
 
   import org.velvia.msgpack._
   import SimpleCodecs._
@@ -29,8 +29,8 @@ object kbdy extends ManualTest("kbdy -- sends multiple keyboard messages (using 
     implicit object TyCodec extends `2-Tuple*`[Int,Int]
 
     def Test() = {
-      val channel: TypedTCPChannel[Ty, Ty] = withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) {
-          TCPChannel.connected(new java.net.InetSocketAddress(host, port), new VelviaChannel[Ty, Ty])
+      val channel: TypedTCPTransport[Ty, Ty] = withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024) {
+          TCPTransport.connected(new java.net.InetSocketAddress(host, port), new VelviaTransport[Ty, Ty])
       }
 
       if (SND>0) channel.setOption(SO_SNDBUF, SND)
@@ -40,8 +40,8 @@ object kbdy extends ManualTest("kbdy -- sends multiple keyboard messages (using 
       val toHost   = OneOneBuf[Ty](50, name = "toHost") // A synchronized channel causes deadlock under load
 
       // Bootstrap the channel processes
-      val toNet        = channel.CopyToNet(toHost).fork
-      val fromNet      = channel.CopyFromNet(fromHost).fork
+      val toNet        = channel.transportToNet(toHost).fork
+      val fromNet      = channel.transportFromNet(fromHost).fork
       val fromKeyboard = component.keyboard(kbd, "").fork
 
       var last: String = "?"
@@ -84,7 +84,7 @@ object kbdy extends ManualTest("kbdy -- sends multiple keyboard messages (using 
     }
   }
 
-object kbdz extends ManualTest("kbdz -- sends multiple keyboard messages (as pairs) (using msgpack), receives responses") {
+object kbdz extends TransportTest("kbdz -- sends multiple keyboard messages (as pairs) (using msgpack), receives responses") {
 
   import org.velvia.msgpack._
   import RawStringCodecs._
@@ -96,8 +96,8 @@ object kbdz extends ManualTest("kbdz -- sends multiple keyboard messages (as pai
   implicit object TyCodec extends `2-Tuple*`[Int, String]
 
   def Test() = {
-    val channel: TypedTCPChannel[Ty, Ty] = withOptions(inBufSize = inBufSize * 1024, outBufSize = outBufSize * 1024) {
-      TCPChannel.connected(new java.net.InetSocketAddress(host, port), new VelviaChannel[Ty, Ty])
+    val channel: TypedTCPTransport[Ty, Ty] = withOptions(inBufSize = inBufSize * 1024, outBufSize = outBufSize * 1024) {
+      TCPTransport.connected(new java.net.InetSocketAddress(host, port), new VelviaTransport[Ty, Ty])
     }
 
     if (SND > 0) channel.setOption(SO_SNDBUF, SND)
@@ -107,8 +107,8 @@ object kbdz extends ManualTest("kbdz -- sends multiple keyboard messages (as pai
     val toHost = OneOneBuf[Ty](50, name = "toHost") // A synchronized channel causes deadlock under load
 
     // Bootstrap the channel processes
-    val toNet = channel.CopyToNet(toHost).fork
-    val fromNet = channel.CopyFromNet(fromHost).fork
+    val toNet = channel.transportToNet(toHost).fork
+    val fromNet = channel.transportFromNet(fromHost).fork
     val fromKeyboard = component.keyboard(kbd, "").fork
 
     var last: String = "?"
@@ -154,7 +154,7 @@ object kbdz extends ManualTest("kbdz -- sends multiple keyboard messages (as pai
   }
 }
 
-object kbdq extends ManualTest("kbdq -- sends multiple keyboard messages wrapped in a case class (using msgpack), receives responses") {
+object kbdq extends TransportTest("kbdq -- sends multiple keyboard messages wrapped in a case class (using msgpack), receives responses") {
 
   import org.velvia.msgpack._
   import CaseClassCodecs._
@@ -165,8 +165,8 @@ object kbdq extends ManualTest("kbdq -- sends multiple keyboard messages wrapped
   implicit object TyCodec extends `2-Case*`[Ty, Int, String](Ty.apply, Ty.unapply)
 
   def Test() = {
-    val channel: TypedTCPChannel[Ty, Ty] = withOptions(inBufSize = inBufSize * 1024, outBufSize = outBufSize * 1024) {
-      TCPChannel.connected(new java.net.InetSocketAddress(host, port), new VelviaChannel[Ty,Ty])
+    val channel: TypedTCPTransport[Ty, Ty] = withOptions(inBufSize = inBufSize * 1024, outBufSize = outBufSize * 1024) {
+      TCPTransport.connected(new java.net.InetSocketAddress(host, port), new VelviaTransport[Ty,Ty])
     }
 
     if (SND > 0) channel.setOption(SO_SNDBUF, SND)
@@ -176,8 +176,8 @@ object kbdq extends ManualTest("kbdq -- sends multiple keyboard messages wrapped
     val toHost = OneOneBuf[Ty](50, name = "toHost")
 
     // Bootstrap the channel processes
-    val toNet = channel.CopyToNet(toHost).fork
-    val fromNet = channel.CopyFromNet(fromHost).fork
+    val toNet = channel.transportToNet(toHost).fork
+    val fromNet = channel.transportFromNet(fromHost).fork
     val fromKeyboard = component.keyboard(kbd, "").fork
 
     var last: String = "?"

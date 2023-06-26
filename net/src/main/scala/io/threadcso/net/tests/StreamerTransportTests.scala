@@ -1,11 +1,11 @@
 
 package io.threadcso.net.tests
 
-import io.threadcso.net.TCPChannel
-import io.threadcso.net.factory.StreamerChannel
-import io.threadcso.net.channels.TypedTCPChannel
-import io.threadcso.net.channels.Options.withOptions
-import io.threadcso.net.channels.SocketOptions.{SO_RCVBUF, SO_SNDBUF}
+import io.threadcso.net.TCPTransport
+import io.threadcso.net.factory.StreamerTransport
+import io.threadcso.net.transport.TypedTCPTransport
+import io.threadcso.net.transport.Options.withOptions
+import io.threadcso.net.transport.SocketOptions.{SO_RCVBUF, SO_SNDBUF}
 import io.threadcso.{OneOne, OneOneBuf, component, exit, proc, repeat, run, stop}
 
 
@@ -19,10 +19,10 @@ import io.threadcso.{OneOne, OneOneBuf, component, exit, proc, repeat, run, stop
   * Any other line typed at the keyboard is sent as a sequence of length `times` recorss. If
   * `times` is even the records are of type `Record1`, else the records are of type `Record2`.
   *
-  * Run this concurrently with `io.threadcso.netchannels.channels.netchannels.reflect`  to test total-trip correctness.
+  * Run this concurrently with `io.threadcso.netchannels.transport.netchannels.reflect`  to test total-trip correctness.
   */
 
-object dskbd extends ManualTest("dskbd -- sends sequences of records ") {
+object dskbd extends TransportTest("dskbd -- sends sequences of records ") {
 
   import io.threadcso.net.streamer.Encoding._
 
@@ -42,9 +42,9 @@ object dskbd extends ManualTest("dskbd -- sends sequences of records ") {
   implicit object `RecordSeq*`  extends `Seq*`[Record]
 
   def Test() = {
-    val channel: TypedTCPChannel[RecordSeq, RecordSeq] = withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024)
+    val channel: TypedTCPTransport[RecordSeq, RecordSeq] = withOptions(inBufSize=inBufSize*1024, outBufSize=outBufSize*1024)
     {
-       TCPChannel.connected(new java.net.InetSocketAddress(host, port), new StreamerChannel[RecordSeq, RecordSeq]())
+       TCPTransport.connected(new java.net.InetSocketAddress(host, port), new StreamerTransport[RecordSeq, RecordSeq]())
     }
 
     if (SND>0) channel.setOption(SO_SNDBUF, SND)
@@ -54,8 +54,8 @@ object dskbd extends ManualTest("dskbd -- sends sequences of records ") {
     val toHost   = OneOneBuf[RecordSeq](50, name = "toHost")
 
     // Bootstrap the channel processes
-    val toNet        = channel.CopyToNet(toHost).fork
-    val fromNet      = channel.CopyFromNet(fromHost).fork
+    val toNet        = channel.transportToNet(toHost).fork
+    val fromNet      = channel.transportFromNet(fromHost).fork
     val fromKeyboard = component.keyboard(kbd, "").fork
 
     var last: String = "?"

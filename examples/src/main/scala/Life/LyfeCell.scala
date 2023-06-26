@@ -12,7 +12,7 @@ case object Die  extends Instruction
 case object Live extends Instruction
 
 /**
-  *  A cell has channels to and from its neighbours.
+  *  A cell has transport to and from its neighbours.
   */
 class LyfeCell(  val x: Double,
                  val y: Double,

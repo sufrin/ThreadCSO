@@ -32,8 +32,8 @@ import scala.reflect.ClassTag
   *  in the java documentation for such streams.
   *
   *  See `io.threadcso.netchannels.streamer.EncodingTests` for several examples of the use of these
-  *  constructions, and `io.threadcso.netchannels.channels.netchannels.ManualTests` for an example of how an encoding can
-  *  be used in an `io.threadcso.netchannels.channels.netchannels`-based concurrent program.
+  *  constructions, and `io.threadcso.netchannels.transport.netchannels.ManualTests` for an example of how an encoding can
+  *  be used in an `io.threadcso.netchannels.transport.netchannels`-based concurrent program.
   *
   *  == Hubris
   *
@@ -41,11 +41,11 @@ import scala.reflect.ClassTag
   *  stream encodings that uses Scala's machinery of implicits, and is independent of
   *  generic programming libraries such as `Shapeless`. This is a deliberate choice,
   *  the cost of which is the appearance HERE of much boilerplate, and the benefit
-  *  of which is straghtforwardness.
+  *  of which is straightforwardness.
   *
   *  == Alternatives
   *
-  *  The `msgpack` machinery provided with `io.threadcso.netchannels.channels.netchannels` delivers more compact encodings -- albeit at some
+  *  The `msgpack` machinery provided with `io.threadcso.netchannels.transport.netchannels` delivers more compact encodings -- albeit at some
   *  cost in complexity, and in computing the compressed representation. But its real
   *  advantage is its interoperability and explicit bit-level specification -- which
   *  means there are already many language bindings for `msgpack`.
@@ -55,7 +55,7 @@ import scala.reflect.ClassTag
   *  it provides more-or-less automatic ways of deriving the code for stream-encodings.
   *
   * @see https://sirthias.github.io/borer/index.html
-  * @see io.threadcso.netchannels.channels.netchannels.VelviaChannel, org.velvia.MessagePack
+  * @see io.threadcso.netchannels.transport.netchannels.VelviaTransport, org.velvia.MessagePack
   */
 object Encoding {
 

@@ -3,10 +3,10 @@ package io.threadcso.channel
 /** A channel is a sequential conduit for data that is written to its `OutPort`,
   * and subsequently read from its `InPort`.
   *
-  * For most ''normal'' channels at any instant: the sequence of data that has
+  * For most ''normal'' transport at any instant: the sequence of data that has
   * been read from the channel with `?` is a prefix of the sequence of data
-  * written to the channel by `!`. ''Dropping'' channels may drop data under
-  * conditions of congestion: precise behaviours of such channels should be
+  * written to the channel by `!`. ''Dropping'' transport may drop data under
+  * conditions of congestion: precise behaviours of such transport should be
   * documented with their definitions.
   */
 trait InPort[+T] {

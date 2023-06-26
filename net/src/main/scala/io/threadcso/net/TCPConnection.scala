@@ -1,11 +1,11 @@
 package io.threadcso.net
 
 import io.threadcso.PROC
-import io.threadcso.net.channels.{
+import io.threadcso.net.transport.{
   Options,
   NetConnection,
-  TypedChannelFactory,
-  TypedTCPChannel
+  TypedTransportFactory,
+  TypedTCPTransport
 }
 
 import java.net.InetSocketAddress
@@ -23,12 +23,12 @@ object TCPConnection {
     * @see NetConnection
     */
   def bound[OUT, IN](
-      address: InetSocketAddress,
-      factory: TypedChannelFactory[OUT, IN],
-      name: String = ""
+                      address: InetSocketAddress,
+                      factory: TypedTransportFactory[OUT, IN],
+                      name: String = ""
   ): NetConnection[OUT, IN] = {
-    val channel = TCPChannel.bound[OUT, IN](address, factory)
-    channels.NetConnection(channel, name)
+    val channel = TCPTransport.bound[OUT, IN](address, factory)
+    transport.NetConnection(channel, name)
   }
 
   /**
@@ -36,12 +36,12 @@ object TCPConnection {
     * @see NetConnection
     */
   def connected[OUT, IN](
-      address: InetSocketAddress,
-      factory: TypedChannelFactory[OUT, IN],
-      name: String = ""
+                          address: InetSocketAddress,
+                          factory: TypedTransportFactory[OUT, IN],
+                          name: String = ""
   ): NetConnection[OUT, IN] = {
-    val channel = TCPChannel.connected[OUT, IN](address, factory)
-    val connected = channels.NetConnection(channel, name)
+    val channel = TCPTransport.connected[OUT, IN](address, factory)
+    val connected = transport.NetConnection(channel, name)
     if (log.logging) log.finer(s"TCPConnection.connected($connected)")
     connected
   }
@@ -57,18 +57,18 @@ object TCPConnection {
     * @see NetConnection
     */
   def server[OUT, IN](
-      port: Int,
-      backlog: Int,
-      factory: TypedChannelFactory[OUT, IN],
-      name: => String = ""
+                       port: Int,
+                       backlog: Int,
+                       factory: TypedTransportFactory[OUT, IN],
+                       name: => String = ""
   )(session: NetConnection[OUT, IN] => Unit): PROC = {
     val ocs = Options.outChanSize
     val ics = Options.inChanSize
-    TCPChannel.server(port, backlog, factory) {
-      case tcpChannel: TypedTCPChannel[OUT, IN] =>
+    TCPTransport.server(port, backlog, factory) {
+      case tcpChannel: TypedTCPTransport[OUT, IN] =>
         val connection =
           Options.withOptions(outChanSize = ocs, inChanSize = ics) {
-            channels.NetConnection[OUT, IN](tcpChannel, name)
+            transport.NetConnection[OUT, IN](tcpChannel, name)
           }
         if (log.logging)
           log.finer(

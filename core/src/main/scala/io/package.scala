@@ -16,7 +16,7 @@
   *     (non-alternation-potent) channel types
   *
   *   - [[io.threadcso.component]] -- general-purpose low-level components to
-  *     compose networks of channels
+  *     compose networks of transport
   *
   *   - [[io.threadcso.debug]] -- support for debugging using the web-browser
   *     interface

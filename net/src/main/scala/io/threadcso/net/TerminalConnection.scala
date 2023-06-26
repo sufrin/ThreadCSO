@@ -1,7 +1,7 @@
 package io.threadcso.net
 
 import io.threadcso
-import io.threadcso.net.channels.Connection
+import io.threadcso.net.transport.Connection
 import io.threadcso.process.Process
 import io.threadcso.{OneOne, PROC, proc, repeat}
 
@@ -80,7 +80,7 @@ class TerminalConnection(EOF: String = null) extends Connection[String, String] 
     inDaemon
   }
 
-  /**  Close the transfer channels and interrupt the relaying processes.
+  /**  Close the transfer transport and interrupt the relaying processes.
     *  The connection cannot be used once it has been closed.
     */
   def close(): Unit = synchronized {

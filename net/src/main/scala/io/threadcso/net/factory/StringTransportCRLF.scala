@@ -1,6 +1,6 @@
 package io.threadcso.net.factory
 
-import io.threadcso.net.channels.{Options, TypedChannelFactory, TypedSSLChannel, TypedTCPChannel}
+import io.threadcso.net.transport.{Options, TypedTransportFactory, TypedSSLTransport, TypedTCPTransport}
 import io.threadcso.net.codec.Codec
 
 import java.io._
@@ -14,7 +14,7 @@ import javax.net.ssl.SSLSocket
   *  Byte stream representations are terminated by the byte
   *  doublet `"\r\n"`.
   */
-object StringChannelCRLF extends TypedChannelFactory[String,String] {
+object StringTransportCRLF extends TypedTransportFactory[String,String] {
   val log = new ox.logging.Log()
 
   override def toString = "CRLF Factory"
@@ -68,14 +68,14 @@ object StringChannelCRLF extends TypedChannelFactory[String,String] {
 
   val UTF8 = java.nio.charset.Charset.forName("UTF-8")
 
-  def newChannel(theChannel: SocketChannel): TypedTCPChannel[String, String] = new TypedTCPChannel[String, String] with Mixin {
+  def newTransport(theChannel: SocketChannel): TypedTCPTransport[String, String] = new TypedTCPTransport[String, String] with Mixin {
     val channel: SocketChannel = theChannel
     val output = java.nio.channels.Channels.newWriter(channel, UTF8.newEncoder(), Options.outBufSize)
     val input  = java.nio.channels.Channels.newReader(channel, UTF8.newDecoder(), Options.inBufSize)
     sync = true
   }
 
-  def newChannel(theSocket: Socket): TypedSSLChannel[String, String] = new TypedSSLChannel[String, String] with Mixin {
+  def newTransport(theSocket: Socket): TypedSSLTransport[String, String] = new TypedSSLTransport[String, String] with Mixin {
     val socket: Socket = theSocket
     val output = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream, UTF8.newEncoder()), Options.outBufSize)
     val input = new InputStreamReader(socket.getInputStream, UTF8.newDecoder())

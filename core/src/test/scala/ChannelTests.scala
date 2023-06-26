@@ -87,7 +87,7 @@ class Chan1 extends ChannelTest {
 
 
 /**
- * Check OneOne channels throw Stopped properly
+ * Check OneOne transport throw Stopped properly
  */
 class Chan2 extends ChannelTest {
   private val N = 100
@@ -127,7 +127,7 @@ class Chan2 extends ChannelTest {
 }
 
 /**
- * Check N2NBuf channels throw Stopped properly on write-closing
+ * Check N2NBuf transport throw Stopped properly on write-closing
  */
 class ChanN2NWrite extends ChannelTest {
   private val N       = 100
@@ -249,14 +249,14 @@ class ChanCopy extends ChannelTest {
 
 class ChannelTests extends AnyFlatSpec {
 
-  behavior of "N2N channels"
+  behavior of "N2N transport"
   
   it should "throw Stopped upon outPort of an N2NBuf(...writers=4...) closing" in {
     val ct = new ChanN2NWrite
     assert(ct.test())
   }
  
-  behavior of "OneOne channels"
+  behavior of "OneOne transport"
 
   it should "send one input to the output" in {
     val ct = new Chan0

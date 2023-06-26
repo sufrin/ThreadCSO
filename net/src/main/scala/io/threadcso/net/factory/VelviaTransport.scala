@@ -1,6 +1,6 @@
 package io.threadcso.net.factory
 
-import io.threadcso.net.channels.{TypedChannelFactory, TypedSSLChannel, TypedTCPChannel}
+import io.threadcso.net.transport.{TypedTransportFactory, TypedSSLTransport, TypedTCPTransport}
 import org.velvia.InvalidMsgPackDataException
 import org.velvia.msgpack.{Codec => VelviaCodec}
 import io.threadcso.net.codec.{Codec, EndOfInputStream}
@@ -13,30 +13,30 @@ import java.nio.channels.SocketChannel
   * An abstract `ChannelFactory` for a pair of types, `[OUT,IN]` each with an  `org.velvia.msgpack.Codec` stream-encoding that can be synthesised or
   * inferred (for example by using the tools of `org.velvia.msgpack`).
   *
-  * This class is structurally almost the same as `StreamerChannel`, and no doubt we could find an
+  * This class is structurally almost the same as `StreamerTransport`, and no doubt we could find an
   * abstraction that covers them both if we tried hard enough.
   *
-  * @see  StreamerChannel, StringChannelCRLF, StringChannelUTF8
+  * @see  StreamerTransport, StringTransportCRLF$, StringTransportUTF8
   */
 
-object VelviaChannel {
+object VelviaTransport {
   val log = new ox.logging.Log()
 }
 
-class VelviaChannel[OUT : VelviaCodec, IN: VelviaCodec] extends TypedChannelFactory[OUT, IN] {
-  val log = VelviaChannel.log
+class VelviaTransport[OUT : VelviaCodec, IN: VelviaCodec] extends TypedTransportFactory[OUT, IN] {
+  val log = VelviaTransport.log
 
-  def newChannel(theChannel: SocketChannel): TypedTCPChannel[OUT,IN] = new TypedTCPChannel[OUT, IN] with Mixin {
+  def newTransport(theChannel: SocketChannel): TypedTCPTransport[OUT,IN] = new TypedTCPTransport[OUT, IN] with Mixin {
     val channel = theChannel
     val output = new DataOutputStream(new BufferedOutputStream(java.nio.channels.Channels.newOutputStream(channel)))
     val input = new DataInputStream(new BufferedInputStream(java.nio.channels.Channels.newInputStream(channel)))
   }
 
   /**
-    * Build a `NetProxy`` from the given `Socket`
+    * Build a `TypedTransport`` from the given `Socket`
     * Expected to be used only for SSL/TLS Sockets.
     */
-  def newChannel(theSocket: Socket): TypedSSLChannel[OUT, IN] = new TypedSSLChannel[OUT, IN] with Mixin {
+  def newTransport(theSocket: Socket): TypedSSLTransport[OUT, IN] = new TypedSSLTransport[OUT, IN] with Mixin {
     val socket = theSocket
     val output = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream))
     val input = new DataInputStream(new BufferedInputStream(socket.getInputStream))

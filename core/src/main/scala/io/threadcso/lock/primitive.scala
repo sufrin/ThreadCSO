@@ -5,7 +5,7 @@ import io.threadcso.monitor.Monitor
 
 /**
 
-    Primitive high-performance synchronised channels with no debugger
+    Primitive high-performance synchronised transport with no debugger
     interface or closing protocol; and no protection from inadvertent
     sharing.
 

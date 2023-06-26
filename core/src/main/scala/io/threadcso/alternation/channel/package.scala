@@ -9,7 +9,7 @@ import io.threadcso.lock.SimpleLock
 import scala.annotation._
 import scala.annotation.elidable._
 
-/** This package defines channels that can participate in the CSO alternation
+/** This package defines transport that can participate in the CSO alternation
   * constructs.
   *
   * I have separated syntax and semantics as far as was practical, given my
@@ -117,7 +117,7 @@ package object channel {
 
   //////////////////////// end of Chan  ////////////////////////
 
-  /** <p> Mixin for channels that are capable of participating in alternations.
+  /** <p> Mixin for transport that are capable of participating in alternations.
     * Deals with registration/unregistration of a channel with a running
     * alternation, and with detailed logging (when not elided) of port-state
     * changes. Typical examples of its use can be found in the definitions of

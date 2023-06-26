@@ -140,7 +140,7 @@ object Logging
       `[name]` with a value that names any logging level.
 
       {{{
-        scala -DStreamerChannel=finest -D[NetProxy]=fine ...
+        scala -DSSLTransport=finest -D[TypedTransport]=fine ...
       }}}
   */
   def getLevel(name: String): Int =

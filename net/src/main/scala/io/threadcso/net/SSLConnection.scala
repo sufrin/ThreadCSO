@@ -1,18 +1,18 @@
 package io.threadcso.net
 
 import io.threadcso.PROC
-import io.threadcso.net.SSLChannel.Credential
-import io.threadcso.net.channels.{
+import io.threadcso.net.SSLTransport.Credential
+import io.threadcso.net.transport.{
   Options,
   NetConnection,
-  TypedChannelFactory,
-  TypedSSLChannel
+  TypedTransportFactory,
+  TypedSSLTransport
 }
 
 /** A factory for client `NetConnection`s using SSL/TLS as transport, and for
   * servers whose sessions use such `BNetConnection`s.
   *
-  * @see ox.net.SSLChannel
+  * @see ox.net.SSLTransport
   */
 object SSLConnection {
   /**
@@ -25,18 +25,18 @@ object SSLConnection {
     * @see NetConnection
     */
   def server[OUT, IN](
-      credential: Credential,
-      port: Int,
-      factory: TypedChannelFactory[OUT, IN],
-      name: => String = ""
+                       credential: Credential,
+                       port: Int,
+                       factory: TypedTransportFactory[OUT, IN],
+                       name: => String = ""
   )(session: NetConnection[OUT, IN] => Unit): PROC = {
     val ocs = Options.outChanSize
     val ics = Options.inChanSize
-    SSLChannel.server(credential, port, factory) {
-      case sslChannel: TypedSSLChannel[OUT, IN] =>
+    SSLTransport.server(credential, port, factory) {
+      case sslChannel: TypedSSLTransport[OUT, IN] =>
         val connection =
           Options.withOptions(outChanSize = ocs, inChanSize = ics) {
-            channels.NetConnection[OUT, IN](sslChannel, name)
+            transport.NetConnection[OUT, IN](sslChannel, name)
           }
         session(connection)
     }
@@ -50,13 +50,13 @@ object SSLConnection {
     * @see NetConnection
     */
   def client[OUT, IN](
-      credential: Credential,
-      host: String,
-      port: Int,
-      factory: TypedChannelFactory[OUT, IN],
-      name: => String = ""
+                       credential: Credential,
+                       host: String,
+                       port: Int,
+                       factory: TypedTransportFactory[OUT, IN],
+                       name: => String = ""
   ): NetConnection[OUT, IN] = {
-    val channel = SSLChannel.client(credential, host, port, factory)
-    channels.NetConnection(channel, name)
+    val channel = SSLTransport.client(credential, host, port, factory)
+    transport.NetConnection(channel, name)
   }
 }

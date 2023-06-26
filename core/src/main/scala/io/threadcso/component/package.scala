@@ -3,8 +3,8 @@ import io.SourceLocation._
 
 /** <p> A collection of several process-generators that (mostly) yield processes
   * to work on (or produce) finite or infinite streams of values presented as
-  * channels. All are designed to terminate cleanly -- 'i.e.' to `closeIn` or
-  * `closeOut` all the channels that they communicate on in the appropriate
+  * transport. All are designed to terminate cleanly -- 'i.e.' to `closeIn` or
+  * `closeOut` all the transport that they communicate on in the appropriate
   * direction for the type of port.
   *
   * Some of these components were inspired by (or copied from) components from

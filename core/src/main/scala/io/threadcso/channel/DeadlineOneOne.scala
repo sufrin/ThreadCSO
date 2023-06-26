@@ -9,7 +9,7 @@ class DeadlineOneOne[T](name: String = "") extends SyncChan[T] {
   /** Is the current value in buffer full. */
   private[this] var full = false
 
-  // ======== Closing of channels
+  // ======== Closing of transport
 
   /** Is the channel closed? */
   private[this] var closed = false

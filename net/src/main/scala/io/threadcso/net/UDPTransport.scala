@@ -1,9 +1,9 @@
 package io.threadcso.net
 
 import io.SourceLocation._
-import io.threadcso.net.UDPChannel.UDP
-import io.threadcso.net.channels.SocketOptions._
-import io.threadcso.net.channels.{Options, TypedChannelFactory, TypedUDPChannel}
+import io.threadcso.net.UDPTransport.UDP
+import io.threadcso.net.transport.SocketOptions._
+import io.threadcso.net.transport.{Options, TypedTransportFactory, TypedUDPTransport}
 import io.threadcso.net.codec.{Codec, EndOfInputStream}
 import io.threadcso.net.utils.{DatagramInputStream, DatagramOutputStream}
 
@@ -13,10 +13,10 @@ import java.nio.channels._
 import scala.annotation.nowarn
 
 /**
-  * Factory for `TypedUDPChannel`s -- both unicast and monocast.
+  * Factory for `UDPTransport`s -- both unicast and monocast.
   */
-object UDPChannel
-{ val log = ox.logging.Logging.Log("UDPChannel")
+object UDPTransport
+{ val log = ox.logging.Logging.Log("UDPTransport")
   @inline def logging = log.logging
 
   sealed trait UDP[T] {
@@ -39,7 +39,7 @@ object UDPChannel
     * to the currently-connected remote address.
     *
     *
-    * @see UDPChannel.toStream
+    * @see UDPTransport.toStream
     */
   case class Datagram[T](value: T, address: SocketAddress = null) extends UDP[T] {
     override def toString: String =
@@ -51,7 +51,7 @@ object UDPChannel
   }
 
   /**
-    * @return a `UDPChannel[OUT,IN]` that sends outputs of the form `Datagram(OUT, destinationAddress)` from a
+    * @return a `UDPTransport[OUT,IN]` that sends outputs of the form `Datagram(OUT, destinationAddress)` from a
     *         local datagram socket at the given `address`, and receives inputs of form `Datagram(OUT, sourceAddress)`
     *         at that local datagram socket. The returned channel is open to receiving datagrams from any source; but may
     *         later be specialized to communicate with a particular address by `connect(particularAddress)`
@@ -61,21 +61,21 @@ object UDPChannel
     * @tparam IN type of data read in datagram packets then decoded
     *
     */
-  def bind[OUT,IN](address: InetSocketAddress, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT,IN] = {
+  def bind[OUT,IN](address: InetSocketAddress, factory: TypedTransportFactory[OUT, IN]): UDPTransport[OUT,IN] = {
     @nowarn val family = address.getAddress match {
       case _: Inet4Address => IPv4
       case _: Inet6Address => IPv6
     }
     val socket = DatagramChannel.open(family)
-    val channel = new UDPChannel[OUT,IN](socket, factory)
+    val channel = new UDPTransport[OUT,IN](socket, factory)
     channel.property("family") = family
     socket.bind(address)
-    log.finer(s"UDPChannel.bind($address,$factory) => $channel")
+    log.finer(s"UDPTransport.bind($address,$factory) => $channel")
     channel
   }
 
   /**
-    * @return a `UDPChannel[OUT,IN]` that sends outputs of the form `Datagram(OUT)` from a
+    * @return a `UDPTransport[OUT,IN]` that sends outputs of the form `Datagram(OUT)` from a
     *         local datagram socket to the given `address`, and will receive datagrams
     *         only from that address.
     * @param address
@@ -83,16 +83,16 @@ object UDPChannel
     * @tparam OUT
     * @tparam IN
     */
-  def connect[OUT, IN](address: InetSocketAddress, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT, IN] = {
+  def connect[OUT, IN](address: InetSocketAddress, factory: TypedTransportFactory[OUT, IN]): UDPTransport[OUT, IN] = {
     @nowarn val family = address.getAddress match {
       case _: Inet4Address => IPv4
       case _: Inet6Address => IPv6
     }
     val socket = DatagramChannel.open(family)
-    val channel = new UDPChannel[OUT, IN](socket, factory)
+    val channel = new UDPTransport[OUT, IN](socket, factory)
     channel.property("family") = family
     socket.connect(address)
-    log.finer(s"UDPChannel.connect($address,$factory) => $channel")
+    log.finer(s"UDPTransport.connect($address,$factory) => $channel")
     channel
   }
 
@@ -101,7 +101,7 @@ object UDPChannel
     * The same as `bind`, but the address is formed from `host` and `port`.  If the port is `0` then an ephemeral
     * port is used. The protocol family is determined by the host address.
     */
-  def bind[OUT, IN](host: String, port: Int, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT, IN] = {
+  def bind[OUT, IN](host: String, port: Int, factory: TypedTransportFactory[OUT, IN]): UDPTransport[OUT, IN] = {
     val address = InetAddress.getByName(host)
     bind(new InetSocketAddress(address, port), factory)
   }
@@ -110,25 +110,25 @@ object UDPChannel
     * The same as `connect`, but the address is formed from `host` and `port`.  If the port is `0` then an ephemeral
     * port is used. The protocol family is determined by the host address.
     */
-  def connect[OUT, IN](host: String, port: Int, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT, IN] = {
+  def connect[OUT, IN](host: String, port: Int, factory: TypedTransportFactory[OUT, IN]): UDPTransport[OUT, IN] = {
     val address = InetAddress.getByName(host)
     connect(new InetSocketAddress(address, port), factory)
   }
 
   /** Return a channel that listens to a multicast IP address/port */
-  def multicastsFrom[OUT,IN](interfaceName: String, host: String, port: Int, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT, IN] = {
+  def multicastsFrom[OUT,IN](interfaceName: String, host: String, port: Int, factory: TypedTransportFactory[OUT, IN]): UDPTransport[OUT, IN] = {
     val address = InetAddress.getByName(host)
     multicastsFrom(interfaceName, new InetSocketAddress(address, port), factory)
   }
 
   /** Return a channel that listens to a multicast IP address/port  */
-  def multicastsFrom[OUT, IN](interfaceName: String, address: InetSocketAddress, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT, IN] = {
+  def multicastsFrom[OUT, IN](interfaceName: String, address: InetSocketAddress, factory: TypedTransportFactory[OUT, IN]): UDPTransport[OUT, IN] = {
     @nowarn val family = address.getAddress match {
       case _: Inet4Address => IPv4
       case _: Inet6Address => IPv6
     }
     val socket = DatagramChannel.open(family)
-    val channel = new UDPChannel[OUT, IN](socket, factory)
+    val channel = new UDPTransport[OUT, IN](socket, factory)
     channel.property("family") = family
     if (address.getAddress.isMulticastAddress) {
       val networkInterface = NetworkInterface.getByName(interfaceName)
@@ -148,13 +148,13 @@ object UDPChannel
     * (on the host on which the channel is constructed) can be used to send reply
     * datagrams.
     */
-  def multicastsTo[OUT, IN](interfaceName: String, address: InetSocketAddress, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT, IN] = {
+  def multicastsTo[OUT, IN](interfaceName: String, address: InetSocketAddress, factory: TypedTransportFactory[OUT, IN]): UDPTransport[OUT, IN] = {
     @nowarn val family = address.getAddress match {
       case _: Inet4Address => IPv4
       case _: Inet6Address => IPv6
     }
     val socket = DatagramChannel.open(family)
-    val channel = new UDPChannel[OUT, IN](socket, factory)
+    val channel = new UDPTransport[OUT, IN](socket, factory)
     val networkInterface = NetworkInterface.getByName(interfaceName) // TODO
     channel.setOption(IP_MULTICAST_IF, networkInterface)
     channel.setOption(SO_REUSEADDR, value = true)
@@ -170,7 +170,7 @@ object UDPChannel
     * (on the host on which the channel is constructed) can be used to send reply
     * datagrams.
     */
-  def multicastsTo[OUT, IN](interfaceName: String, host: String, port: Int, factory: TypedChannelFactory[OUT, IN]): UDPChannel[OUT, IN] = {
+  def multicastsTo[OUT, IN](interfaceName: String, host: String, port: Int, factory: TypedTransportFactory[OUT, IN]): UDPTransport[OUT, IN] = {
     val address = InetAddress.getByName(host)
     multicastsTo(interfaceName, new InetSocketAddress(address, port), factory)
   }
@@ -208,9 +208,9 @@ object UDPChannel
   * an indication of their expected length early in their wire representation so that the "silent discarding"
   * can be detected by the `Decoder.fromStream()` used to fromStream treceived packets.
   */
-class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFactory[OUT, IN])  extends
-      TypedUDPChannel[UDP[OUT],UDP[IN]] {
-  import UDPChannel._
+class UDPTransport[OUT,IN](val channel:  DatagramChannel, factory: TypedTransportFactory[OUT, IN])  extends
+      TypedUDPTransport[UDP[OUT],UDP[IN]] {
+  import UDPTransport._
 
   /** The options set on the underlying channel */
   def options: String = "RCV: %d, SND: %d, REUSE: %b, MULTICSTIF: %s".format(
@@ -311,7 +311,7 @@ class UDPChannel[OUT,IN](val channel:  DatagramChannel, factory: TypedChannelFac
 
 
   override
-  def toString: String = s"UDPChannel[$options] [LastException: $lastException])"
+  def toString: String = s"UDPTransport[$options] [LastException: $lastException])"
 
 
 }

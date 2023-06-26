@@ -1,7 +1,7 @@
 import io.threadcso._
 
 /**
-  * A little program showing how streams read from channels may be used to compare traversals of
+  * A little program showing how streams read from transport may be used to compare traversals of
   * trees without having to reify entire traversals.
   */
 

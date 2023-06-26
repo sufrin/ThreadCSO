@@ -6,7 +6,7 @@ import io.threadcso.channel.PortState
 
 /**
   *
-  *  Life implementation in which the cells exchange states along channels. 
+  *  Life implementation in which the cells exchange states along transport.
   *  This is a challenge to the raw speed of channel implementations and to the
   *  scheduling algorithms for the virtual thread implementation that underlies
   *  CSO processes (post 2023). 
@@ -63,7 +63,7 @@ object Lyfe extends App {
       _rows = fields(1).toInt
     }, "cols X rows in cells" ),
     OPT("[0-9]+", { arg => _rows= arg.toInt; _cols = _rows; width = 10* _rows; height=10* _rows }, "rows and columns of 10x10 cells" ),
-    OPT("-f", fast, "Use experimental 'fast' channels in cells."),
+    OPT("-f", fast, "Use experimental 'fast' transport in cells."),
     OPT("-h", { Usage() }, "prints usage text"),
   )
 
@@ -246,7 +246,7 @@ object Lyfe extends App {
 
     /**
       *
-      * An experimental and partial implementation of very fast channels
+      * An experimental and partial implementation of very fast transport
       * (This isn't needed for the implementation; the experiment is to see
       *  if it is worthwhile)
       *
@@ -275,7 +275,7 @@ object Lyfe extends App {
       override def ?(ignored: Unit): T = read()
     }
 
-    /** Channel factory for interCell communication channels  */
+    /** Channel factory for interCell communication transport  */
     def makeChan[T](name: String): Chan[T] =
       if (fast) new FastChan(name) else OneOne(name)
 
@@ -298,7 +298,7 @@ object Lyfe extends App {
         * array: with westmost and eastmost columns considered to be
         * adjacent, as well as northmost and southmost columns.
         *
-        * Each cell has 8 link channels, one to each of its neighbours.
+        * Each cell has 8 link transport, one to each of its neighbours.
         * Neighbours are (by convention) numbered clockwise from 0 to 7.
         * Neighbour 0 is the "north-west" neighbour; neighbour 1 is
         * the "north" neighbour; ... neighbour 7 is the "west" neighbour.

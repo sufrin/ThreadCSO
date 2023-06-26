@@ -1,10 +1,10 @@
 package io.threadcso.net
 
-import io.threadcso.net.UDPChannel.UDP
-import io.threadcso.net.channels.{
+import io.threadcso.net.UDPTransport.UDP
+import io.threadcso.net.transport.{
   NetConnection,
-  TypedChannelFactory,
-  TypedUDPChannel
+  TypedTransportFactory,
+  TypedUDPTransport
 }
 
 import java.net.InetSocketAddress
@@ -16,13 +16,13 @@ object UDPConnection {
     * @see NetConnection
     */
   def bind[OUT, IN](
-      address: InetSocketAddress,
-      factory: TypedChannelFactory[OUT, IN],
-      name: String = ""
+                     address: InetSocketAddress,
+                     factory: TypedTransportFactory[OUT, IN],
+                     name: String = ""
   ): NetConnection[UDP[OUT], UDP[IN]] = {
-    val channel: TypedUDPChannel[UDP[OUT], UDP[IN]] =
-      UDPChannel.bind[OUT, IN](address, factory)
-    channels.NetConnection(channel, name)
+    val channel: TypedUDPTransport[UDP[OUT], UDP[IN]] =
+      UDPTransport.bind[OUT, IN](address, factory)
+    transport.NetConnection(channel, name)
   }
 
   /**
@@ -30,13 +30,13 @@ object UDPConnection {
     * @see NetConnection
     */
   def connect[OUT, IN](
-      address: InetSocketAddress,
-      factory: TypedChannelFactory[OUT, IN],
-      name: String = ""
+                        address: InetSocketAddress,
+                        factory: TypedTransportFactory[OUT, IN],
+                        name: String = ""
   ): NetConnection[UDP[OUT], UDP[IN]] = {
-    val channel: TypedUDPChannel[UDP[OUT], UDP[IN]] =
-      UDPChannel.connect[OUT, IN](address, factory)
-    channels.NetConnection(channel, name)
+    val channel: TypedUDPTransport[UDP[OUT], UDP[IN]] =
+      UDPTransport.connect[OUT, IN](address, factory)
+    transport.NetConnection(channel, name)
   }
 
 }

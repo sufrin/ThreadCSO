@@ -1,4 +1,4 @@
-package io.threadcso.net.channels
+package io.threadcso.net.transport
 
 import java.lang
 import java.net._
@@ -6,11 +6,11 @@ import java.nio.channels.{DatagramChannel, SocketChannel}
 
 /**
   * Standard socket options (from `java.netchannels.StandardSocketOption`) useable in all components
-  * of type `TCPChannel`, `SSLChannel`, `UDPChannel` by the **overloaded** `getOption` and `setOption`
+  * of type `TCPTransport`, `SSLTransport`, `UDPTransport` by the **overloaded** `getOption` and `setOption`
   * methods.
   *
   * ==TL;DR==
-  * The key problem solved here is that while all the `javaio/java.nio` channels/sockets used in
+  * The key problem solved here is that while all the `javaio/java.nio` transport/sockets used in
   * our implementation provide `getOption/setOption` methods their types are unrelated.
   *
   * The implementation deploys a mass of boilerplate to overcome the mismatch
@@ -54,7 +54,7 @@ object SocketOptions {
 }
 
 /**
-  * Dynamically-set channel features that are bound into network channels at the
+  * Dynamically-set channel features that are bound into network transport at the
   * point of their construction.
   */
 object Options {
@@ -125,14 +125,17 @@ object Options {
   }
 }
 
+
 /**
-  * All `io.threadcso.net.Channel` implementations have this interface in common.
+  * All `io.threadcso.net` transport implementations have this interface in common.
   *
   * The details of an implementation depend on the type of transport it uses.
   *
-  * At present the transport may be provided by an `nio.SocketChannel`, an `nio.DatagramChannel`, or a `netchannels.Socket`.
+  * At present the transport may be provided by an `nio.SocketChannel` (for TCP
+  * transport), an `nio.DatagramChannel` (for UDP transport), or a `net.Socket` (for SSL
+  * transport).
   */
-trait ChannelInterface {
+trait TransportInterface {
   import SocketOptions.SocketOption
   def getRemoteAddress: SocketAddress
   def setOption(opt: SocketOption[Int], value: Int): Unit
@@ -151,7 +154,7 @@ trait ChannelInterface {
   val property = new collection.mutable.HashMap[String, Any]
 }
 
-trait TCPChannelInterface extends ChannelInterface {
+trait TCPTransportInterface extends TransportInterface {
   import SocketOptions.SocketOption
   val channel: SocketChannel
   def getRemoteAddress: SocketAddress = channel.getRemoteAddress
@@ -172,7 +175,7 @@ trait TCPChannelInterface extends ChannelInterface {
 
 }
 
-trait UDPChannelInterface extends ChannelInterface {
+trait UDPTransportInterface extends TransportInterface {
   import SocketOptions.SocketOption
   val channel: DatagramChannel
   def getRemoteAddress: SocketAddress = channel.getRemoteAddress
@@ -192,7 +195,7 @@ trait UDPChannelInterface extends ChannelInterface {
   override def toString: String = channel.toString
 }
 
-trait SSLChannelInterface extends ChannelInterface {
+trait SSLTransportInterface extends TransportInterface {
   import SocketOptions.SocketOption
   val  socket: Socket
   def getRemoteAddress: SocketAddress = socket.getRemoteSocketAddress()
@@ -214,17 +217,17 @@ trait SSLChannelInterface extends ChannelInterface {
 
 }
 
-trait TypedTCPChannel[-OUT,+IN] extends NetProxy[OUT,IN] with TCPChannelInterface {
-  // augment this TypedTCPChannel's functionality here
+trait TypedTCPTransport[-OUT,+IN] extends TypedTransport[OUT,IN] with TCPTransportInterface {
+  // augment this TypedTCPTransport's functionality here
 }
 
-trait TypedUDPChannel[-OUT,+IN] extends NetProxy[OUT,IN] with UDPChannelInterface {
-  // augment this TypedUDPChannel's functionality here
+trait TypedUDPTransport[-OUT,+IN] extends TypedTransport[OUT,IN] with UDPTransportInterface {
+  // augment this TypedUDPTransport's functionality here
   def connect(addr: InetSocketAddress): Unit
 }
 
-trait TypedSSLChannel[-OUT,+IN] extends NetProxy[OUT,IN] with SSLChannelInterface {
-  // augment this TypedSSLChannel's functionality here
+trait TypedSSLTransport[-OUT,+IN] extends TypedTransport[OUT,IN] with SSLTransportInterface {
+  // augment this TypedSSLTransport's functionality here
 }
 
 

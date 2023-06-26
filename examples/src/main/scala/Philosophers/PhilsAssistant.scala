@@ -1,4 +1,4 @@
-// Dining Philosophers -- as Butler but with individual channels
+// Dining Philosophers -- as Butler but with individual transport
 
 import io.threadcso._
 import scala.language.postfixOps
@@ -24,7 +24,7 @@ object PhilsAssistant {
   // channel to report what's happening
   val report = N2NBuf[String](20, 0, 1, "report")
 
-  // Individual channels to communicate with the butler
+  // Individual transport to communicate with the butler
   val sit = for (i <- 0 until N) yield OneOne[Sit](s"sit($i)")
   val stand = for (i <- 0 until N) yield OneOne[Stand](s"stand($i)")
 

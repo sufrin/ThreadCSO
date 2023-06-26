@@ -12,7 +12,7 @@ EXAMPLES=$(findscala examples)
 
 mkdir -p $BUILD
 rm -rf $BUILD/*
-scaladoc -d $BUILD -author -diagrams -doc-version $LIBVERSION $LIBRARY
+scaladoc -d $BUILD -diagrams -diagrams-max-classes 5 -doc-version $LIBVERSION $LIBRARY
 
 
 

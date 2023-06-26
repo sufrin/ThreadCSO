@@ -1,6 +1,6 @@
 package io.threadcso
 
-/** Specifies primitive (non-alternation-capable) ports and channels; and
+/** Specifies primitive (non-alternation-capable) ports and transport; and
   * implements several channel types.
   */
 package object channel {

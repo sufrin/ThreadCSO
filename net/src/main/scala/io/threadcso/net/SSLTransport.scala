@@ -1,6 +1,6 @@
 package io.threadcso.net
 
-import io.threadcso.net.channels.{Options, TypedChannelFactory, TypedSSLChannel}
+import io.threadcso.net.transport.{Options, TypedTransportFactory, TypedSSLTransport}
 import io.threadcso.{PROC, proc, repeat}
 
 import java.io.FileInputStream
@@ -8,9 +8,9 @@ import java.net.{ServerSocket, Socket}
 import java.security.KeyStore
 
 /**
-  *  The factory for `TypedSSLChannel`s as well as servers using `SSL/TLS` transport.
+  *  The factory for `TypedSSLTransport`s as well as servers using `SSL/TLS` transport.
   */
-object SSLChannel  {
+object SSLTransport  {
   val log = new ox.logging.Log()
 
   import javax.net._
@@ -25,20 +25,20 @@ object SSLChannel  {
     * Server (or client) credential: the `passphrase` is for a server certificate stored in the
     * given `keyStoreFile`.
     *
-    * Server channels are built using SSL/TLS.
-    * Client channels are built using client-authenticated TLS.
+    * Server transport are built using SSL/TLS.
+    * Client transport are built using client-authenticated TLS.
     *
     */
   case class  TLSCredential(passPhrase: String, keyStoreFile: java.io.File) extends Credential
 
   /**
-    * No credential is supplied: both client and server channels
+    * No credential is supplied: both client and server transport
     * are built using TCP.
     */
   case object  TLSWithoutCredential extends Credential
 
   /**
-    * No credential is supplied: both client and server channels
+    * No credential is supplied: both client and server transport
     * are built using TCP.
     */
   case object TCPCredential extends Credential
@@ -102,7 +102,7 @@ object SSLChannel  {
   }
 
   /**
-    * Build a `TypedSSLChannel[OUT,IN]` that connects to `//host:port` using the given credential.
+    * Build a `TypedSSLTransport[OUT,IN]` that connects to `//host:port` using the given credential.
     *
     * If the credential is a `TLSWithoutCredential` (or a `TCPCredential`) then communication uses `SSL/TLS`, but
     * the client identity is not certified.
@@ -110,9 +110,9 @@ object SSLChannel  {
     * If the credential is a `TLSCredential` then communication uses `SSL/TLS`, using the client identity
     * as certified. otherwise a plain `TCP` channel is used.
     *
-    * @param factory defines the codecs used for the `TypedSSLChannel`
+    * @param factory defines the codecs used for the `TypedSSLTransport`
     */
-  def client[OUT, IN](credential: Credential, host: String, port: Int, factory: TypedChannelFactory[OUT, IN]): TypedSSLChannel[OUT,IN] = {
+  def client[OUT, IN](credential: Credential, host: String, port: Int, factory: TypedTransportFactory[OUT, IN]): TypedSSLTransport[OUT,IN] = {
     val socketFactory = credential match {
       case TLSWithoutCredential => SSLSocketFactory.getDefault()
       case _ : TLSCredential    => clientSocketFactory(credential)
@@ -123,7 +123,7 @@ object SSLChannel  {
       case socket: SSLSocket => socket.startHandshake()
       case _                 =>
     }
-    val channel       = factory.newChannel(socket)
+    val channel       = factory.newTransport(socket)
     if (log.logging) log.fine(s"Client socket $socket")
     channel
   }
@@ -141,15 +141,15 @@ object SSLChannel  {
     *
     *  Otherwise the plain `TCP` protocol is used for transport.
     *
-    *  When a client contacts the server, a `TypedSSLChannel` is constructed from the
+    *  When a client contacts the server, a `TypedSSLTransport` is constructed from the
     *  client socket by the given `factory` and passed to `session`. The latter is
     *  expected to fork a session to handle the client.
     *
     */
   def server[OUT, IN](credential:  Credential,
                       port:        Int,
-                      factory:     TypedChannelFactory[OUT, IN])
-                      (session:     TypedSSLChannel[OUT, IN] => Unit): PROC =
+                      factory:     TypedTransportFactory[OUT, IN])
+                      (session:     TypedSSLTransport[OUT, IN] => Unit): PROC =
     proc(s"Server $credential $port") {
       val socket: ServerSocket = newServerSocket(credential, port)
       val clientAuth = Options.clientAuth
@@ -162,7 +162,7 @@ object SSLChannel  {
       repeat {
         val client = socket.accept
         client.setTcpNoDelay(sync)
-        val channel = factory.newChannel(client)
+        val channel = factory.newTransport(client)
         session(channel)
       }
     }
