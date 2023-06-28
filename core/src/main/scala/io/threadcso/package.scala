@@ -8,6 +8,10 @@ import io.threadcso.alternation.Run
   * import io.threadcso._
   * }}}
   *
+  * June 2023: changes 1.3 => 2.0.0
+  *
+  *   - io.threadcso.net incorporated  (requires jdk20 or higher)
+  *
   * March 2023: changes 1.2 => 1.3
   *
   *   - virtual threads incorporated (requires jdk20)
