@@ -1,13 +1,23 @@
-#!/bin/zsh
-#  
+#!/bin/bash
+#  A script intended to support threadcso program development by hand, and/or
+#  using IntelliJ and/or using sbt.
+#
 #  Usage:
 #   cso   - discovers values for env variables JAVA_HOME, CSOPATH, JAVA_OPTS
-#   cso   - by searching for '*.jar' files from the specified or default root, set
-#   cso     by the env variable $CSO_HOME if it exists; else in the cso script.
-#  
+#           by searching for '*.jar' files from the specified or default root, set
+#           by the env variable $CSO_HOME, if it exists; else by the cso script.
+#
+#   The arguments may be prefixed with one of the following
+#   modifies the paths used to search for '.jar' files.
+#
+#   -here         - the root is the current folder
+#   -art          - search only for $CSO_HOME/*out/*.jar
+#                 -        where IntelliJ artefacts are usually placed
+#   -target args  - search only for $CSO_HOME/*target/*.jar
+#                 -        where sbt usually places its packaged jars
+#
 #   cso  args          - run scala -cp $CSOPATH args in the discovered environment
 #   csoc args          - as for cso, but run scalac (if csoc linked to cso)
-#   cso  -here args    - the root is the current folder
 #   cso  -cp PATH args - augment the discovered classpath by PATH, then as cso args
 #  
 #   cso  -sbt args     - run sbt args using JAVA_HOME and JAVA_OPTS
@@ -61,26 +71,51 @@ case $1 in
   -sbt);;
   
   -h)
-     echo "Usage: "
-     echo " cso   - discovers values for env variables JAVA_HOME, CSOPATH, JAVA_OPTS" ;
-     echo " cso   - by searching for '*.jar' files from the specified or default root, set" ;
-     echo " cso     by the env variable \$CSO_HOME, if it exists; else by the cso script." ;
-     echo
-     echo " cso  args          - run scala -cp \$CSOPATH args in the discovered environment ";
-     echo " csoc args          - as for cso, but run scalac (if csoc linked to cso)";
-     echo " cso  -here args    - the root is the current folder " ;
-     echo " cso  -cp PATH args - augment the discovered classpath by PATH, then as cso args" ;
-     echo
-     echo " cso  -sbt args     - run sbt args using JAVA_HOME and JAVA_OPTS" ;
-     echo " cso  -jars         - show details of the jars that will be on the CSOPATH" ;
-     echo " source cso         - exports the JAVA_HOME, CSOPATH, JAVA_OPTS variables";
-     exit;;
+     cat <<EOT
+Usage:
+ cso   - discovers values for env variables JAVA_HOME, CSOPATH, JAVA_OPTS
+         by searching for '*.jar' files from the specified or default root, set
+         by the env variable \$CSO_HOME, if it exists; else by the cso script.
+
+ The arguments may be prefixed with one of the following. Each
+ affects the paths used to search for '.jar' files.
+
+ -here         - the root is the current folder
+ -art          - search only for \$CSO_HOME/*out/*.jar
+                        where IntelliJ artefacts are usually placed
+ -target args  - search only for \$CSO_HOME/*target/*.jar
+                        where sbt usually places its packaged jars
+
+ cso  args          - run scala -cp '\$CSOPATH' args in the discovered environment
+ csoc args          - as for cso, but run scalac (if csoc linked to cso)
+ cso  -cp PATH args - augment the discovered classpath by PATH, then as cso args
+
+ cso  -sbt args     - run sbt args using JAVA_HOME and JAVA_OPTS
+ cso  -jars         - show details of the jars that will be on the CSOPATH
+
+Installation: cso should be somewhere on PATH, with csoc linked to it symbolically
+If there is a CSO_HOME environment variable set, then that is taken to be the
+root folder from which library jars are discovered; otherwise the root defaults to:
+EOT
+exit;;
 esac
 
 #
 # Collect jar files for the path
 #
-for jar in $(find $CSO_HOME -name "*.jar" -a -not \( -path "*sbt*" -o -path "*out*" \) )
+if [ "$1" == "-art" ]
+then
+   shift
+   JARS=$(find $CSO_HOME -path "*out/*.jar" )
+elif [ "$1" == "-target" ]
+then
+   shift
+   JARS=$(find $CSO_HOME -name "*.jar" -a -path "*target/*.jar" -a -not -path "*streams/*.jar")
+else
+   JARS=$(find $CSO_HOME -name "*.jar" -a -not \( -path "*sbt*" -o -path "*target*" \) )
+fi
+
+for jar in $JARS
 do
   if [ "$CSOPATH" = "" ]
   then
@@ -109,7 +144,10 @@ then
    sbt "$@"
 elif [ "$1" = "-jars" ]
 then
-   echo $CSOPATH
+   for jar in $JARS
+   do
+      [ -r $jar ] && ls -l $jar
+   done
    exit
 elif [ $# -ne 0 ]
 then
