@@ -1,6 +1,6 @@
 package io.threadcso
-import io.SourceLocation._
 
+import io.SourceLocation._
 /** <p> A collection of several process-generators that (mostly) yield processes
   * to work on (or produce) finite or infinite streams of values presented as
   * transport. All are designed to terminate cleanly -- 'i.e.' to `closeIn` or
@@ -11,12 +11,15 @@ import io.SourceLocation._
   * the Plug'n'Play collection of JCSP (without necessarily retaining the P'n'P
   * names).
   *
+  *  ==IMPORTANT==
+  *  The `InPort` and `OutPort` types used here are full, alternation-capable, ports.
+  *
   * {{{
-  * @version 03.20120824
   * @author Bernard Sufrin, Oxford
   * }}}
   */
 package object component {
+  import alternation.channel.{InPort => ??, OutPort => !!}
   // import scala.language.postfixOps
   /** An implicit class that equips an `Iterable[T]` collection with methods
     * that write all its members to an output port.
@@ -56,7 +59,7 @@ package object component {
     * }}}
     *
     */
-  def tee[T](in: channel.??[T], outs: channel.!![T]*): PROC = π("tee") {
+  def tee[T](in: ??[T], outs: !![T]*): PROC = π("tee") {
     var v = null.asInstanceOf[T] // in.nothing
     val outputs = ||(for (out <- outs) yield π { out ! v })
     repeat { v = in ? (); run(outputs) }
@@ -87,7 +90,7 @@ package object component {
     */
   def zipwith[L, R, O](
       f: (L, R) => O
-  )(lin: channel.??[L], rin: channel.??[R], out: channel.!![O]): PROC =
+  )(lin: ??[L], rin: ??[R], out: !![O]): PROC =
     π("zipWith") {
       var l = lin.nothing
       var r = rin.nothing
@@ -101,9 +104,9 @@ package object component {
   /** Turns a pair of streams into a stream of pairs.
     */
   def zip[L, R](
-      lin: channel.??[L],
-      rin: channel.??[R],
-      out: channel.!![(L, R)]
+      lin: ??[L],
+      rin: ??[R],
+      out: !![(L, R)]
   ): PROC =
     π("zip") {
       var l = lin.nothing
@@ -126,7 +129,7 @@ package object component {
     * }}}
     *
     */
-  def const[T](ts: T*)(out: channel.!![T]): PROC = π("const") {
+  def const[T](ts: T*)(out: !![T]): PROC = π("const") {
     for (t <- ts) out ! t; out.closeOut()
   }
 
@@ -134,7 +137,7 @@ package object component {
     *  A composite component that sums its input stream onto its output stream.
     *  Try drawing it!
     */
-  def Integrator(in: channel.??[Long], out: channel.!![Long]): PROC = {
+  def Integrator(in: ??[Long], out: !![Long]): PROC = {
     val mid, back, addl = OneOne[Long]
     (  zipwith((x: Long, y: Long) => x + y)(in, addl, mid)
     || tee(mid, out, back)
@@ -151,8 +154,8 @@ package object component {
     out.closeOut(); in.closeIn(); inj.closeIn()
   }
 
-  /** Repeatedly reads pairs inputs from its two input channel.and outputs them
-    * (in parallel, and ordered) to its two output channel.
+  /** Repeatedly reads pairs inputs from its two input channels and outputs them
+    * (in parallel, and ordered) to its two output channels.
     * {{{
     * x, ...--->[\/]---> max(x,y), ...
     * y, ...--->[/\]---> min(x,y), ...
@@ -170,10 +173,10 @@ package object component {
     * }}}
     */
   def exchanger[T](
-      l: channel.??[T],
-      r: channel.??[T],
-      lo: channel.!![T],
-      hi: channel.!![T]
+      l: ??[T],
+      r: ??[T],
+      lo: !![T],
+      hi: !![T]
   )(implicit ev: T => Ordered[T]) /*[T <% Ordered[T]]*/
       : PROC =
     π("exchanger") {
@@ -241,25 +244,25 @@ package object component {
 
   /** Drop the first value read from `in`, then copy values from `in` to `out`.
     */
-  def tail[T](in: channel.??[T], out: channel.!![T]): PROC =
+  def tail[T](in: ??[T], out: !![T]): PROC =
     π("tail") { in ? (); copy(in, out)() }
 
   /** Output the given `ts` to `out`, then copy values from `in` to `out`,
     * respecting the network-termination convention.
     */
-  def prefix[T](ts: T*)(in: channel.??[T], out: channel.!![T]): PROC =
+  def prefix[T](ts: T*)(in: ??[T], out: !![T]): PROC =
     π("prefix") { attempt { for (t <- ts) out ! t; copy(in, out)() } {} }
 
   /** Repeatedly copy values from `in` to `out`.
     */
-  def copy[T](in: channel.??[T], out: channel.!![T]): PROC =
+  def copy[T](in: ??[T], out: !![T]): PROC =
     π("copy") { repeat { out ! (in ? ()) }; out.closeOut(); in.closeIn() }
 
   /** Copy values from `in` to `out` that satisfy `pass`.
     */
   def filter[T](
       pass: T => Boolean
-  )(in: channel.??[T], out: channel.!![T]): PROC =
+  )(in: ??[T], out: !![T]): PROC =
     π("filter") {
       repeat { val v = in ? (); if (pass(v)) out ! v }
       out.closeOut()
@@ -270,7 +273,7 @@ package object component {
     * x, ... >-->[f]>-->f(x), ...
     * }}}
     */
-  def map[I, O](f: I => O)(in: channel.??[I], out: channel.!![O]): PROC =
+  def map[I, O](f: I => O)(in: ??[I], out: !![O]): PROC =
     π("map") {
       repeat { out ! f(in ? ()) }
       out.closeOut()
@@ -280,7 +283,7 @@ package object component {
   /** Repeatedly write the string forms of values read from `in` onto the
     * standard output stream.
     */
-  def console[T](in: channel.??[T]): PROC =
+  def console[T](in: ??[T]): PROC =
     π("console") { repeat { Console.println(in ? ()) } }
 
   /** Repeatedly output lines read from the given <tt>LineNumberReader</tt>. <p>
@@ -297,7 +300,7 @@ package object component {
     * should really abort an in.readLine that is already in progress. But that
     * would add unwarranted complexity to channel implementations.
     */
-  def lines(in: java.io.LineNumberReader, out: channel.!![String]): PROC =
+  def lines(in: java.io.LineNumberReader, out: !![String]): PROC =
     proc("lines") {
       repeat {
         if (!out.canOutput) stop // nowhere to send anything we read.
@@ -313,16 +316,16 @@ package object component {
 
   /** Repeatedly output lines read from the given `Reader`.
     */
-  def lines(in: java.io.Reader, out: channel.!![String]): PROC =
+  def lines(in: java.io.Reader, out: !![String]): PROC =
     lines(new java.io.LineNumberReader(in), out)
 
   /** Repeatedly output lines read from the given `File` */
-  def lines(file: java.io.File, out: channel.!![String]): PROC =
+  def lines(file: java.io.File, out: !![String]): PROC =
     lines(new java.io.FileReader(file), out)
 
   /** Repeatedly output lines read from the file with the given path name
     */
-  def lines(pathName: String, out: channel.!![String]): PROC =
+  def lines(pathName: String, out: !![String]): PROC =
     lines(new java.io.FileReader(new java.io.File(pathName)), out)
 
   /** Repeatedly output lines read from the standard input stream, stopping when
@@ -331,7 +334,7 @@ package object component {
     * operating systems) causes `out` to be closed for output, as does closing
     * the input port on the channel of which `out` is the output port.
     */
-  def keyboard(out: channel.!![String]): PROC =
+  def keyboard(out: !![String]): PROC =
     proc("keyboard") {
       repeat(out.canOutput) {
         val ln = scala.io.StdIn.readLine()
@@ -349,7 +352,7 @@ package object component {
     * does closing the input port on the channel of which `out` is the output
     * port.
     */
-  def keyboard(out: channel.!![String], prompt: => String): PROC =
+  def keyboard(out: !![String], prompt: => String): PROC =
     proc("keyboard") {
       repeat(out.canOutput) {
         Console.print(prompt)
@@ -360,7 +363,7 @@ package object component {
       out.closeOut()
     }
 
-  /** Read data from `in` as channel.as it appears there, copying the
+  /** Read data from `in` as as it appears there, copying the
     * most-recently read datum to `out` every `periodNS` nanoseconds.
     */
 
