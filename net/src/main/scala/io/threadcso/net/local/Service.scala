@@ -25,7 +25,7 @@ import io.threadcso.net.transport.Connection
   *  structure of code that provides, or uses, a `Service` is likely to be similar to that of code that
   *  provides (or uses) the services via networked connections.
   */
-abstract class Service[REQ,REP] (serviceName: String, backlog: Int=1)  {
+abstract class Service[REQ,REP] (val serviceName: String, backlog: Int=1)  {
   import Service._
   import io.threadcso.process.Process.Handle
   private def toServerChan[T](ssize: Int)(name: String):   Chan[T] = if (ssize<=0) OneOne(name) else OneOneBuf(ssize, name)

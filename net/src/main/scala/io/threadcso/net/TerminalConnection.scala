@@ -3,7 +3,7 @@ package io.threadcso.net
 import io.threadcso
 import io.threadcso.net.transport.Connection
 import io.threadcso.process.Process
-import io.threadcso.{OneOne, PROC, proc, repeat}
+import io.threadcso.{ManyOne, OneOne, PROC, proc, repeat}
 
 import java.io.{FileInputStream, FileOutputStream, InputStreamReader, OutputStreamWriter}
 
@@ -25,7 +25,7 @@ import java.io.{FileInputStream, FileOutputStream, InputStreamReader, OutputStre
 class TerminalConnection(EOF: String = null) extends Connection[String, String] with PROC {
   val log = ox.logging.Log("TerminalConnection")
   private val fromKbd   = OneOne[String]("From Keyboard")
-  private val toConsole = OneOne[String]("To Console")
+  private val toConsole = ManyOne[String]("To Console")
 
   val out: threadcso.!![String] = toConsole
   val in: threadcso.??[String]  = fromKbd
