@@ -27,7 +27,7 @@ programs (will) appear elsewhere on GitHub.
 ### NEWS: May 2023 Early access to io.threadcso.net
 
 The advent of virtual threads removes the need for using the rather 
-inefficient asynchronous networking proovided by `java.nio`. We have 
+inefficient asynchronous networking provided by `java.nio`. We have 
 therefore developed an alternative, more coherent, collection
 of low-level networking components. These appear here in the package `io.threadcso.net`,
 and supersede the overcomplicated (and unrefined) `eieio` that emerged
@@ -154,7 +154,7 @@ in the pool for more than a certain period. Several varieties of
 pool implementation are available: all can be specified and parameterized
 at run-time. (Note added Feb 2023: in the present setup *virtual
 threads* are used to run processes: the exact form of thread it will use
-when running can be specified at process abstration time)
+when running can be specified at process abstraction time)
 
 Simple process expressions yield values of type `PROC` and
 take one of the following forms
@@ -259,7 +259,7 @@ data.
 
 A variety of other CSO constructs are designed to simplify the
 programming of components / server processes that can be connected
-in networks tjhat can straightforwardly be terminated. 
+in networks that can straightforwardly be terminated. 
 For example, a read from the input port of a channel
 that is, or becomes, closed throws a `Stopped` exception, and such
 exceptions *naturally* terminate **repeat** loops and propagate through
