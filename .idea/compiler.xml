@@ -14,6 +14,7 @@
       <module name="msgpack" target="14" />
       <module name="net" target="14" />
       <module name="netio" target="14" />
+      <module name="ox.logging" target="14" />
       <module name="root" target="14" />
       <module name="ThreadCSO" target="14" />
     </bytecodeTargetLevel>
