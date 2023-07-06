@@ -183,10 +183,11 @@ object HTML {
     def Label(attributes: Attr*)(label: String) = Element("label", attributes, List(Literal(label)))
 
     def H(n: Int, attributes: Attr*)(body: Tree*)  = Element(s"h$n", attributes, body)
-    def H2(text: String) = H(1)(Literal(text))
-    def H3(text: String) = H(1)(Literal(text))
-    def H4(text: String) = H(1)(Literal(text))
-    def H5(text: String) = H(1)(Literal(text))
+    def H1(text: String) = H(1)(Literal(text))
+    def H2(text: String) = H(2)(Literal(text))
+    def H3(text: String) = H(3)(Literal(text))
+    def H4(text: String) = H(4)(Literal(text))
+    def H5(text: String) = H(5)(Literal(text))
 
     def Pre(attributes: Attr*)(body: Tree*)   = Element("pre", attributes, body)
     def Code(attributes: Attr*)(code: String) = Element("code", attributes, List(Literal(code, quoteSpecials = true)), withIndent=false)
