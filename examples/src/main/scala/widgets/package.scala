@@ -32,12 +32,12 @@ import javax.swing.border.Border
 package object widgets {
 
   /** Vertical or Horizontal orientation: used in JSlider, JToolBar, ... */
-  class Orientation(_rep: Int) { val rep = _rep }
+  class Orientation(_rep: Int) { val rep: Int = _rep }
   case object Vertical extends Orientation(SwingConstants.VERTICAL)
   case object Horizontal extends Orientation(SwingConstants.HORIZONTAL)
 
   trait Widget[+T] extends JComponent {
-    val self = this.asInstanceOf[T]
+    val self: T = this.asInstanceOf[T]
 
     /** Set the tooltip */
     def withTip(tip: String): T = { setToolTipText(tip); self}
@@ -109,10 +109,10 @@ package object widgets {
 
     /** Create an etched border */
     protected def etchedBorder: Border =
-      (BorderFactory.createCompoundBorder(
+      BorderFactory.createCompoundBorder(
         BorderFactory.createEtchedBorder(),
         BorderFactory.createEmptyBorder(2, 2, 2, 2)
-      ))
+      )
   }
 
   /** A ButtonWidget can be placed in a ButtonGroup */
@@ -136,7 +136,7 @@ package object widgets {
   }
 
   trait ActionSpec {
-    def action: Unit
+    def action(): Unit
   }
 
   class JButton extends javax.swing.JButton with ButtonWidget[JButton] {
@@ -147,7 +147,7 @@ package object widgets {
     /** A button whose action method is passed as a parameter */
     def this(name: String, act: Unit => Unit) = {
       this()
-      setAction(new Act(name) { def action = act(()) })
+      setAction(new Act(name) { def action(): Unit = act(()) })
     }
   }
 
@@ -162,7 +162,7 @@ package object widgets {
     def this(name: String, act: Boolean => Unit) = {
       this()
       val self = this
-      setAction(new Act(name) { def action = act(self.isSelected) })
+      setAction(new Act(name) { def action(): Unit = act(self.isSelected) })
     }
   }
 
@@ -179,7 +179,7 @@ package object widgets {
     def this(name: String, act: Boolean => Unit) = {
       this()
       val self = this
-      setAction(new Act(name) { def action = act(self.isSelected) })
+      setAction(new Act(name) { def action(): Unit = act(self.isSelected) })
     }
   }
 
@@ -191,7 +191,7 @@ package object widgets {
     def this(name: String, act: Boolean => Unit) = {
       this()
       val self = this
-      setAction(new Act(name) { def action = act(self.isSelected) })
+      setAction(new Act(name) { def action(): Unit = act(self.isSelected) })
     }
   }
 
@@ -203,7 +203,7 @@ package object widgets {
     def this(name: String, act: Boolean => Unit) = {
       this()
       val self = this
-      setAction(new Act(name) { def action = act(self.isSelected) })
+      setAction(new Act(name) { def action(): Unit = act(self.isSelected) })
     }
   }
 
@@ -212,7 +212,7 @@ package object widgets {
     def this(act: Act) = { this(); setAction(act) }
     def this(name: String, act: Unit => Unit) = {
       this()
-      setAction(new Act(name) { def action = act(()) })
+      setAction(new Act(name) { def action(): Unit = act(()) })
     }
   }
 
@@ -229,26 +229,26 @@ package object widgets {
       * their MenuItem counterparts that also add them to the menu under
       * construction
       */
-    def menuItem(name: String)(act: => Unit) = {
+    def menuItem(name: String)(act: => Unit): JMenuItem = {
       val item = new JMenuItem(name, { case () => act })
       cont.add(item)
       item
     }
 
-    def button(name: String)(act: => Unit) = {
+    def button(name: String)(act: => Unit): JMenuItem = {
       val item = new JMenuItem(name, { case () => act })
       cont.add(item)
       item
     }
 
-    def checkBox(name: String, state: Boolean*)(act: Boolean => Unit) = {
+    def checkBox(name: String, state: Boolean*)(act: Boolean => Unit): JCheckBoxMenuItem = {
       val initialState = state.length > 0 && state(0)
       val item = new JCheckBoxMenuItem(name, act) withSelected initialState
       cont.add(item)
       item
     }
 
-    def radioButton(name: String, state: Boolean*)(act: Boolean => Unit) = {
+    def radioButton(name: String, state: Boolean*)(act: Boolean => Unit): JRadioButton = {
       val initialState = state.length > 0 && state(0)
       val item = new JRadioButton(name, act) withSelected initialState
       cont.add(item)
@@ -261,7 +261,7 @@ package object widgets {
       _cont.add(this)
     }
 
-    def separator = addSeparator
+    def separator(): Unit = addSeparator()
     for (it <- items) add(it)
   }
 
@@ -287,19 +287,19 @@ package object widgets {
   class JToolBar(orientation: Orientation, widgets: Iterable[Widget[Any]])
       extends javax.swing.JToolBar(orientation.rep)
       with Widget[JToolBar] {
-    val cont = this
+    private val cont = this
 
     for (w <- widgets) add(w)
 
     /** Construct and add a button */
-    def button(name: String)(act: => Unit) = {
+    def button(name: String)(act: => Unit): JButton = {
       val item = new JButton(name, { case () => act })
       cont.add(item)
       item
     }
 
     /** Construct and add a checkbox (initial state parameter is optional) */
-    def checkBox(name: String, state: Boolean*)(act: Boolean => Unit) = {
+    def checkBox(name: String, state: Boolean*)(act: Boolean => Unit): JCheckBox = {
       val initialState = state.length > 0 && state(0)
       val item = new JCheckBox(name, act) withSelected initialState
       cont.add(item)
@@ -307,14 +307,14 @@ package object widgets {
     }
 
     /** Construct and add a radiobutton (initial state parameter is optional) */
-    def radioButton(name: String, state: Boolean*)(act: Boolean => Unit) = {
-      val initialState = state.length > 0 && state(0)
+    def radioButton(name: String, state: Boolean*)(act: Boolean => Unit): JRadioButton = {
+      val initialState = state.nonEmpty && state(0)
       val item = new JRadioButton(name, act) withSelected initialState
       cont.add(item)
       item
     }
 
-    def separator = addSeparator
+    def separator(): Unit = addSeparator()
   }
 
   class JSpinner[D](model: javax.swing.SpinnerModel, act: D => Unit)
@@ -392,7 +392,7 @@ package object widgets {
     setLayout(new BorderLayout)
     setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE)
 
-    override def pack = {
+    override def pack(): Unit = {
       if (North != null) add(North, "North")
       if (South != null) add(South, "South")
       if (East != null) add(East, "East")
@@ -406,7 +406,7 @@ package object widgets {
         throw new Error(
           "JApplication with null North, South, East, West, and Center"
         )
-      super.pack
+      super.pack()
     }
   }
 
@@ -415,13 +415,13 @@ package object widgets {
     */
   class JBorder extends JPanel(new BorderLayout) with Widget[JBorder] {
     var North, South, East, West, Center: JComponent = _
-    override def doLayout = {
+    override def doLayout(): Unit = {
       if (North != null) add(North, "North")
       if (South != null) add(South, "South")
       if (East != null) add(East, "East")
       if (West != null) add(West, "West")
       if (Center != null) add(Center, "Center")
-      super.doLayout
+      super.doLayout()
     }
   }
 
@@ -469,12 +469,12 @@ package object widgets {
       }
     })
 
-    def withMajor(n: Int) = { setMajorTickSpacing(n); this }
-    def withMinor(n: Int) = { setMinorTickSpacing(n); this }
-    def withTicks(b: Boolean) = { setPaintTicks(b); this }
-    def withLabels(b: Boolean) = { setPaintLabels(b); this }
-    def withInstant(b: Boolean) = { instant = b; this }
-    def withFontScaled(scale: Double) = {
+    def withMajor(n: Int): this.type = { setMajorTickSpacing(n); this }
+    def withMinor(n: Int): this.type  = { setMinorTickSpacing(n); this }
+    def withTicks(b: Boolean): this.type  = { setPaintTicks(b); this }
+    def withLabels(b: Boolean): this.type  = { setPaintLabels(b); this }
+    def withInstant(b: Boolean): this.type  = { instant = b; this }
+    def withFontScaled(scale: Double): this.type  = {
       val f = if (getFont == null) java.awt.Font.decode(null) else getFont
       setFont(f.deriveFont(scale.floatValue * f.getSize2D))
       this
@@ -491,29 +491,29 @@ package object widgets {
   abstract class Act(name: String)
       extends javax.swing.AbstractAction(name)
       with ActionSpec {
-    def actionPerformed(ev: ActionEvent): Unit = { action }
+    def actionPerformed(ev: ActionEvent): Unit = { action() }
 
     /** Set the short and Long descriptions and return this */
-    def withHint(s: String) = {
+    def withHint(s: String): this.type  = {
       withShortDescription(s)
       withLongDescription(s)
     }
 
     /** Set the short description and return this */
-    def withShortDescription(s: String) = {
+    def withShortDescription(s: String): this.type = {
       putValue(javax.swing.Action.SHORT_DESCRIPTION, s)
       this
     }
 
     /** Set the Long description and return this */
-    def withLongDescription(s: String) = {
+    def withLongDescription(s: String): this.type = {
       putValue(javax.swing.Action.LONG_DESCRIPTION, s)
       this
     }
 
     /** Set an icon to be placed in components built from this and return this
       */
-    def withIcon(icon: Icon) = {
+    def withIcon(icon: Icon): this.type = {
       putValue(javax.swing.Action.SMALL_ICON, icon)
       this
     }
@@ -521,7 +521,7 @@ package object widgets {
     /** Set the (initial) selection state of components to be built from this
       * and return this
       */
-    def withSelected(state: Boolean) = {
+    def withSelected(state: Boolean): this.type = {
       // putValue(javax.swing.Action.SELECTED_KEY, state) // 1.6 only
       putValue("SwingSelectedKey", state)
       this
@@ -542,13 +542,13 @@ package object widgets {
 
     /** Iterator over the buttons of this group
       */
-    def iterator = buttons.iterator
+    def iterator: Iterator[ButtonWidget[Any]] = buttons.iterator
 
     /** Returns the selected button, if any
       */
     def getSelected: Option[ButtonWidget[Any]] = {
       val bs = for (b <- buttons if b.isSelected) yield b
-      if (bs.length == 0) None else Some(bs(0))
+      if (bs.isEmpty) None else Some(bs(0))
     }
 
   }
@@ -562,50 +562,50 @@ package object widgets {
   def menuItem(name: String)(act: => Unit): JMenuItem =
     new JMenuItem(name, { case () => act })
 
-  def checkBoxMenuItem(name: String)(act: Boolean => Unit) =
+  def checkBoxMenuItem(name: String)(act: Boolean => Unit): JCheckBoxMenuItem =
     new JCheckBoxMenuItem(name, act)
 
-  def radioButtonMenuItem(name: String)(act: Boolean => Unit) =
+  def radioButtonMenuItem(name: String)(act: Boolean => Unit): JRadioButtonMenuItem =
     new JRadioButtonMenuItem(name, act)
 
-  def checkBox(name: String)(act: Boolean => Unit) = new JCheckBox(name, act)
+  def checkBox(name: String)(act: Boolean => Unit): JCheckBox = new JCheckBox(name, act)
 
-  def checkBox(name: String, state: Boolean)(act: Boolean => Unit) =
+  def checkBox(name: String, state: Boolean)(act: Boolean => Unit): JCheckBox =
     new JCheckBox(name, act) withSelected state
 
-  def button(name: String)(act: => Unit) = new JButton(name, { case () => act })
+  def button(name: String)(act: => Unit): JButton = new JButton(name, { case () => act })
 
   def radioButton(name: String)(act: Boolean => Unit) =
     new JRadioButton(name, act)
 
-  def radioButton(name: String, state: Boolean)(act: Boolean => Unit) =
+  def radioButton(name: String, state: Boolean)(act: Boolean => Unit): JRadioButton =
     new JRadioButton(name, act) withSelected state
 
-  def label(text: String, icon: Icon) = new JLabel(text, icon)
+  def label(text: String, icon: Icon): JLabel = new JLabel(text, icon)
 
-  def label(text: String) = new JLabel(text)
+  def label(text: String): JLabel = new JLabel(text)
 
-  def buttonGroup[W <: ButtonWidget[Any]](buttons: W*) = new ButtonGroup(
+  def buttonGroup[W <: ButtonWidget[Any]](buttons: W*): ButtonGroup= new ButtonGroup(
     buttons
   )
 
   def slider(min: Int, max: Int, value: Int, or: Orientation = Horizontal)(
       act: Int => Unit
-  ) =
+  ): JSlider =
     new JSlider(min, max, value, or) { def onChange(value: Int) = act(value) }
 
-  def textField(text: String, cols: Int)(act: String => Unit) =
-    new JTextField(text, cols) { def action = act(getText) }
+  def textField(text: String, cols: Int)(act: String => Unit): JTextField =
+    new JTextField(text, cols) { def action(): Unit = act(getText) }
 
-  def col(cs: Widget[Any]*) = new JCol(cs)
+  def col(cs: Widget[Any]*): JCol = new JCol(cs)
 
-  def col(cs: Iterable[Widget[Any]]) = new JCol(cs)
+  def col(cs: Iterable[Widget[Any]]): JCol = new JCol(cs)
 
-  def row(cs: Widget[Any]*) = new JRow(cs)
+  def row(cs: Widget[Any]*): JRow = new JRow(cs)
 
-  def row(cs: Iterable[Widget[Any]]) = new JRow(cs)
+  def row(cs: Iterable[Widget[Any]]): JRow = new JRow(cs)
 
-  def hGlue = new HGlue
-  def vGlue = new VGlue
+  def hGlue() = new HGlue
+  def vGlue() = new VGlue
 
 }
