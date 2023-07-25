@@ -58,11 +58,19 @@ class CombiningLogBarrier[T](n: Int, e: T, op: (T, T) => T, _name: String = null
   assert(n >= 1)
   private var r, g = -1
 
-  /** thread signals parent that it's ready */
-  val ready = Array.fill(n)({ r+=1; DataChan[T](s"$name.ready($r)") })
+  // Remark: Synchronization of the ready and go channels is not necessary; since no
+  // entitities external to the reader and writer of each channel are involved,
+  // Here a write always happens before the corresponding read, and the subsequent
+  // write (if any) must happen-after that read.
+  /**
+    * Thread signals parent that it's ready
+    */
+  val ready = Array.fill(n)({ r+=1; DataChan[T](s"$name.ready($r)", synchronized = false) })
 
-  /** parent signals thread that it can proceed */
-  val go    = Array.fill(n)({ g+=1; DataChan[T](s"$name.go($r)")})
+  /**
+    * Parent signals thread that it can proceed
+    */
+  val go    = Array.fill(n)({ g+=1; DataChan[T](s"$name.go($r)", synchronized = false)})
   
   @inline private def left(id: Int): Int  = 1+2*id
   @inline private def right(id: Int): Int = 2+2*id
