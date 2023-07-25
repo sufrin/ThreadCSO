@@ -84,7 +84,7 @@ class LyfeDashboard[Body<:Displayable](val allBodies: Iterable[Body], val title:
   }
 
   def controls = row(
-    run.withEtchedBorder (), hGlue, fps
+    run.withEtchedBorder (), hGlue(), fps
   ).withEtchedBorder()
 
   val display = new Display[Body](
@@ -97,7 +97,7 @@ class LyfeDashboard[Body<:Displayable](val allBodies: Iterable[Body], val title:
     components = null, // No response to resizings
     motions    = fromDisplay,
     North      = controls,
-    South      = row(reports, hGlue, overruns)
+    South      = row(reports, hGlue(), overruns)
   )
 
 }

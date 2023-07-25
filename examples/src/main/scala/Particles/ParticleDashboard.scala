@@ -132,12 +132,12 @@ class ParticleDashboard[Body<:Displayable](val allBodies: collection.mutable.Que
 
   def controls = row(
     run,
-    hGlue,
+    hGlue(),
     // label(s"${allBodies.length}"),
     col(radius, density, speed),
-    hGlue,
+    hGlue(),
     fps,
-    hGlue,
+    hGlue(),
     wBounce,
     bBounce,
     gravity,
@@ -145,7 +145,7 @@ class ParticleDashboard[Body<:Displayable](val allBodies: collection.mutable.Que
     mx,
     time,
     lightspeed,
-    hGlue
+    hGlue()
   ).withEtchedBorder()
 
   val display = new Display[Body](
@@ -158,7 +158,7 @@ class ParticleDashboard[Body<:Displayable](val allBodies: collection.mutable.Que
     components = fromDisplay,
     motions = fromDisplay,
     North = controls,
-    South = row(reports, hGlue, overruns)
+    South = row(reports, hGlue(), overruns)
   )
 
 }
