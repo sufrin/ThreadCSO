@@ -130,7 +130,7 @@ package object widgets {
     def addActionListener(listener: java.awt.event.ActionListener): Unit
 
     addActionListener(new java.awt.event.ActionListener() {
-      def actionPerformed(ev: ActionEvent): Unit = { action }
+      def actionPerformed(ev: ActionEvent): Unit = { action() }
     })
 
   }
