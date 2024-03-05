@@ -79,8 +79,7 @@ package object component {
     *
     */
   def merge[T](ins: collection.Seq[??[T]], out: !![T]): PROC = π("merge") {
-    serve(ins.head =?=> { x => out ! x })
-    // serve ( | (for (in <- ins) yield in =?=> { x => out!x } ) )
+    serve ( | (for (in <- ins) yield in =?=> { x => out!x } ) )
     out.closeOut()
     for (in <- ins) in.closeIn()
   }
