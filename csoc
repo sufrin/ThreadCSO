@@ -3,5 +3,5 @@
 # scalac with threadcso library on the classpath
 #
 export JAVA_OPTS="-Xmx1024M -Xms128M --enable-preview"
-export JAVA_HOME="/Users/sufrin/Downloads/jdk-20.jdk/Contents/Home"
-scalac -cp /Users/sufrin/IdeaProjects/ThreadCSO/threadcso-2.13+jdk20+2.0.0.jar "$@"
+export JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home"
+scalac -cp /Users/sufrin/IdeaProjects/ThreadCSO/threadcso-2.13+jdk21+2.0.0.jar "$@"

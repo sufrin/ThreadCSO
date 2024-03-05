@@ -17,6 +17,7 @@
       <module name="ox.logging" target="14" />
       <module name="root" target="14" />
       <module name="ThreadCSO" target="14" />
+      <module name="ThreadCSO.logging" target="14" />
     </bytecodeTargetLevel>
   </component>
 </project>

@@ -4,7 +4,7 @@
 echo --- Reading configuration
 #
 #
-export JAVA_HOME=${JAVA_HOME:=$HOME/Downloads/jdk-20.jdk/Contents/Home}
+export JAVA_HOME=${JAVA_HOME:=$HOME/Libraryjdk-21.jdk/Contents/Home}
 echo JAVA_HOME=$JAVA_HOME
 LIBDIR=`pwd`
 #
@@ -13,7 +13,7 @@ LIBDIR=`pwd`
 BUILD=$LIBDIR/BUILD-TEMP
 LIBVERSION=2.0.0
 SCALAVERSION=2.13
-JAVAVERSION=jdk20
+JAVAVERSION=jdk21
 VERSION=$SCALAVERSION+$JAVAVERSION+$LIBVERSION
 LIBJAR=$LIBDIR/threadcso-$VERSION.jar
 EXAMPLESJAR=$LIBDIR/threadcso-examples-$VERSION.jar
